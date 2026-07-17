@@ -16,6 +16,7 @@ import MonitorHeartIcon from "@mui/icons-material/MonitorHeart";
 import WbIridescentIcon from "@mui/icons-material/WbIridescent";
 import RuleIcon from "@mui/icons-material/Rule";
 import VaccinesOutlinedIcon from "@mui/icons-material/VaccinesOutlined";
+import ScienceIcon from "@mui/icons-material/Science";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import LocalPharmacyIcon from "@mui/icons-material/LocalPharmacy";
@@ -53,6 +54,7 @@ export const navGroups: NavGroup[] = [
       { label: "Severity grading", to: "/grading", icon: RuleIcon },
       { label: "Phototherapy", to: "/phototherapy", icon: WbIridescentIcon },
       { label: "Immunization", to: "/immunization", icon: VaccinesOutlinedIcon },
+      { label: "Laboratory", to: "/lab", icon: ScienceIcon },
     ],
   },
   {

@@ -16,6 +16,7 @@ import PayrollPage from './pages/PayrollPage';
 import BillingPage from './pages/BillingPage';
 import DermatologyGradingPage from './pages/DermatologyGradingPage';
 import PharmacyPage from './pages/PharmacyPage';
+import LabPage from './pages/LabPage';
 import ImmunizationPage from './pages/ImmunizationPage';
 
 // Application route tree.
@@ -43,6 +44,7 @@ export const router = createBrowserRouter([
       { path: 'payroll', element: <PayrollPage /> },
       { path: 'billing', element: <BillingPage /> },
       { path: 'pharmacy', element: <PharmacyPage /> },
+      { path: 'lab', element: <LabPage /> },
       { path: 'immunization', element: <ImmunizationPage /> },
       { path: 'reports', element: <ReportsPage /> },
       { path: 'integrations', element: <IntegrationsPage /> },

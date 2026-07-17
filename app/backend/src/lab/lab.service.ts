@@ -29,7 +29,21 @@ export class LabService {
   createOrder(dto: CreateLabOrderDto) {
     const { tenantId, userId } = getTenant();
     // Validate + snapshot the ordered tests from the catalog.
-    const items = dto.testCodes.map((code) => {
+    //
+    // Dedupe first. A result is keyed by (order, testCode) and upserted, so a
+    // test can hold exactly one result — but nothing stopped the same code being
+    // ordered twice, creating two items one result could never satisfy. The order
+    // then stuck in COLLECTED forever: report() counts results < items and
+    // refuses, even though every test IS resulted. A test ordered twice is still
+    // one test to run; deduping is the honest model, not a workaround.
+    const seen = new Set<string>();
+    const codes = dto.testCodes.filter((c) => {
+      const key = getTest(c)?.code ?? c;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const items = codes.map((code) => {
       const test = getTest(code);
       if (!test) throw new BadRequestException(`Unknown lab test "${code}"`);
       return { testCode: test.code, testName: test.name, pricePkr: test.pricePkr };
