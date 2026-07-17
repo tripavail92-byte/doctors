@@ -80,11 +80,45 @@ s, odOnly = api('GET', '/trends/%s/patient/%s?laterality=OD' % (CHART, pid), tok
 sides = {ser['side'] for ser in odOnly.get('series') or []}
 ck('filtering laterality=OD returns only the right eye', sides == {'RIGHT'}, sides)
 
-print('\n== The chart summary reuses the trend engine ==')
+print('\n== The chart summary is PER-SIDE, never pooled across eyes ==')
+# summary returns an array: one per series. A forced side gives that one series.
 s, summ = api('GET', '/trends/%s/patient/%s/summary?laterality=OD' % (CHART, pid), tok)
-ck('summary gives latest / min / max over OD', summ.get('latest') == 18 and summ.get('min') == 18 and summ.get('max') == 24,
-   'latest=%s min=%s max=%s' % (summ.get('latest'), summ.get('min'), summ.get('max')))
-ck('and a downward direction (24 -> 18)', summ.get('direction') == 'down', summ.get('direction'))
+od_s = summ[0] if isinstance(summ, list) else summ
+# Over the AGGREGATED series the chart plots (day1 last=22, day2=18) — the raw
+# 24 was collapsed away by lastPerVisit, so max is 22, matching the chart.
+ck('OD summary matches the plotted points (latest 18, min 18, max 22)',
+   od_s.get('latest') == 18 and od_s.get('min') == 18 and od_s.get('max') == 22,
+   'latest=%s min=%s max=%s' % (od_s.get('latest'), od_s.get('min'), od_s.get('max')))
+ck('and a downward direction (22 -> 18)', od_s.get('direction') == 'down', od_s.get('direction'))
+# The bug the adversarial review found: default (no side) must NOT pool both
+# eyes into one cross-eye delta. It returns one summary per eye.
+s, both = api('GET', '/trends/%s/patient/%s/summary' % (CHART, pid), tok)
+sides = {x['side'] for x in both} if isinstance(both, list) else set()
+ck('default summary on a per-eye chart returns ONE per eye (not pooled)', sides == {'RIGHT', 'LEFT'}, sides)
+od = next((x for x in both if x['side'] == 'RIGHT'), {})
+ck('each eye delta is within that eye (OD plotted 22 -> 18 = -4), not across eyes',
+   od.get('delta') == -4 and od.get('previous') == 22, 'delta=%s previous=%s' % (od.get('delta'), od.get('previous')))
+ck('and no summary reports side=null while mixing eyes', None not in sides, sides)
+
+print('\n== The summary flags a latest reading against the chart bands ==')
+fp = api('POST', '/patients', tok, {'mrn': 'FLAG-%d' % U, 'name': 'Flag %d' % U, 'phone': '+92 300 2020202'})[1]['id']
+api('POST', '/observations', tok, {'patientId': fp, 'metric': 'iop_mmhg', 'value': 28, 'unit': 'mmHg', 'side': 'OD', 'recordedAt': '2026-06-01T10:00:00Z'})
+s, fs = api('GET', '/trends/%s/patient/%s/summary?laterality=OD' % (CHART, fp), tok)
+ck('IOP 28 (> 21 normal ceiling) flags HIGH, not "unknown"', (fs[0] if isinstance(fs, list) else fs).get('latestFlag') == 'high',
+   (fs[0] if isinstance(fs, list) else fs).get('latestFlag'))
+
+print('\n== The date range is day-aligned and validated ==')
+rp = api('POST', '/patients', tok, {'mrn': 'RANGE-%d' % U, 'name': 'Range %d' % U, 'phone': '+92 300 3030303'})[1]['id']
+api('POST', '/observations', tok, {'patientId': rp, 'metric': 'iop_mmhg', 'value': 15, 'unit': 'mmHg', 'side': 'OD', 'recordedAt': '2026-07-15T09:00:00Z'})
+api('POST', '/observations', tok, {'patientId': rp, 'metric': 'iop_mmhg', 'value': 25, 'unit': 'mmHg', 'side': 'OD', 'recordedAt': '2026-07-17T14:00:00Z'})
+s, c = api('GET', '/trends/%s/patient/%s?to=2026-07-17' % (CHART, rp), tok)
+vals = [pt['value'] for ser in (c.get('series') or []) for pt in ser['points']]
+ck('a date-only "to" INCLUDES that whole day (the 14:00 reading is kept)', 25 in vals, vals)
+s, c2 = api('GET', '/trends/%s/patient/%s?from=2026-07-17&to=2026-07-17' % (CHART, rp), tok)
+vals2 = [pt['value'] for ser in (c2.get('series') or []) for pt in ser['points']]
+ck('a single-day window returns that day (not empty)', vals2 == [25], vals2)
+s, bad = api('GET', '/trends/%s/patient/%s?to=notadate' % (CHART, rp), tok)
+ck('an unparseable date is a clean 400, not a 500', s == 400, '%s %s' % (s, (bad.get('message') or '')[:40]))
 
 print('\n== A clinician pins an annotation onto the chart ==')
 s, ann = api('POST', '/trends/annotations', tok,

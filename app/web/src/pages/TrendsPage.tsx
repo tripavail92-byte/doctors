@@ -51,11 +51,13 @@ interface ChartData {
   annotations: Annotation[];
 }
 interface Summary {
+  side: string | null;
   latest: number | null;
   min: number | null;
   max: number | null;
   delta: number | null;
   direction: string;
+  latestFlag: string;
 }
 
 // Map a band's declared colour name to a real hue. Kept deliberately small and
@@ -80,8 +82,8 @@ export default function TrendsPage() {
     () => (active && activeChart ? apiClient.get<ChartData>(`/trends/${activeChart}/patient/${active}`).then((r) => r.data) : Promise.resolve(null)),
     [active, activeChart],
   );
-  const summary = useApi<Summary | null>(
-    () => (active && activeChart ? apiClient.get<Summary>(`/trends/${activeChart}/patient/${active}/summary`).then((r) => r.data) : Promise.resolve(null)),
+  const summary = useApi<Summary[]>(
+    () => (active && activeChart ? apiClient.get<Summary[]>(`/trends/${activeChart}/patient/${active}/summary`).then((r) => r.data) : Promise.resolve([])),
     [active, activeChart],
   );
 
@@ -114,27 +116,33 @@ export default function TrendsPage() {
 
       {chart.data && (
         <>
-          {summary.data && (
-            <Grid container spacing={2} sx={{ mb: 3 }}>
-              {(
-                [
-                  ['latest', summary.data.latest, chart.data.definition.unit],
-                  ['min', summary.data.min, chart.data.definition.unit],
-                  ['max', summary.data.max, chart.data.definition.unit],
-                  ['change', summary.data.delta, summary.data.direction],
-                ] as const
-              ).map(([label, v, sub]) => (
-                <Grid item xs={6} sm={3} key={label}>
-                  <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 3 }}>
-                    <CardContent sx={{ py: 1.5 }}>
-                      <Typography variant="h6" sx={{ fontWeight: 700 }}>{v ?? '—'}</Typography>
-                      <Typography variant="caption" color="text.secondary">{label} · {sub}</Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-          )}
+          {/* One summary row per plotted series — never a pooled cross-side number. */}
+          {(summary.data ?? []).map((sm) => (
+            <Box key={sm.side ?? 'all'} sx={{ mb: 2 }}>
+              {chart.data!.definition.splitByLaterality && (
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>{sideLabel(sm.side)}</Typography>
+              )}
+              <Grid container spacing={2}>
+                {(
+                  [
+                    ['latest', sm.latest, sm.latestFlag !== 'normal' && sm.latestFlag !== 'unknown' ? sm.latestFlag : chart.data!.definition.unit],
+                    ['min', sm.min, chart.data!.definition.unit],
+                    ['max', sm.max, chart.data!.definition.unit],
+                    ['change', sm.delta, sm.direction],
+                  ] as const
+                ).map(([label, v, sub]) => (
+                  <Grid item xs={6} sm={3} key={label}>
+                    <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 3 }}>
+                      <CardContent sx={{ py: 1.5 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 700, color: label === 'latest' && (sm.latestFlag === 'high' || sm.latestFlag === 'low') ? 'error.main' : 'text.primary' }}>{v ?? '—'}</Typography>
+                        <Typography variant="caption" color="text.secondary">{label} · {sub}</Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
+          ))}
 
           <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 3 }}>
             <CardContent>
