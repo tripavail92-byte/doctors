@@ -43,7 +43,15 @@ ck('rom-reference loaded', len(refs)>=25, len(refs))
 ck('knee flexion normal=135 max=150', knee and knee[0]['normalDegrees']==135 and knee[0]['maxDegrees']==150, knee[:1])
 
 print('\n== 3. Episode with pacemaker safety intake ==')
-s,pl = call('GET','/patients?take=1',tok=tok); pid=pl[0]['id']
+# A FRESH patient, not patients?take=1. Section 6 asserts a specific pain-trend
+# shape (down, delta -1), which is only deterministic if this patient's nprs
+# history contains only this run's sessions. Sharing a patient across runs
+# couples the trend to whatever ran before — the exact contamination that makes
+# a suite flaky in CI.
+import time as _t
+_u = int(_t.time()*1000) % 1000000
+s,_pt = call('POST','/patients',{'mrn':'REHAB-%d'%_u,'name':'Rehab Probe %d'%_u,'phone':'+92 300 2222222'},tok)
+pid = _pt['id']
 s,ep = call('POST','/rehab/episodes',{'patientId':pid,'diagnosis':'Post-ACL reconstruction, right knee',
     'bodyRegion':'KNEE','sessionsPlanned':10,'goals':'Restore knee flexion to 130 deg',
     'safetyIntake':{'pacemaker':True,'malignancy':False}},tok)
@@ -94,5 +102,26 @@ s,d = call('PATCH','/rehab/episodes/%s/discharge'%eid,{'status':'DISCHARGED','di
 ck('discharge episode', s in (200,201), s if s>=400 else '')
 s,after = call('POST','/rehab/episodes/%s/sessions'%eid,{'modalities':['EXERCISE']},tok)
 ck('add-session-after-discharge blocked', s==400, s)
+
+print('\n== 8. Recording a session never silently fails under load ==')
+# addSession reads the last session number then inserts, and writes a shared pain
+# Observation. Fired concurrently on one episode (two physios, or a double-click),
+# that used to succeed once and return opaque HTTP 500s for the rest — a session a
+# clinician believed they recorded, gone. The episode row-lock serialises them.
+import threading
+s,epc = call('POST','/rehab/episodes',{'patientId':pid,'diagnosis':'Concurrency probe','bodyRegion':'ANKLE'},tok)
+eidc = epc['id']
+_out=[]; _lk=threading.Lock()
+def _go():
+    st,d = call('POST','/rehab/episodes/%s/sessions'%eidc,{'modalities':['US'],'painPre':4},tok)
+    with _lk: _out.append((st,(d.get('session') or {}).get('sessionNumber')))
+_ths=[threading.Thread(target=_go) for _ in range(6)]
+for x in _ths: x.start()
+for x in _ths: x.join()
+_codes=[c for c,_ in _out]; _nums=sorted(n for _,n in _out if n is not None)
+ck('all 6 concurrent sessions succeed (no opaque 500s)', _codes.count(201)==6, 'codes=%s'%sorted(_codes))
+ck('numbers are 1..6, unique — none lost or duplicated', _nums==[1,2,3,4,5,6], _nums)
+s,_full = call('GET','/rehab/episodes/%s'%eidc,tok=tok)
+ck('and all 6 are on the episode', len(_full.get('sessions') or [])==6, len(_full.get('sessions') or []))
 
 print('\n===== %d/%d checks passed ====='%(sum(res), len(res)))

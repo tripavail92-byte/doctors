@@ -155,6 +155,13 @@ export class RehabService {
     const tenantId = getTenantId();
     const { userId } = getTenant();
     return this.prisma.forTenant(tenantId, async (tx) => {
+      // Serialize session writes on the episode row. addSession reads the last
+      // session number then inserts (a read-then-write), and also writes a shared
+      // pain Observation. Fired concurrently — two physios on one episode, or a
+      // double-click — those collided: one succeeded and the rest came back as
+      // opaque HTTP 500s, so a session a clinician thought they recorded was
+      // silently lost. The lock makes them run one at a time, as IPD locks a bed.
+      await tx.$executeRaw`SELECT id FROM "RehabEpisode" WHERE id = ${episodeId}::uuid FOR UPDATE`;
       const episode = await requireActiveEpisode(tx, episodeId);
       const intake = (episode.safetyIntake ?? {}) as Record<string, boolean>;
 
