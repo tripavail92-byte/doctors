@@ -20,6 +20,7 @@ import ScienceIcon from "@mui/icons-material/Science";
 import HotelIcon from "@mui/icons-material/Hotel";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import AccessibilityNewIcon from "@mui/icons-material/AccessibilityNew";
+import ShowChartIcon from "@mui/icons-material/ShowChart";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import CampaignIcon from "@mui/icons-material/Campaign";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
@@ -62,6 +63,7 @@ export const navGroups: NavGroup[] = [
       { label: "Inpatient", to: "/ipd", icon: HotelIcon },
       { label: "Eye exam", to: "/ophthalmology", icon: VisibilityIcon },
       { label: "Physiotherapy", to: "/rehab", icon: AccessibilityNewIcon },
+      { label: "Trends", to: "/trends", icon: ShowChartIcon },
     ],
   },
   {

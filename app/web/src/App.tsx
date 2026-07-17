@@ -21,6 +21,7 @@ import IpdPage from './pages/IpdPage';
 import CrmPage from './pages/CrmPage';
 import OphthalmologyPage from './pages/OphthalmologyPage';
 import RehabPage from './pages/RehabPage';
+import TrendsPage from './pages/TrendsPage';
 import ImmunizationPage from './pages/ImmunizationPage';
 
 // Application route tree.
@@ -53,6 +54,7 @@ export const router = createBrowserRouter([
       { path: 'leads', element: <CrmPage /> },
       { path: 'ophthalmology', element: <OphthalmologyPage /> },
       { path: 'rehab', element: <RehabPage /> },
+      { path: 'trends', element: <TrendsPage /> },
       { path: 'immunization', element: <ImmunizationPage /> },
       { path: 'reports', element: <ReportsPage /> },
       { path: 'integrations', element: <IntegrationsPage /> },
