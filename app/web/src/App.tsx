@@ -11,6 +11,8 @@ import AncCardPage from './pages/AncCardPage';
 import PartogramPage from './pages/PartogramPage';
 import ReportsPage from './pages/ReportsPage';
 import IntegrationsPage from './pages/IntegrationsPage';
+import PhototherapyPage from './pages/PhototherapyPage';
+import ImmunizationPage from './pages/ImmunizationPage';
 
 // Application route tree.
 // /login is public; everything under '/' is wrapped in RequireAuth and rendered
@@ -32,6 +34,8 @@ export const router = createBrowserRouter([
       { path: 'dose', element: <DoseCalculatorPage /> },
       { path: 'anc', element: <AncCardPage /> },
       { path: 'partogram', element: <PartogramPage /> },
+      { path: 'phototherapy', element: <PhototherapyPage /> },
+      { path: 'immunization', element: <ImmunizationPage /> },
       { path: 'reports', element: <ReportsPage /> },
       { path: 'integrations', element: <IntegrationsPage /> },
       // Unknown paths fall back to the dashboard.

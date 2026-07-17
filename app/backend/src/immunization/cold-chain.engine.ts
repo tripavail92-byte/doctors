@@ -20,6 +20,7 @@ export interface BatchLike {
   vvmStage: VvmStage;
   dosesRemaining: number;
   discardedAt?: Date | null;
+  discardReason?: string | null;
 }
 
 export type UsabilityCode =
@@ -50,7 +51,14 @@ export const VVM_DISCARD: VvmStage[] = ['STAGE_3', 'STAGE_4'];
  */
 export function batchUsability(b: BatchLike, now: Date): Usability {
   if (b.discardedAt) {
-    return { usable: false, code: 'discarded', reason: `Lot ${b.lotNumber} was discarded.` };
+    // Carry the reason. "Was discarded" is true and useless; "VVM stage 3 —
+    // fridge failure" tells staff the neighbouring vials are suspect too, which
+    // is the whole point of noticing.
+    return {
+      usable: false,
+      code: 'discarded',
+      reason: `Lot ${b.lotNumber} was discarded${b.discardReason ? `: ${b.discardReason}` : ''}.`,
+    };
   }
   if (VVM_DISCARD.includes(b.vvmStage)) {
     return {
