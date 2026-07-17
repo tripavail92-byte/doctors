@@ -7,7 +7,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { getTenant } from '../common/tenant/tenant-context';
 import { EPI_SCHEDULE } from './epi-schedule';
-import { computeSchedule, scheduleSummary } from './immunization.engine';
+import { computeSchedule, scheduleSummary } from './schedule.engine';
 import { RecordImmunizationDto } from './dto/record-immunization.dto';
 
 /**

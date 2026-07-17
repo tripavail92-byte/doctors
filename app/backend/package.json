@@ -17,7 +17,8 @@
     "check:derma-safety": "python test/safety/derma_safety_suite.py",
     "check:derma-functional": "python test/safety/derma_functional_suite.py",
     "check:dental": "python test/safety/dental_dentition_suite.py",
-    "check:clinical": "npm run check:derma-safety && npm run check:derma-functional && npm run check:dental",
+    "check:epi": "ts-node scripts/check-epi-schedule.ts",
+    "check:clinical": "npm run check:derma-safety && npm run check:derma-functional && npm run check:dental && npm run check:epi",
     "check:security": "npm run check:rls && npm run check:isolation && npm run check:boot"
   },
   "prisma": {
