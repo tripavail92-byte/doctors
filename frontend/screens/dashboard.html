@@ -1,0 +1,66 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script></head>
+<body data-page="dashboard" data-title="Good morning, Dr. Sana" data-sub="Saturday, 11 July 2026 · here's how your clinic is doing today">
+
+<div class="kpis">
+  <div class="kpi"><div class="h"><span class="lab">Today's Revenue</span><span class="ico"><svg class="ic"><use href="#i-cash"/></svg></span></div><div class="val tnum">Rs 486,000</div><div class="foot"><span class="delta up">▲ 12%</span> vs yesterday</div>
+    <svg class="spark" viewBox="0 0 120 26" preserveAspectRatio="none"><polyline points="0,20 15,18 30,19 45,13 60,15 75,9 90,11 105,6 120,4" fill="none" style="stroke:var(--accent)" stroke-width="2" stroke-linecap="round"/></svg></div>
+  <div class="kpi"><div class="h"><span class="lab">Appointments Today</span><span class="ico"><svg class="ic"><use href="#i-cal"/></svg></span></div><div class="val tnum">18</div><div class="foot"><span class="status s-good">7 done</span> <span class="status s-crit">2 no-show</span></div></div>
+  <div class="kpi"><div class="h"><span class="lab">New Leads</span><span class="ico"><svg class="ic"><use href="#i-leads"/></svg></span></div><div class="val tnum">23</div><div class="foot"><span class="delta up">▲ 6</span> since 9 AM</div></div>
+  <div class="kpi"><div class="h"><span class="lab">Outstanding Balance</span><span class="ico" style="background:var(--warn-bg);color:var(--warn)"><svg class="ic"><use href="#i-invoice"/></svg></span></div><div class="val tnum">Rs 1.24M</div><div class="foot">across 28 patients</div></div>
+</div>
+
+<div class="grid-2">
+  <div class="card"><div class="card-head"><div><h3>Revenue — Last 14 Days</h3><p>Collected payments in PKR</p></div><button class="btn sm ghost">This month ▾</button></div>
+    <div class="card-body"><svg viewBox="0 0 620 190" width="100%" height="190" preserveAspectRatio="none" role="img"><defs><linearGradient id="rg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--accent)" stop-opacity=".28"/><stop offset="1" style="stop-color:var(--accent)" stop-opacity="0"/></linearGradient></defs>
+      <line x1="0" y1="45" x2="620" y2="45" style="stroke:var(--line-soft)"/><line x1="0" y1="95" x2="620" y2="95" style="stroke:var(--line-soft)"/><line x1="0" y1="145" x2="620" y2="145" style="stroke:var(--line-soft)"/>
+      <path d="M0,150 L48,138 L96,145 L144,120 L192,128 L240,100 L288,110 L336,86 L384,95 L432,70 L480,80 L528,54 L576,62 L620,44 L620,190 L0,190 Z" fill="url(#rg)"/>
+      <path d="M0,150 L48,138 L96,145 L144,120 L192,128 L240,100 L288,110 L336,86 L384,95 L432,70 L480,80 L528,54 L576,62 L620,44" fill="none" style="stroke:var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>
+      <circle cx="620" cy="44" r="4.5" style="fill:var(--accent)" stroke="#fff" stroke-width="2"/></svg></div></div>
+  <div class="card"><div class="card-head"><div><h3>Where Leads Come From</h3><p>This month · 312 leads</p></div></div>
+    <div class="card-body" style="display:flex;gap:16px;align-items:center"><svg viewBox="0 0 140 140" width="128" height="128" style="flex:none"><g transform="rotate(-90 70 70)" fill="none" stroke-width="18"><circle cx="70" cy="70" r="52" style="stroke:var(--line)"/><circle cx="70" cy="70" r="52" stroke="#0E7C74" stroke-dasharray="137 190"/><circle cx="70" cy="70" r="52" stroke="#2E9B8E" stroke-dasharray="78 249" stroke-dashoffset="-137"/><circle cx="70" cy="70" r="52" stroke="#C79A3A" stroke-dasharray="59 268" stroke-dashoffset="-215"/><circle cx="70" cy="70" r="52" stroke="#5FB8AD" stroke-dasharray="29 297" stroke-dashoffset="-274"/><circle cx="70" cy="70" r="52" stroke="#8A9CA0" stroke-dasharray="23 304" stroke-dashoffset="-303"/></g><text x="70" y="66" text-anchor="middle" font-size="22" font-weight="700" style="fill:var(--ink)">312</text><text x="70" y="84" text-anchor="middle" font-size="10" style="fill:var(--muted)">leads</text></svg>
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px;font-size:12.5px">
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:3px;background:#0E7C74"></span>Instagram <b style="margin-left:auto">42%</b></div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:3px;background:#2E9B8E"></span>Facebook <b style="margin-left:auto">24%</b></div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:3px;background:#C79A3A"></span>WhatsApp <b style="margin-left:auto">18%</b></div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:3px;background:#5FB8AD"></span>Referral <b style="margin-left:auto">9%</b></div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:3px;background:#8A9CA0"></span>Website <b style="margin-left:auto">7%</b></div>
+      </div></div></div>
+</div>
+
+<div class="grid-2">
+  <div class="card"><div class="card-head"><div><h3>Today's Appointments</h3><p>18 booked · 3 rooms</p></div><a class="btn sm ghost" href="appt-calendar.html">View calendar →</a></div>
+    <div class="tablewrap"><table class="table"><thead><tr><th>Time</th><th>Patient</th><th>Treatment</th><th>Doctor</th><th>Status</th></tr></thead><tbody>
+      <tr><td class="tnum">10:00</td><td><div class="who-cell"><div class="av-sm">MK</div><div><div class="nm">Maria Khan</div><div class="mt">Plan 3/6</div></div></div></td><td>HydraFacial</td><td>Dr. Ayesha</td><td><span class="status s-good"><span class="dot"></span>Completed</span></td></tr>
+      <tr><td class="tnum">10:30</td><td><div class="who-cell"><div class="av-sm">FA</div><div><div class="nm">Fatima Ali</div><div class="mt">New patient</div></div></div></td><td>Botox — Forehead</td><td>Dr. Ayesha</td><td><span class="status s-accent"><span class="dot"></span>In progress</span></td></tr>
+      <tr><td class="tnum">11:15</td><td><div class="who-cell"><div class="av-sm">SR</div><div><div class="nm">Sana Raza</div><div class="mt">Plan 1/4</div></div></div></td><td>Laser Hair Removal</td><td>Dr. Hina</td><td><span class="status s-accent"><span class="dot"></span>Checked in</span></td></tr>
+      <tr><td class="tnum">12:00</td><td><div class="who-cell"><div class="av-sm">NA</div><div><div class="nm">Nadia Aslam</div><div class="mt">Consultation</div></div></div></td><td>PRP — Hair</td><td>Dr. Bilal</td><td><span class="status s-warn"><span class="dot"></span>Booked</span></td></tr>
+      <tr><td class="tnum">13:30</td><td><div class="who-cell"><div class="av-sm">RS</div><div><div class="nm">Rabia Shah</div><div class="mt">No answer ×2</div></div></div></td><td>Chemical Peel</td><td>Dr. Hina</td><td><span class="status s-crit"><span class="dot"></span>No-show</span></td></tr>
+    </tbody></table></div></div>
+  <div class="card"><div class="card-head"><div><h3>Needs Your Approval</h3><p>Owner sign-off required</p></div></div>
+    <div><div class="alert"><div class="ai" style="background:var(--warn-bg);color:var(--warn)"><svg class="ic"><use href="#i-tag"/></svg></div><div class="txt"><b>15% discount</b> on Fatima Ali's filler package<div class="mt">Rs 18,000 off · Rs 102,000 net</div></div><div class="rowbtns"><button class="btn sm ghost">Deny</button><button class="btn sm primary">Approve</button></div></div>
+      <div class="alert"><div class="ai" style="background:var(--crit-bg);color:var(--crit)"><svg class="ic"><use href="#i-warn"/></svg></div><div class="txt"><b>Refund</b> — cancelled laser package<div class="mt">Ayesha Noor · Rs 24,000</div></div><div class="rowbtns"><button class="btn sm ghost">Review</button></div></div>
+      <div class="alert"><div class="ai" style="background:var(--good-bg);color:var(--good)"><svg class="ic"><use href="#i-check"/></svg></div><div class="txt"><b>Payroll ready</b> — June salaries & commissions<div class="mt">9 staff · Rs 1,180,000</div></div><div class="rowbtns"><a class="btn sm primary" href="payroll.html">Open</a></div></div></div></div>
+</div>
+
+<div class="grid-2">
+  <div class="card"><div class="card-head"><div><h3>Doctor &amp; Clinic Share — Today</h3><p>Auto-calculated per completed session</p></div><a class="btn sm ghost" href="revshare-earnings.html">Full report →</a></div>
+    <div class="tablewrap"><table class="table"><thead><tr><th>Doctor</th><th>Sessions</th><th>Doctor Share</th><th>Clinic Share</th></tr></thead><tbody>
+      <tr><td><div class="who-cell"><div class="av-sm">AY</div><div class="nm">Dr. Ayesha</div></div></td><td class="tnum">6</td><td class="tnum">Rs 92,400</td><td class="tnum">Rs 138,600</td></tr>
+      <tr><td><div class="who-cell"><div class="av-sm">HI</div><div class="nm">Dr. Hina</div></div></td><td class="tnum">4</td><td class="tnum">Rs 61,000</td><td class="tnum">Rs 91,500</td></tr>
+      <tr><td><div class="who-cell"><div class="av-sm">BI</div><div class="nm">Dr. Bilal</div></div></td><td class="tnum">2</td><td class="tnum">Rs 30,000</td><td class="tnum">Rs 45,000</td></tr>
+    </tbody></table></div></div>
+  <div class="card"><div class="card-head"><div><h3>Low Stock &amp; Expiry</h3><p>Auto-tracked as consumables are used</p></div><a class="btn sm ghost" href="inventory.html">Manage →</a></div>
+    <div class="tablewrap"><table class="table"><thead><tr><th>Item</th><th>In stock</th><th>Reorder</th><th>Status</th></tr></thead><tbody>
+      <tr><td>Botox 50U (Allergan)</td><td class="tnum">2 vials</td><td class="tnum">5</td><td><span class="status s-crit"><span class="dot"></span>Critical</span></td></tr>
+      <tr><td>HA Dermal Filler 1ml</td><td class="tnum">3 syringes</td><td class="tnum">6</td><td><span class="status s-crit"><span class="dot"></span>Critical</span></td></tr>
+      <tr><td>Numbing Cream 30g</td><td class="tnum">5 tubes</td><td class="tnum">8</td><td><span class="status s-warn"><span class="dot"></span>Low</span></td></tr>
+      <tr><td>Vitamin C Serum <span style="color:var(--warn)">· exp 08/26</span></td><td class="tnum">6 vials</td><td class="tnum">—</td><td><span class="status s-warn"><span class="dot"></span>Expiring</span></td></tr>
+    </tbody></table></div></div>
+</div>
+
+<div class="card"><div class="card-head"><div><h3>Marketing — WhatsApp Campaign</h3><p>Sent via the official Meta WhatsApp Business Platform</p></div><span class="meta-badge"><svg class="ic"><use href="#i-shield"/></svg>Official Meta API · your number stays safe</span></div>
+  <div class="card-body"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px"><div><b style="font-size:14px">"Summer Glow" — 20% off HydraFacial packages</b><div style="font-size:12px;color:var(--muted);margin-top:2px">Audience: 1,240 opted-in patients · sent today 09:30</div></div><a class="btn primary" href="campaign-new.html"><svg class="ic"><use href="#i-plus"/></svg>New campaign</a></div>
+    <div class="grid-4"><div class="kpi"><span class="lab">Sent</span><div class="val tnum">1,240</div></div><div class="kpi"><span class="lab">Delivered · 96%</span><div class="val tnum">1,198</div></div><div class="kpi"><span class="lab">Read · 81%</span><div class="val tnum">1,010</div></div><div class="kpi"><span class="lab">Bookings</span><div class="val tnum" style="color:var(--good)">34</div></div></div></div></div>
+
+</body></html>

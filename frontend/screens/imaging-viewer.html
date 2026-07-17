@@ -1,0 +1,65 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Study Viewer · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script></head><body data-page="imaging-viewer" data-nav="imaging-orders" data-title="Study Viewer" data-sub="US — Nadia Aslam">
+<div class="alert">
+  <div class="ai"><svg class="ic"><use href="#i-shield"/></svg></div>
+  <div class="txt"><b>OHIF Viewer</b> connected to <b>dcm4chee</b> PACS archive · Study UID 1.2.840.113619.2.55.3.2831 · Rendered from stored DICOM instances.</div>
+</div>
+
+<div class="toolbar">
+  <div class="filters">
+    <span class="tag">CT · Chest</span>
+    <span class="chip"><svg class="ic"><use href="#i-user"/></svg> Ayesha Khan · MRN 88214 · F/34</span>
+    <span class="meta-badge">IMG-24817</span>
+    <span class="meta-badge">Series 3 / 5 · 220 images</span>
+    <span class="meta-badge">Acquired 12 Jul 2026 09:14</span>
+  </div>
+  <button class="btn ghost sm"><svg class="ic"><use href="#i-download"/></svg> Export DICOM</button>
+</div>
+
+<div class="grid-2b">
+  <div class="card">
+    <div class="card-head"><div><h3>Viewport</h3><p>Axial · WW 400 / WL 40 · Zoom 100%</p></div></div>
+    <div class="card-body">
+      <div style="display:flex;gap:12px">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn ghost sm" title="Zoom"><svg class="ic"><use href="#i-search"/></svg></button>
+          <button class="btn ghost sm" title="Pan"><svg class="ic"><use href="#i-scan"/></svg></button>
+          <button class="btn ghost sm" title="Measure"><svg class="ic"><use href="#i-bars"/></svg></button>
+          <button class="btn ghost sm" title="Window/Level"><svg class="ic"><use href="#i-pie"/></svg></button>
+          <button class="btn ghost sm" title="Annotate"><svg class="ic"><use href="#i-edit"/></svg></button>
+          <button class="btn ghost sm" title="Reset"><svg class="ic"><use href="#i-x"/></svg></button>
+        </div>
+        <div style="flex:1;aspect-ratio:4/3;border-radius:10px;background:radial-gradient(ellipse at center, #26323f 0%, #0c1015 70%);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center">
+          <svg viewBox="0 0 400 300" style="width:70%;opacity:.55"><ellipse cx="200" cy="160" rx="120" ry="90" fill="none" style="stroke:#5b6b7d" stroke-width="2"/><ellipse cx="160" cy="150" rx="38" ry="55" fill="none" style="stroke:#7f8fa0" stroke-width="1.5"/><ellipse cx="240" cy="150" rx="38" ry="55" fill="none" style="stroke:#7f8fa0" stroke-width="1.5"/><circle cx="200" cy="175" r="22" fill="none" style="stroke:#9aa8b6" stroke-width="1.5"/></svg>
+          <div style="position:absolute;top:10px;left:12px;color:#8fa0b0;font-size:11px">CT · 1.5mm · Im 112/220</div>
+          <div style="position:absolute;bottom:10px;right:12px;color:#8fa0b0;font-size:11px">WW 400 WL 40</div>
+          <div style="position:absolute;bottom:10px;left:12px;color:#8fa0b0;font-size:11px">Ayesha Khan · 88214</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;overflow-x:auto">
+        <div style="width:70px;height:56px;border-radius:6px;background:linear-gradient(135deg,#2a3642,#12181f);flex:0 0 auto;border:2px solid var(--accent)"></div>
+        <div style="width:70px;height:56px;border-radius:6px;background:linear-gradient(135deg,#232e39,#0f151b);flex:0 0 auto"></div>
+        <div style="width:70px;height:56px;border-radius:6px;background:linear-gradient(135deg,#2a3642,#12181f);flex:0 0 auto"></div>
+        <div style="width:70px;height:56px;border-radius:6px;background:linear-gradient(135deg,#232e39,#0f151b);flex:0 0 auto"></div>
+        <div style="width:70px;height:56px;border-radius:6px;background:linear-gradient(135deg,#2a3642,#12181f);flex:0 0 auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><h3>Radiology Report</h3><p>Dr. Imran Sheikh · Consultant Radiologist</p></div><span class="status s-warn"><span class="dot"></span>Draft</span></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field full"><label>Clinical History</label><textarea rows="2">34F, persistent cough 3 weeks, rule out consolidation.</textarea></div>
+        <div class="field full"><label>Findings</label><textarea rows="5">Lungs are clear bilaterally with no focal consolidation, effusion or pneumothorax. Mediastinal contours are normal. No significant hilar or mediastinal lymphadenopathy. Heart size within normal limits. Visualized upper abdomen unremarkable.</textarea></div>
+        <div class="field full"><label>Impression</label><textarea rows="2">No acute cardiopulmonary abnormality. Recommend clinical correlation.</textarea></div>
+        <div class="field"><label>Report Status</label><select><option>Preliminary</option><option>Final</option><option>Addendum</option></select></div>
+        <div class="field"><label>Critical Result?</label><span class="switch"></span></div>
+      </div>
+      <div class="rowbtns">
+        <button class="btn ghost">Save Draft</button>
+        <button class="btn primary"><svg class="ic"><use href="#i-check"/></svg> Sign & Finalize</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

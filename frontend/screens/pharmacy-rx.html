@@ -1,0 +1,80 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Prescription Queue · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script></head><body data-page="pharmacy-rx" data-nav="pharmacy-pos" data-title="Prescription Queue" data-edition="pharmacy">
+<div class="toolbar">
+  <span class="segmented"><button class="on">All (12)</button><button>New (5)</button><button>Dispensing (3)</button><button>Ready (4)</button></span>
+  <input placeholder="Search patient or Rx #..." style="flex:1"/>
+  <button class="btn ghost"><svg class="ic"><use href="#i-filter"/></svg> Filter</button>
+</div>
+
+<div class="grid-2b">
+  <div class="card">
+    <div class="card-head"><div><h3>Incoming e-prescriptions</h3><p>Queued from OPD &amp; teleconsults</p></div></div>
+    <div class="card-body">
+      <div class="kanban">
+        <div class="col">
+          <h5>New</h5>
+          <div class="leadcard">
+            <div class="who-cell"><span class="av-sm">AR</span><div><div class="nm">Ayesha Riaz</div><div class="mt">Dr. Kamran Shah · MRN 44821</div></div></div>
+            <div class="mt">Augmentin 625 · Brufen 400 · Risek 20</div>
+            <div class="rowbtns"><span class="status s-info"><span class="dot"></span>New</span><button class="btn primary sm">Dispense</button></div>
+          </div>
+          <div class="leadcard">
+            <div class="who-cell"><span class="av-sm">MH</span><div><div class="nm">Muhammad Hamza</div><div class="mt">Dr. Sana Tariq · MRN 44810</div></div></div>
+            <div class="mt">Ventolin Inhaler · Montiget 10</div>
+            <div class="rowbtns"><span class="status s-info"><span class="dot"></span>New</span><button class="btn primary sm">Dispense</button></div>
+          </div>
+        </div>
+        <div class="col">
+          <h5>Dispensing</h5>
+          <div class="leadcard">
+            <div class="who-cell"><span class="av-sm">FZ</span><div><div class="nm">Fatima Zahra</div><div class="mt">Dr. Imran Ali · MRN 44776</div></div></div>
+            <div class="mt">Insulin Mixtard · Glucophage 850</div>
+            <div class="rowbtns"><span class="status s-warn"><span class="dot"></span>Dispensing</span><button class="btn ghost sm">Open</button></div>
+          </div>
+        </div>
+        <div class="col">
+          <h5>Ready</h5>
+          <div class="leadcard">
+            <div class="who-cell"><span class="av-sm">BA</span><div><div class="nm">Bilal Ahmed</div><div class="mt">Dr. Nadia Khan · MRN 44702</div></div></div>
+            <div class="mt">Nexium 40 · Motilium</div>
+            <div class="rowbtns"><span class="status s-good"><span class="dot"></span>Ready</span><button class="btn ghost sm">Handover</button></div>
+          </div>
+          <div class="leadcard">
+            <div class="who-cell"><span class="av-sm">SN</span><div><div class="nm">Sadia Noor</div><div class="mt">Dr. Kamran Shah · MRN 44688</div></div></div>
+            <div class="mt">Ciproxin 500 · Flagyl 400</div>
+            <div class="rowbtns"><span class="status s-good"><span class="dot"></span>Ready</span><button class="btn ghost sm">Handover</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><h3>Dispense · Ayesha Riaz</h3><p>Rx #RX-70241 · Dr. Kamran Shah</p></div><span class="status s-warn"><span class="dot"></span>Dispensing</span></div>
+    <div class="card-body">
+      <div class="tablewrap">
+        <table class="table">
+          <thead><tr><th>Item</th><th>Directions</th><th>Qty</th><th>Substitute</th></tr></thead>
+          <tbody>
+            <tr><td><div class="nm">Augmentin 625</div></td><td>1 tab BD × 7d</td><td class="tnum">14</td><td><span class="pill">Calamox 625</span></td></tr>
+            <tr><td><div class="nm">Brufen 400</div></td><td>1 tab TDS × 5d</td><td class="tnum">15</td><td><span class="mt">—</span></td></tr>
+            <tr><td><div class="nm">Risek 20</div></td><td>1 cap OD × 14d</td><td class="tnum">14</td><td><span class="pill">Omega 20</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <label style="margin-top:12px;display:block">Counselling checklist</label>
+      <div class="filters">
+        <span class="chip on"><svg class="ic"><use href="#i-check"/></svg> Dosage explained</span>
+        <span class="chip on"><svg class="ic"><use href="#i-check"/></svg> Take with food</span>
+        <span class="chip">Allergy checked</span>
+        <span class="chip">Complete the course</span>
+        <span class="chip">Storage advised</span>
+      </div>
+      <div class="rowbtns">
+        <button class="btn primary"><svg class="ic"><use href="#i-check"/></svg> Confirm dispense</button>
+        <button class="btn ghost">Send to POS</button>
+        <button class="btn danger">Reject</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

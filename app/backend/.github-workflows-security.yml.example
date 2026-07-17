@@ -1,0 +1,75 @@
+# CI security gate for Health OS.
+#
+# Copy to .github/workflows/security.yml once the repo is on GitHub.
+#
+# These three checks exist because each one guards a defect that ALREADY
+# shipped here and was invisible to every test at the time:
+#   * check:rls       — "User" had no policy at all (every tenant's staff +
+#                       passwordHash readable); rls.sql drifted behind the schema.
+#   * check:isolation — RLS was inert for the whole project because the app
+#                       connected as a BYPASSRLS superuser, and the "verification"
+#                       ran as that same superuser.
+#   * check:boot      — a publicly-known default JWT secret would let anyone forge
+#                       {tenantId: <victim>}, and RLS would obey the forgery.
+#
+# See docs/security-rls-bypass-finding.md.
+name: security
+
+on: [push, pull_request]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: healthos
+          POSTGRES_PASSWORD: healthos
+          POSTGRES_DB: healthos
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+        ports: ['5432:5432']
+    env:
+      DIRECT_DATABASE_URL: postgresql://healthos:healthos@localhost:5432/healthos?schema=public
+      DATABASE_URL: postgresql://healthos_app:healthos_app_pw@localhost:5432/healthos?schema=public
+      # A real secret: the boot guard rejects placeholders, so CI must supply one.
+      JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
+    defaults:
+      run:
+        working-directory: app/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: npm, cache-dependency-path: app/backend/package-lock.json }
+      - run: npm ci
+
+      # Static: no DB needed. Fails on a tenant model with no policy, a
+      # non-canonical or dangerous policy qual, or an unrouted tenant query.
+      - name: RLS coverage
+        run: npm run check:rls
+
+      # Schema + policies + the non-bypassing runtime role.
+      - name: Prepare database
+        run: |
+          DATABASE_URL=$DIRECT_DATABASE_URL npx prisma db push --skip-generate
+          psql "$DIRECT_DATABASE_URL" -f prisma/rls.sql
+          psql "$DIRECT_DATABASE_URL" -f prisma/rls-roles.sql
+          psql "$DIRECT_DATABASE_URL" -f prisma/rls-user.sql
+
+      # Seeding must work against an RLS-enforced DB — it silently could not,
+      # because the policies have USING and no WITH CHECK, so every INSERT was
+      # rejected. This step is the regression guard for that.
+      - name: Seed
+        run: npm run db:seed
+
+      - run: npm run build
+
+      # Behavioural: as the runtime role, with a second tenant planted.
+      - name: Tenant isolation
+        run: npm run check:isolation
+
+      # The app must refuse to start on a weak secret or a bypassing role.
+      - name: Boot guards
+        run: npm run check:boot

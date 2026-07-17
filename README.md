@@ -1,0 +1,102 @@
+# Health OS
+
+A modular, multi-tenant clinic platform, built Pakistan-first (PKR, FBR e-invoicing,
+Safepay/PayFast, WhatsApp via the Meta Cloud API). One shared clinical core, sold in
+editions; a specialty is **configuration over shared engines**, not a fork.
+
+> **Status: pre-production.** The platform runs end-to-end and is heavily tested, but the
+> clinical engines carry open sign-off items and are **not cleared for patient use**. See
+> [Safety](#safety) below — that section is the point of this README, not a footnote.
+
+## What's here
+
+```
+app/backend    NestJS + Prisma + PostgreSQL. 80 models, RLS on every tenant table.
+app/web        React + Vite SPA.
+docs/          The engineering record — architecture, build specs, and the two
+               write-ups every contributor should read before touching a clinical engine.
+```
+
+### The architecture in one paragraph
+
+A **pack manifest** (JSON) expands into ordinary tenant rows — service catalog, note
+templates, intake groups, order sets — via `seedPackForTenant`. **Editions** are entitlement
+bundles: an edition grants feature keys, feature keys become `TenantEntitlement` rows, and
+`@RequiresEntitlement` gates the routes. Specialty packs (aesthetic, dermatology, dental,
+OB/GYN, ophthalmology, physiotherapy, pediatrics) ride shared engines: scored instruments,
+longitudinal trends, laterality, WHO-LMS growth, weight-based dosing. Adding a specialty is
+mostly a manifest.
+
+## Running it
+
+```bash
+cd app/backend
+cp .env.example .env          # then set a real JWT_SECRET — the app refuses to boot without one
+docker compose up -d          # Postgres 16
+npx prisma db push
+psql "$DIRECT_DATABASE_URL" -f prisma/rls.sql        # policies
+psql "$DIRECT_DATABASE_URL" -f prisma/rls-roles.sql  # the non-bypassing runtime role
+psql "$DIRECT_DATABASE_URL" -f prisma/rls-user.sql   # User policy + the login function
+npm run db:seed
+npm run build && npm start
+```
+
+Two database roles, deliberately: migrations and the seed run as the **owner**
+(`DIRECT_DATABASE_URL`); the app runs as `healthos_app` (`DATABASE_URL`), which is
+`NOSUPERUSER NOBYPASSRLS`. This is not cosmetic — see below.
+
+## Checks
+
+```bash
+npm run check:security   # RLS coverage (static) + tenant isolation (live) + boot guards
+npm run check:clinical   # dermatology safety + functional, dental dentition
+```
+
+`check:security` fails the build on a `tenantId` model with no RLS policy, a policy in a
+non-canonical or dangerous form, or a Prisma call outside `forTenant()`. It caught real
+drift the first time it ran.
+
+## Safety
+
+Two findings shaped this codebase more than any feature. Both are written up in full, and
+both are worth reading before trusting anything here:
+
+- **[RLS was inert](docs/security-rls-bypass-finding.md)** — the app connected as a
+  superuser with `rolbypassrls`, so every row-level security policy on all 76 tenant tables
+  silently never executed. Services deliberately omit `tenantId` and rely on RLS, so this
+  was a live cross-tenant read, invisible because the dev database had one tenant. The
+  earlier "verification" ran as that same superuser: a bypassing role cannot observe its own
+  bypass.
+
+- **[The dermatology dose engine](docs/dermatology-safety-review.md)** — four adversarial
+  review rounds (14, 15, 15, 4 confirmed defects). It would escalate UV onto a patient it had
+  just blistered. Every defect lived at an *intersection* of rules, while a 60/60 suite tested
+  each rule in isolation and passed throughout.
+
+The lessons are generalisable, and they are the house rules now:
+
+1. **Verify a control as the principal that actually exercises it**, with an adversarial
+   fixture present, asserting the negative. Not as the owner; not by reading catalog flags.
+2. **Test intersections, not rules.** A suite that sweeps one axis at a time will bless a
+   broken engine. A test whose setup makes two branches tie cannot fail.
+3. **A rejection must never discard a clinical fact.** If a throw and a write share a
+   transaction, the throw wins and the fact is lost.
+4. **Ask which entity safety state belongs to.** A burn hold keyed on the course was
+   escapable by opening a new course; skin belongs to the patient.
+
+### Not cleared for clinical use
+
+Reference data here is **starter data**, not a formulary or a national schedule:
+
+- Dosing regimens (`dose-rule.seed.ts`) need validation against a maintained PMDC/DRAP
+  formulary.
+- The EPI schedule is missing IPV-2 and needs sign-off against the official FDI schedule.
+- The VASI region table is rule-of-nines–derived, **not** checked against Hamzavi (2004).
+- The phototherapy restart semantics, dose floor and MED ceiling multiple are reasoned, not
+  sourced.
+
+Every one of these is flagged in the code at the point it matters, not just here.
+
+## Licence
+
+Proprietary — Summit Systems.

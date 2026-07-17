@@ -1,0 +1,214 @@
+<style>
+  :root{
+    --bg:#faf7f9; --panel:#ffffff; --ink:#2a2230; --muted:#6b6270;
+    --plum:#6E2C57; --plumd:#3A1730; --rose:#C77FA6; --gold:#C9A24B; --teal:#1F8A6D; --slate:#5A6B82;
+    --line:#E7D8E4;
+  }
+  @media (prefers-color-scheme:dark){ :root{ --bg:#141017; --ink:#f2eaf0; --muted:#b7abbb; --line:#31263a; } }
+  :root[data-theme="light"]{ --bg:#faf7f9; --ink:#2a2230; --muted:#6b6270; }
+  :root[data-theme="dark"]{ --bg:#141017; --ink:#f2eaf0; --muted:#b7abbb; --line:#31263a; }
+  *{box-sizing:border-box}
+  .wrap{ font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--ink); background:var(--bg); padding:22px 20px 30px; }
+  .head{ max-width:1180px; margin:0 auto 14px; }
+  .kick{ color:var(--gold); font-weight:700; letter-spacing:.22em; text-transform:uppercase; font-size:11px; }
+  h1{ font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif; color:var(--plum); font-size:26px; margin:6px 0 4px; }
+  .sub{ color:var(--muted); font-size:13.5px; max-width:900px; }
+  .legend{ display:flex; flex-wrap:wrap; gap:16px; margin:14px 0 6px; font-size:12px; color:var(--muted); }
+  .legend b{ color:var(--ink); font-weight:600; }
+  .legend .sw{ display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+  .panel{ max-width:1180px; margin:0 auto; background:#fff; border:1px solid var(--line); border-radius:16px; padding:12px; box-shadow:0 8px 30px rgba(42,34,48,.08); overflow-x:auto; }
+  svg{ width:100%; height:auto; min-width:940px; display:block; }
+  .foot{ max-width:1180px; margin:12px auto 0; font-size:11.5px; color:var(--muted); }
+</style>
+
+<div class="wrap">
+  <div class="head">
+    <div class="kick">Summit Systems · Health OS</div>
+    <h1>System Architecture — Block Diagram</h1>
+    <div class="sub">One modular, multi-tenant platform serving solo doctors → clinics → specialty practices → labs → pharmacies → hospitals, sold in editions. Evolves the existing NestJS/Postgres monolith; reuses proven components behind clean interfaces; builds only the differentiated wedge.</div>
+    <div class="legend">
+      <span><span class="sw" style="background:#6E2C57"></span><b>Core platform / module</b></span>
+      <span><span class="sw" style="background:#C77FA6"></span><b>Our wedge ★</b> (differentiator)</span>
+      <span><span class="sw" style="background:#1F8A6D"></span><b>Adopted / reused</b> (OSS · standard)</span>
+      <span><span class="sw" style="background:#5A6B82"></span><b>External service</b></span>
+    </div>
+  </div>
+
+  <div class="panel">
+  <svg viewBox="0 0 1480 1470" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+    <defs>
+      <marker id="ar" markerWidth="10" markerHeight="10" refX="6" refY="5" orient="auto"><path d="M0,0 L7,5 L0,10 z" fill="#9a8fa2"/></marker>
+    </defs>
+
+    <!-- flow chevrons -->
+    <g stroke="#c9bcc9" stroke-width="2" fill="none" marker-end="url(#ar)">
+      <path d="M740,84 L740,98"/>
+      <path d="M740,196 L740,210"/>
+      <path d="M740,308 L740,322"/>
+      <path d="M740,882 L740,896"/>
+      <path d="M740,1014 L740,1028"/>
+    </g>
+
+    <!-- BAND 1: Tenants & Editions -->
+    <rect x="30" y="20" width="1420" height="60" rx="12" fill="#F5EEF3" stroke="#E7D8E4"/>
+    <text x="46" y="40" font-size="11" font-weight="700" letter-spacing="1.5" fill="#8a3a6e">TENANTS &#183; EDITIONS</text>
+    <g font-size="12.5" text-anchor="middle">
+      <g><rect x="330" y="46" width="150" height="26" rx="13" fill="#fff" stroke="#C77FA6"/><text x="405" y="63" fill="#6E2C57" font-weight="600">Solo Doctor</text></g>
+      <g><rect x="488" y="46" width="120" height="26" rx="13" fill="#fff" stroke="#C77FA6"/><text x="548" y="63" fill="#6E2C57" font-weight="600">Clinic</text></g>
+      <g><rect x="616" y="46" width="150" height="26" rx="13" fill="#F7E7F0" stroke="#C77FA6"/><text x="691" y="63" fill="#6E2C57" font-weight="700">Specialty &#9733;</text></g>
+      <g><rect x="774" y="46" width="90" height="26" rx="13" fill="#fff" stroke="#C77FA6"/><text x="819" y="63" fill="#6E2C57" font-weight="600">Lab</text></g>
+      <g><rect x="872" y="46" width="120" height="26" rx="13" fill="#fff" stroke="#C77FA6"/><text x="932" y="63" fill="#6E2C57" font-weight="600">Pharmacy</text></g>
+      <g><rect x="1000" y="46" width="110" height="26" rx="13" fill="#fff" stroke="#C77FA6"/><text x="1055" y="63" fill="#6E2C57" font-weight="600">Hospital</text></g>
+      <g><rect x="1118" y="46" width="130" height="26" rx="13" fill="#fff" stroke="#C77FA6"/><text x="1183" y="63" fill="#6E2C57" font-weight="600">Enterprise</text></g>
+    </g>
+
+    <!-- BAND 2: Client Apps -->
+    <rect x="30" y="100" width="1420" height="96" rx="12" fill="#F5EEF3" stroke="#E7D8E4"/>
+    <text x="46" y="120" font-size="11" font-weight="700" letter-spacing="1.5" fill="#8a3a6e">CLIENT APPS</text>
+    <g font-size="13" text-anchor="middle">
+      <g><rect x="50" y="128" width="330" height="56" rx="9" fill="#fff" stroke="#6E2C57"/><text x="215" y="152" fill="#2a2230" font-weight="700">Web Admin</text><text x="215" y="170" fill="#6b6270" font-size="11.5">React + MUI &#183; staff &amp; owner</text></g>
+      <g><rect x="392" y="128" width="330" height="56" rx="9" fill="#fff" stroke="#6E2C57"/><text x="557" y="152" fill="#2a2230" font-weight="700">Clinic App</text><text x="557" y="170" fill="#6b6270" font-size="11.5">Flutter &#183; role-based staff/owner</text></g>
+      <g><rect x="734" y="128" width="330" height="56" rx="9" fill="#fff" stroke="#6E2C57"/><text x="899" y="152" fill="#2a2230" font-weight="700">Patient App</text><text x="899" y="170" fill="#6b6270" font-size="11.5">Flutter &#183; book, pay, records</text></g>
+      <g><rect x="1076" y="128" width="354" height="56" rx="9" fill="#F7E7F0" stroke="#C77FA6"/><text x="1253" y="152" fill="#6E2C57" font-weight="700">Public Booking &amp; Discovery &#9733;</text><text x="1253" y="170" fill="#6b6270" font-size="11.5">zero-commission network</text></g>
+    </g>
+
+    <!-- BAND 3: API & Security -->
+    <rect x="30" y="212" width="1420" height="96" rx="12" fill="#F5EEF3" stroke="#E7D8E4"/>
+    <text x="46" y="232" font-size="11" font-weight="700" letter-spacing="1.5" fill="#8a3a6e">API &amp; SECURITY GATEWAY</text>
+    <g font-size="12" text-anchor="middle">
+      <g><rect x="50" y="240" width="262" height="56" rx="9" fill="#fff" stroke="#6E2C57"/><text x="181" y="264" fill="#2a2230" font-weight="700">API Gateway</text><text x="181" y="281" fill="#6b6270" font-size="11">REST + OpenAPI &#183; versioned</text></g>
+      <g><rect x="322" y="240" width="262" height="56" rx="9" fill="#E4F3EE" stroke="#1F8A6D"/><text x="453" y="260" fill="#155f4a" font-weight="700">FHIR R4 Facade</text><text x="453" y="277" fill="#2c6b58" font-size="11">Medplum types &#183; SMART v2</text></g>
+      <g><rect x="594" y="240" width="292" height="56" rx="9" fill="#fff" stroke="#6E2C57"/><text x="740" y="260" fill="#2a2230" font-weight="700">RBAC + Entitlements</text><text x="740" y="277" fill="#6b6270" font-size="11">editions/feature-flags &#183; tenant RLS</text></g>
+      <g><rect x="896" y="240" width="262" height="56" rx="9" fill="#fff" stroke="#6E2C57"/><text x="1027" y="264" fill="#2a2230" font-weight="700">Public API + Webhooks</text><text x="1027" y="281" fill="#6b6270" font-size="11">integrations &amp; extensions</text></g>
+      <g><rect x="1168" y="240" width="262" height="56" rx="9" fill="#fff" stroke="#6E2C57"/><text x="1299" y="264" fill="#2a2230" font-weight="700">Audit &amp; Consent</text><text x="1299" y="281" fill="#6b6270" font-size="11">every sensitive action logged</text></g>
+    </g>
+
+    <!-- BAND 4: Core Monolith -->
+    <rect x="30" y="324" width="1420" height="556" rx="12" fill="#F2E7EF" stroke="#E0CBDC"/>
+    <text x="46" y="346" font-size="12" font-weight="800" letter-spacing="1" fill="#6E2C57">CORE &#8212; HEALTH OS MODULAR MONOLITH  (NestJS + Prisma)  &#183; one canonical data model</text>
+
+    <!-- module group box helper style rows -->
+    <!-- Row 1 -->
+    <g font-size="12.5">
+      <!-- Growth & CRM (wedge) -->
+      <rect x="50" y="360" width="440" height="110" rx="10" fill="#F7E7F0" stroke="#C77FA6"/><rect x="50" y="360" width="6" height="110" rx="3" fill="#C77FA6"/>
+      <text x="70" y="384" fill="#6E2C57" font-weight="800" font-size="14">Growth &amp; CRM &#9733;</text>
+      <text x="70" y="406" fill="#5c5566" font-size="11.5">Social leads &#183; WhatsApp campaigns</text>
+      <text x="70" y="424" fill="#5c5566" font-size="11.5">Recall &#183; Memberships/Loyalty &#183; Reviews</text>
+      <text x="70" y="442" fill="#5c5566" font-size="11.5">Referrals &#183; Booking &amp; discovery network</text>
+      <!-- Front Office -->
+      <rect x="510" y="360" width="440" height="110" rx="10" fill="#fff" stroke="#5A6B82"/><rect x="510" y="360" width="6" height="110" rx="3" fill="#5A6B82"/>
+      <text x="530" y="384" fill="#2a2230" font-weight="800" font-size="14">Front Office</text>
+      <text x="530" y="406" fill="#5c5566" font-size="11.5">Scheduling &#183; Reception &#183; Queue/Token</text>
+      <text x="530" y="424" fill="#6E2C57" font-size="11.5" font-weight="700">Deposits &amp; No-show Protection &#9733;</text>
+      <text x="530" y="442" fill="#5c5566" font-size="11.5">Reminders (WhatsApp/SMS/email)</text>
+      <!-- Clinical -->
+      <rect x="970" y="360" width="440" height="110" rx="10" fill="#fff" stroke="#6E2C57"/><rect x="970" y="360" width="6" height="110" rx="3" fill="#6E2C57"/>
+      <text x="990" y="384" fill="#2a2230" font-weight="800" font-size="14">Clinical &#183; EMR/EHR</text>
+      <text x="990" y="406" fill="#5c5566" font-size="11.5">Consultation notes &#183; problem list</text>
+      <text x="990" y="424" fill="#5c5566" font-size="11.5">e-Prescription + drug safety &#183; CPOE</text>
+      <text x="990" y="442" fill="#5c5566" font-size="11.5">Orders/results &#183; care plans &#183; immunization</text>
+    </g>
+
+    <!-- Row 2 -->
+    <g font-size="12.5">
+      <rect x="50" y="486" width="440" height="110" rx="10" fill="#F7E7F0" stroke="#C77FA6"/><rect x="50" y="486" width="6" height="110" rx="3" fill="#C77FA6"/>
+      <text x="70" y="510" fill="#6E2C57" font-weight="800" font-size="14">Specialty (Aesthetic/Dental/Derma) &#9733;</text>
+      <text x="70" y="532" fill="#5c5566" font-size="11.5">Before/After + consent &#183; treatment packages</text>
+      <text x="70" y="550" fill="#5c5566" font-size="11.5">Injectable &amp; consumable clinical ledger</text>
+      <text x="70" y="568" fill="#5c5566" font-size="11.5">Odontogram &#183; skin/aesthetic assessment</text>
+
+      <rect x="510" y="486" width="440" height="110" rx="10" fill="#fff" stroke="#5A6B82"/><rect x="510" y="486" width="6" height="110" rx="3" fill="#5A6B82"/>
+      <text x="530" y="510" fill="#2a2230" font-weight="800" font-size="14">Financial &#183; Billing &amp; RCM</text>
+      <text x="530" y="532" fill="#5c5566" font-size="11.5">Invoices &#183; installments &#183; patient ledger</text>
+      <text x="530" y="550" fill="#6E2C57" font-size="11.5" font-weight="700">Doctor/clinic revenue share &#9733;</text>
+      <text x="530" y="568" fill="#5c5566" font-size="11.5">FBR e-invoicing &#183; accounting export</text>
+
+      <rect x="970" y="486" width="440" height="110" rx="10" fill="#fff" stroke="#6E2C57"/><rect x="970" y="486" width="6" height="110" rx="3" fill="#6E2C57"/>
+      <text x="990" y="510" fill="#2a2230" font-weight="800" font-size="14">Ancillary Services</text>
+      <text x="990" y="532" fill="#5c5566" font-size="11.5">Lab (LIS) &#183; Pharmacy (dispensing/POS)</text>
+      <text x="990" y="550" fill="#5c5566" font-size="11.5">Imaging (RIS / PACS-lite)</text>
+      <text x="990" y="568" fill="#5c5566" font-size="11.5">Telehealth (opt-in)</text>
+    </g>
+
+    <!-- Row 3 -->
+    <g font-size="12.5">
+      <rect x="50" y="612" width="440" height="110" rx="10" fill="#fff" stroke="#5A6B82"/><rect x="50" y="612" width="6" height="110" rx="3" fill="#5A6B82"/>
+      <text x="70" y="636" fill="#2a2230" font-weight="800" font-size="14">Inventory &amp; Procurement</text>
+      <text x="70" y="658" fill="#5c5566" font-size="11.5">Stock &#183; batch/expiry (FEFO)</text>
+      <text x="70" y="676" fill="#5c5566" font-size="11.5">Issue-against-patient &#183; auto-deduct</text>
+      <text x="70" y="694" fill="#5c5566" font-size="11.5">Purchase orders &#183; suppliers &#183; DRAP 2D</text>
+
+      <rect x="510" y="612" width="440" height="110" rx="10" fill="#fff" stroke="#5A6B82"/><rect x="510" y="612" width="6" height="110" rx="3" fill="#5A6B82"/>
+      <text x="530" y="636" fill="#2a2230" font-weight="800" font-size="14">HR &amp; Payroll</text>
+      <text x="530" y="658" fill="#5c5566" font-size="11.5">Attendance (biometric) &#183; roster</text>
+      <text x="530" y="676" fill="#5c5566" font-size="11.5">Payroll &#183; doctor &amp; sales commissions</text>
+      <text x="530" y="694" fill="#5c5566" font-size="11.5">Payslips</text>
+
+      <rect x="970" y="612" width="440" height="110" rx="10" fill="#fff" stroke="#6E2C57"/><rect x="970" y="612" width="6" height="110" rx="3" fill="#6E2C57"/>
+      <text x="990" y="636" fill="#2a2230" font-weight="800" font-size="14">Hospital (Wave 3)</text>
+      <text x="990" y="658" fill="#5c5566" font-size="11.5">ADT &#183; wards/beds &#183; nursing / eMAR</text>
+      <text x="990" y="676" fill="#5c5566" font-size="11.5">OT &#183; ER / triage &#183; discharge</text>
+      <text x="990" y="694" fill="#5c5566" font-size="11.5">IPD billing &#183; claims/EDI</text>
+    </g>
+
+    <!-- Platform & Admin (full width) -->
+    <rect x="50" y="740" width="1360" height="120" rx="10" fill="#efe1eb" stroke="#3A1730"/><rect x="50" y="740" width="6" height="120" rx="3" fill="#3A1730"/>
+    <text x="70" y="766" fill="#3A1730" font-weight="800" font-size="14">Platform &amp; Admin  (cross-cutting)</text>
+    <g font-size="12" fill="#4a3b45">
+      <text x="70" y="790">&#8226; Multi-tenancy: tenant_id + Postgres RLS (dedicated-DB promotion path)</text>
+      <text x="70" y="812">&#8226; Entitlements &amp; feature-flags &#8594; editions ("roadmap = price sheet")</text>
+      <text x="70" y="834">&#8226; Tenant onboarding / provisioning &#183; white-label &#183; migration &amp; import tooling</text>
+      <text x="740" y="790">&#8226; Summit Control Plane (super-admin): tenants, plans, MRR/churn</text>
+      <text x="740" y="812">&#8226; Audit log &#183; RBAC/ABAC &#183; consent &amp; data-retention</text>
+      <text x="740" y="834">&#8226; AI Assist (opt-in, human-in-the-loop &#8212; Wave 2/3)</text>
+    </g>
+
+    <!-- BAND 5: Platform Services -->
+    <rect x="30" y="900" width="1420" height="112" rx="12" fill="#F5EEF3" stroke="#E7D8E4"/>
+    <text x="46" y="920" font-size="11" font-weight="700" letter-spacing="1.5" fill="#8a3a6e">PLATFORM SERVICES  (out-of-process)</text>
+    <g font-size="11.5" text-anchor="middle">
+      <g><rect x="50" y="932" width="212" height="64" rx="9" fill="#fff" stroke="#6E2C57"/><text x="156" y="960" fill="#2a2230" font-weight="700">Background Jobs</text><text x="156" y="977" fill="#6b6270">BullMQ &#183; Redis</text></g>
+      <g><rect x="283" y="932" width="212" height="64" rx="9" fill="#fff" stroke="#6E2C57"/><text x="389" y="960" fill="#2a2230" font-weight="700">Notifications</text><text x="389" y="977" fill="#6b6270">WhatsApp/SMS/email/push</text></g>
+      <g><rect x="516" y="932" width="212" height="64" rx="9" fill="#fff" stroke="#6E2C57"/><text x="622" y="960" fill="#2a2230" font-weight="700">Reporting</text><text x="622" y="977" fill="#6b6270">read-model / BI</text></g>
+      <g><rect x="749" y="932" width="212" height="64" rx="9" fill="#E4F3EE" stroke="#1F8A6D"/><text x="855" y="958" fill="#155f4a" font-weight="700">OIE Engine</text><text x="855" y="975" fill="#2c6b58">HL7 v2 / DICOM &#8594; FHIR</text></g>
+      <g><rect x="982" y="932" width="212" height="64" rx="9" fill="#E4F3EE" stroke="#1F8A6D"/><text x="1088" y="958" fill="#155f4a" font-weight="700">Kill Bill</text><text x="1088" y="975" fill="#2c6b58">billing / metering / dunning</text></g>
+      <g><rect x="1215" y="932" width="215" height="64" rx="9" fill="#fff" stroke="#6E2C57"/><text x="1322" y="958" fill="#2a2230" font-weight="700">AI Service</text><text x="1322" y="975" fill="#6b6270">Deepgram + BAA LLM</text></g>
+    </g>
+
+    <!-- BAND 6: Data -->
+    <rect x="30" y="1032" width="1420" height="96" rx="12" fill="#F5EEF3" stroke="#E7D8E4"/>
+    <text x="46" y="1052" font-size="11" font-weight="700" letter-spacing="1.5" fill="#8a3a6e">DATA &amp; STORAGE</text>
+    <g font-size="13" text-anchor="middle">
+      <g><rect x="50" y="1062" width="440" height="52" rx="9" fill="#3A1730"/><text x="270" y="1084" fill="#fff" font-weight="700">PostgreSQL</text><text x="270" y="1102" fill="#e6cfe0" font-size="11.5">shared DB &#183; tenant_id + RLS</text></g>
+      <g><rect x="510" y="1062" width="440" height="52" rx="9" fill="#3A1730"/><text x="730" y="1084" fill="#fff" font-weight="700">Redis</text><text x="730" y="1102" fill="#e6cfe0" font-size="11.5">cache &#183; queue &#183; sessions</text></g>
+      <g><rect x="970" y="1062" width="440" height="52" rx="9" fill="#3A1730"/><text x="1190" y="1084" fill="#fff" font-weight="700">S3 Object Storage</text><text x="1190" y="1102" fill="#e6cfe0" font-size="11.5">photos &#183; documents &#183; DICOM</text></g>
+    </g>
+
+    <!-- BAND 7: External & Adopted -->
+    <rect x="30" y="1148" width="1420" height="300" rx="12" fill="#eef1f6" stroke="#d7dee8"/>
+    <text x="46" y="1168" font-size="11" font-weight="700" letter-spacing="1.5" fill="#41506a">EXTERNAL INTEGRATIONS &amp; ADOPTED COMPONENTS  (reuse, don&#8217;t rebuild)</text>
+    <g font-size="11.5" text-anchor="middle">
+      <!-- row 1 external -->
+      <g><rect x="50" y="1180" width="212" height="46" rx="9" fill="#fff" stroke="#5A6B82"/><text x="156" y="1208" fill="#2a3547" font-weight="600">Meta WhatsApp Cloud API</text></g>
+      <g><rect x="283" y="1180" width="212" height="46" rx="9" fill="#fff" stroke="#5A6B82"/><text x="389" y="1202" fill="#2a3547" font-weight="600">Payments</text><text x="389" y="1218" fill="#5A6B82" font-size="10.5">Safepay/PayFast/PayPro</text></g>
+      <g><rect x="516" y="1180" width="212" height="46" rx="9" fill="#fff" stroke="#5A6B82"/><text x="622" y="1208" fill="#2a3547" font-weight="600">FBR e-invoicing</text></g>
+      <g><rect x="749" y="1180" width="212" height="46" rx="9" fill="#fff" stroke="#5A6B82"/><text x="855" y="1208" fill="#2a3547" font-weight="600">SMS / Email</text></g>
+      <g><rect x="982" y="1180" width="212" height="46" rx="9" fill="#fff" stroke="#5A6B82"/><text x="1088" y="1208" fill="#2a3547" font-weight="600">Firebase Push</text></g>
+      <g><rect x="1215" y="1180" width="215" height="46" rx="9" fill="#fff" stroke="#5A6B82"/><text x="1322" y="1208" fill="#2a3547" font-weight="600">Biometric Devices</text></g>
+      <!-- row 2 adopted (teal) -->
+      <g><rect x="50" y="1236" width="212" height="46" rx="9" fill="#E4F3EE" stroke="#1F8A6D"/><text x="156" y="1258" fill="#155f4a" font-weight="700">Lab Analyzers</text><text x="156" y="1274" fill="#2c6b58" font-size="10.5">ASTM/HL7 &#183; OpenELIS</text></g>
+      <g><rect x="283" y="1236" width="212" height="46" rx="9" fill="#E4F3EE" stroke="#1F8A6D"/><text x="389" y="1258" fill="#155f4a" font-weight="700">Imaging</text><text x="389" y="1274" fill="#2c6b58" font-size="10.5">dcm4chee &#183; OHIF (DICOMweb)</text></g>
+      <g><rect x="516" y="1236" width="212" height="46" rx="9" fill="#fff" stroke="#5A6B82"/><text x="622" y="1258" fill="#2a3547" font-weight="700">Video</text><text x="622" y="1274" fill="#5A6B82" font-size="10.5">Daily.co / Amazon Chime</text></g>
+      <g><rect x="749" y="1236" width="212" height="46" rx="9" fill="#E4F3EE" stroke="#1F8A6D"/><text x="855" y="1258" fill="#155f4a" font-weight="700">Drug &amp; Terminology</text><text x="855" y="1274" fill="#2c6b58" font-size="10.5">RxNorm/LOINC/ICD &#183; FDB</text></g>
+      <g><rect x="982" y="1236" width="212" height="46" rx="9" fill="#E4F3EE" stroke="#1F8A6D"/><text x="1088" y="1258" fill="#155f4a" font-weight="700">Hospital core</text><text x="1088" y="1274" fill="#2c6b58" font-size="10.5">CARE (MIT) &#183; adapt</text></g>
+      <g><rect x="1215" y="1236" width="215" height="46" rx="9" fill="#E4F3EE" stroke="#1F8A6D"/><text x="1322" y="1258" fill="#155f4a" font-weight="700">DRAP Track &amp; Trace</text><text x="1322" y="1274" fill="#2c6b58" font-size="10.5">GS1 2D barcode</text></g>
+    </g>
+    <text x="46" y="1312" font-size="11.5" fill="#41506a">Adopted OSS integrated behind clean interfaces &#183; permissive-license only (Apache / MPL / MIT / EPL) &#8212; AGPL/GPL is reference-only, never linked.</text>
+    <text x="46" y="1334" font-size="11.5" fill="#41506a">Pakistan-first (FBR &#183; PHC / MSDS &#183; PMDC &#183; DRAP &#183; WhatsApp &#183; local rails) &#183; global-ready by construction (FHIR R4 &#183; HL7 v2 &#183; SMART-on-FHIR v2 &#183; i18n &#183; multi-currency).</text>
+    <text x="46" y="1356" font-size="11.5" fill="#41506a" font-weight="600">Delivery: Wave 0 platform (RLS + entitlements + Kill Bill/Safepay billing + control plane) &#8594; migrate current aesthetic clinic as tenant-one &#8594; Waves 1&#8211;3 layer editions.</text>
+  </svg>
+  </div>
+
+  <div class="foot">Companion to <b>health-platform-master-plan.md</b>. &#9733; = differentiated wedge; teal = adopted/reused component or standard. One codebase, one data model, many editions.</div>
+</div>

@@ -1,0 +1,34 @@
+# Local development database for Health OS.
+#
+#   docker compose up -d
+#   cp .env.example .env         # if you haven't already
+#   npx prisma db push           # create tables from schema.prisma
+#   psql "$DATABASE_URL" -f prisma/rls.sql   # apply row-level-security policies
+#   npm run db:seed              # seed tenant + packs + instruments
+#   npm run start:dev
+#
+# NOTE: in dev the app connects as the `healthos` superuser for convenience, so
+# RLS is not *enforced* locally (superusers bypass it) but every tenant-scoped
+# query still sets app.tenant_id. In staging/production, point DATABASE_URL at a
+# NON-superuser role so the policies in prisma/rls.sql are enforced.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: healthos-db
+    environment:
+      POSTGRES_USER: healthos
+      POSTGRES_PASSWORD: healthos
+      POSTGRES_DB: healthos
+    ports:
+      # Host 5433 (5432 is commonly taken by another local Postgres); container stays 5432.
+      - '5433:5432'
+    volumes:
+      - healthos-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U healthos -d healthos']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  healthos-db-data:

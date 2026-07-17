@@ -1,0 +1,70 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Issue consumables · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script></head><body data-page="issue" data-nav="inventory" data-title="Issue consumables" data-sub="Against patient / session" data-edition="specialty">
+<div class="grid-2b">
+  <div class="card">
+    <div class="card-head"><div><h3>Issue consumables</h3><p>Deducts from stock on confirmation (FEFO)</p></div></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field"><label>Patient</label><select><option>Ayesha Malik · PK-10428</option><option>Bilal Ahmed · PK-10391</option><option>Fatima Noor · PK-10450</option><option>Zara Sheikh · PK-10377</option></select></div>
+        <div class="field"><label>Session</label><select><option>S-4471 · Botox — Forehead · Today 3:00 PM</option><option>S-4468 · Filler — Cheeks · Today 4:30 PM</option></select></div>
+        <div class="field"><label>Performed by</label><select><option>Dr. Fatima Noor</option><option>Dr. Hassan Raza</option></select></div>
+        <div class="field"><label>Room</label><select><option>Treatment room A</option><option>Treatment room B</option></select></div>
+      </div>
+
+      <div class="tablewrap" style="margin-top:14px">
+        <table class="table">
+          <thead><tr><th>Item</th><th>Batch (FEFO)</th><th class="tnum">Qty</th><th class="tnum">In stock</th><th></th></tr></thead>
+          <tbody>
+            <tr>
+              <td><div class="who-cell"><div class="av-sm">BX</div><div><div class="nm">Botox 50U</div><div class="mt">Injectable</div></div></div></td>
+              <td>AL2264 <span class="chip">exp Feb 27</span></td>
+              <td class="tnum">1 vial</td>
+              <td class="tnum">18 → 17</td>
+              <td><button class="btn ghost sm"><svg class="ic"><use href="#i-x"/></svg></button></td>
+            </tr>
+            <tr>
+              <td><div class="who-cell"><div class="av-sm">LC</div><div><div class="nm">Lidocaine Cream 5%</div><div class="mt">Topical</div></div></div></td>
+              <td>LC2231 <span class="chip">exp Mar 28</span></td>
+              <td class="tnum">1 tube</td>
+              <td class="tnum">31 → 30</td>
+              <td><button class="btn ghost sm"><svg class="ic"><use href="#i-x"/></svg></button></td>
+            </tr>
+            <tr>
+              <td><input placeholder="Search item…"></td>
+              <td><input placeholder="Auto FEFO batch" value=""></td>
+              <td><input class="tnum" placeholder="0"></td>
+              <td class="tnum">—</td>
+              <td><button class="btn primary sm"><svg class="ic"><use href="#i-plus"/></svg></button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="alert" style="margin-top:14px">
+        <div class="ai"><svg class="ic"><use href="#i-flask"/></svg></div>
+        <div class="txt"><b>Injectable ledger — Botox 50U</b>
+          <div class="mt">Units per vial: 50 · Drawn this session: 20U · Remaining in vial: 30U · Wastage: 0U</div>
+        </div>
+      </div>
+      <div class="field" style="margin-top:12px"><label>Recorded wastage (units)</label><input placeholder="0"></div>
+
+      <div class="rowbtns" style="margin-top:14px;justify-content:flex-end">
+        <button class="btn ghost">Cancel</button>
+        <button class="btn primary"><svg class="ic"><use href="#i-check"/></svg> Confirm issuance</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><h3>Recent issuances</h3><p>Today</p></div></div>
+    <div class="card-body">
+      <div class="timeline">
+        <div class="tl"><div class="tl-dot"></div><div class="tl-body"><b>Botox 50U · 1 vial</b><div class="mt">Ayesha Malik · S-4471 · Dr. Fatima Noor</div><div class="tl-time">3:05 PM</div></div></div>
+        <div class="tl"><div class="tl-dot"></div><div class="tl-body"><b>Juvederm Ultra XC · 1 syringe</b><div class="mt">Bilal Ahmed · S-4468 · Dr. Hassan Raza</div><div class="tl-time">1:40 PM</div></div></div>
+        <div class="tl"><div class="tl-dot"></div><div class="tl-body"><b>Lidocaine Cream · 1 tube</b><div class="mt">Zara Sheikh · S-4459 · Dr. Fatima Noor</div><div class="tl-time">12:15 PM</div></div></div>
+        <div class="tl"><div class="tl-dot"></div><div class="tl-body"><b>HA Booster · 1 syringe</b><div class="mt">Fatima Noor · S-4455 · Dr. Hassan Raza</div><div class="tl-time">11:00 AM</div></div></div>
+        <div class="tl"><div class="tl-dot"></div><div class="tl-body"><b>Microneedle cartridge · 1 pack</b><div class="mt">Usman Tariq · S-4451 · Dr. Fatima Noor</div><div class="tl-time">10:20 AM</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

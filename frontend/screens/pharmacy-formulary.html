@@ -1,0 +1,45 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Drug Master / Formulary · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script></head><body data-page="pharmacy-formulary" data-nav="pharmacy-pos" data-title="Drug Master / Formulary" data-edition="pharmacy">
+<div class="toolbar">
+  <input placeholder="Search drug or generic..." style="flex:1"/>
+  <button class="btn ghost"><svg class="ic"><use href="#i-filter"/></svg> Filter</button>
+  <button class="btn ghost"><svg class="ic"><use href="#i-download"/></svg> Export</button>
+  <button class="btn primary"><svg class="ic"><use href="#i-plus"/></svg> Add drug</button>
+</div>
+
+<div class="filters">
+  <span class="segmented"><button class="on">All</button><button>Tablets</button><button>Syrups</button><button>Injections</button><button>Controlled</button></span>
+  <span class="pill">Low stock: 4</span>
+  <span class="pill">Out of stock: 1</span>
+  <span class="tag">1,284 SKUs</span>
+</div>
+
+<div class="alert">
+  <div class="ai"><svg class="ic"><use href="#i-warn"/></svg></div>
+  <div class="txt"><b>Low stock alert.</b> Augmentin 625, Insulin Mixtard, Nexium 40 and Ciproxin 500 are below reorder level. Raise a purchase order to the distributor.</div>
+</div>
+
+<div class="card">
+  <div class="card-head"><div><h3>Formulary</h3><p>Registered drug master · stock &amp; retail pricing</p></div></div>
+  <div class="tablewrap">
+    <table class="table">
+      <thead><tr><th>Drug</th><th>Generic</th><th>Form</th><th>Strength</th><th>Schedule</th><th>Stock</th><th class="tnum">Price</th><th></th></tr></thead>
+      <tbody>
+        <tr><td><div class="nm">Augmentin</div><div class="mt">GSK</div></td><td>Co-amoxiclav</td><td>Tablet</td><td>625mg</td><td><span class="tag">G</span></td><td><div class="bar"><i style="width:14%"></i></div><span class="mt">42 packs</span></td><td class="tnum">Rs 545</td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-edit"/></svg></button></td></tr>
+        <tr><td><div class="nm">Panadol Extra</div><div class="mt">Haleon</div></td><td>Paracetamol</td><td>Tablet</td><td>500mg</td><td><span class="tag">OTC</span></td><td><div class="bar"><i style="width:78%"></i></div><span class="mt">610 packs</span></td><td class="tnum">Rs 60</td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-edit"/></svg></button></td></tr>
+        <tr><td><div class="nm">Risek</div><div class="mt">Getz Pharma</div></td><td>Omeprazole</td><td>Capsule</td><td>20mg</td><td><span class="tag">G</span></td><td><div class="bar"><i style="width:64%"></i></div><span class="mt">288 packs</span></td><td class="tnum">Rs 385</td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-edit"/></svg></button></td></tr>
+        <tr><td><div class="nm">Insulin Mixtard</div><div class="mt">Novo Nordisk</div></td><td>Insulin 30/70</td><td>Injection</td><td>100IU/ml</td><td><span class="tag">G</span></td><td><div class="bar"><i style="width:9%"></i></div><span class="mt">6 vials</span></td><td class="tnum">Rs 720</td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-edit"/></svg></button></td></tr>
+        <tr><td><div class="nm">Brufen</div><div class="mt">Abbott</div></td><td>Ibuprofen</td><td>Tablet</td><td>400mg</td><td><span class="tag">G</span></td><td><div class="bar"><i style="width:71%"></i></div><span class="mt">355 packs</span></td><td class="tnum">Rs 210</td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-edit"/></svg></button></td></tr>
+        <tr><td><div class="nm">Lexotanil</div><div class="mt">Roche</div></td><td>Bromazepam</td><td>Tablet</td><td>3mg</td><td><span class="tag">Narcotic</span></td><td><div class="bar"><i style="width:40%"></i></div><span class="mt">64 packs</span></td><td class="tnum">Rs 295</td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-edit"/></svg></button></td></tr>
+        <tr><td><div class="nm">Nexium</div><div class="mt">AstraZeneca</div></td><td>Esomeprazole</td><td>Tablet</td><td>40mg</td><td><span class="tag">G</span></td><td><div class="bar"><i style="width:11%"></i></div><span class="mt">15 packs</span></td><td class="tnum">Rs 640</td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-edit"/></svg></button></td></tr>
+        <tr><td><div class="nm">Ciproxin</div><div class="mt">Bayer</div></td><td>Ciprofloxacin</td><td>Tablet</td><td>500mg</td><td><span class="tag">G</span></td><td><div class="bar"><i style="width:8%"></i></div><span class="mt">9 packs</span></td><td class="tnum">Rs 480</td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-edit"/></svg></button></td></tr>
+        <tr><td><div class="nm">Ventolin</div><div class="mt">GSK</div></td><td>Salbutamol</td><td>Inhaler</td><td>100mcg</td><td><span class="tag">G</span></td><td><div class="bar"><i style="width:55%"></i></div><span class="mt">120 units</span></td><td class="tnum">Rs 495</td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-edit"/></svg></button></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="alert">
+  <div class="ai"><svg class="ic"><use href="#i-shield"/></svg></div>
+  <div class="txt"><b>DRAP compliance.</b> Every SKU must carry a valid DRAP registration number and MRP as printed. Controlled &amp; narcotic schedules require a linked prescription and register entry before dispensing.</div>
+</div>
+</body></html>

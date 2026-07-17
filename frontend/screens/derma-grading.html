@@ -1,0 +1,186 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Skin Assessment — Acne (GAGS) · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script></head><body data-page="derma-grading" data-nav="consult" data-title="Skin Assessment — Acne (GAGS)" data-sub="Dermatology · grading calculators" data-edition="specialty">
+<div class="toolbar">
+  <div class="segmented">
+    <button class="on">GAGS — Acne</button>
+    <button>PASI — Psoriasis</button>
+    <button>SCORAD — Eczema</button>
+    <button>EASI — Eczema</button>
+    <button>MASI — Melasma</button>
+  </div>
+  <span class="chip"><svg class="ic"><use href="#i-user"/></svg> Ayesha Siddiqui — MRN-2041</span>
+  <span class="chip"><svg class="ic"><use href="#i-shield"/></svg> Fitzpatrick Type IV</span>
+  <div class="rowbtns" style="margin-left:auto">
+    <button class="btn ghost sm"><svg class="ic"><use href="#i-clock"/></svg> History</button>
+    <button class="btn ghost sm"><svg class="ic"><use href="#i-download"/></svg> Export</button>
+  </div>
+</div>
+
+<div class="grid-2b">
+  <div>
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h3>GAGS Calculator — Global Acne Grading System</h3>
+          <p>Grade each region 0–4 · Local score = Regional factor × Lesion grade · 13 Jul 2026, Dr. Hina Raza</p>
+        </div>
+        <div class="rowbtns">
+          <button class="btn ghost sm"><svg class="ic"><use href="#i-x"/></svg> Reset</button>
+        </div>
+      </div>
+      <div class="tablewrap">
+        <table class="table">
+          <thead>
+            <tr><th>Region</th><th>Factor</th><th>Lesion grade (0–4)</th><th class="tnum">Local score</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Forehead</td>
+              <td class="tnum">×2</td>
+              <td><select><option>0 — None</option><option>1 — Comedones</option><option selected>2 — Papules</option><option>3 — Pustules</option><option>4 — Nodules</option></select></td>
+              <td class="tnum"><b>4</b></td>
+            </tr>
+            <tr>
+              <td>Right cheek</td>
+              <td class="tnum">×2</td>
+              <td><select><option>0 — None</option><option>1 — Comedones</option><option>2 — Papules</option><option selected>3 — Pustules</option><option>4 — Nodules</option></select></td>
+              <td class="tnum"><b>6</b></td>
+            </tr>
+            <tr>
+              <td>Left cheek</td>
+              <td class="tnum">×2</td>
+              <td><select><option>0 — None</option><option>1 — Comedones</option><option selected>2 — Papules</option><option>3 — Pustules</option><option>4 — Nodules</option></select></td>
+              <td class="tnum"><b>4</b></td>
+            </tr>
+            <tr>
+              <td>Nose</td>
+              <td class="tnum">×1</td>
+              <td><select><option>0 — None</option><option selected>1 — Comedones</option><option>2 — Papules</option><option>3 — Pustules</option><option>4 — Nodules</option></select></td>
+              <td class="tnum"><b>1</b></td>
+            </tr>
+            <tr>
+              <td>Chin</td>
+              <td class="tnum">×1</td>
+              <td><select><option>0 — None</option><option>1 — Comedones</option><option selected>2 — Papules</option><option>3 — Pustules</option><option>4 — Nodules</option></select></td>
+              <td class="tnum"><b>2</b></td>
+            </tr>
+            <tr>
+              <td>Chest &amp; upper back</td>
+              <td class="tnum">×3</td>
+              <td><select><option>0 — None</option><option selected>1 — Comedones</option><option>2 — Papules</option><option>3 — Pustules</option><option>4 — Nodules</option></select></td>
+              <td class="tnum"><b>3</b></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-head">
+        <div>
+          <h3>Total GAGS Score</h3>
+          <p>Sum of six local scores</p>
+        </div>
+        <span class="status s-warn"><span class="dot"></span>Moderate</span>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+          <div style="font-size:56px;font-weight:800;line-height:1;color:var(--warn)">20</div>
+          <div style="flex:1;min-width:280px">
+            <div style="display:flex;height:14px;border-radius:7px;overflow:hidden;border:1px solid var(--line)">
+              <div style="flex:18;background:var(--good);opacity:.55"></div>
+              <div style="flex:12;background:var(--warn);position:relative"><span style="position:absolute;left:16%;top:-4px;bottom:-4px;width:3px;background:var(--warn);border-radius:2px;box-shadow:0 0 0 2px var(--surface-2)"></span></div>
+              <div style="flex:8;background:var(--crit);opacity:.75"></div>
+              <div style="flex:6;background:var(--crit)"></div>
+            </div>
+            <div style="display:flex;gap:14px;margin-top:10px;flex-wrap:wrap;font-size:12px">
+              <span class="tag"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--good);margin-right:6px"></span>1–18 Mild</span>
+              <span class="tag"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--warn);margin-right:6px"></span>19–30 Moderate</span>
+              <span class="tag"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--crit);margin-right:6px"></span>31–38 Severe</span>
+              <span class="tag"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--crit);margin-right:6px"></span>&gt;39 Very severe</span>
+            </div>
+          </div>
+        </div>
+        <div class="alert" style="margin-top:16px">
+          <span class="ai"><svg class="ic"><use href="#i-note"/></svg></span>
+          <span class="txt">Score down from 26 (15 Jun 2026). Consider continuing topical adapalene + oral doxycycline; reassess in 4 weeks.</span>
+        </div>
+        <div class="rowbtns" style="margin-top:16px">
+          <button class="btn primary"><svg class="ic"><use href="#i-check"/></svg> Save score</button>
+          <button class="btn accent"><svg class="ic"><use href="#i-note"/></svg> Add to note</button>
+          <button class="btn ghost"><svg class="ic"><use href="#i-clock"/></svg> Compare with 15 Jun (26)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h3>Standardized Photos</h3>
+          <p>Link imaging to this assessment</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="empty">
+          <svg class="ic"><use href="#i-scan"/></svg>
+          <p>No photos linked to today's GAGS assessment. Last set: 15 Jun 2026 (5 views).</p>
+          <button class="btn primary sm"><svg class="ic"><use href="#i-plus"/></svg> Capture standardized photos</button>
+        </div>
+        <div class="rowbtns" style="margin-top:12px">
+          <button class="btn ghost sm"><svg class="ic"><use href="#i-scan"/></svg> Link before/after set</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-head">
+        <div>
+          <h3>Phototherapy — NB-UVB Ledger</h3>
+          <p>3× weekly protocol · Fitzpatrick IV start 300 mJ/cm²</p>
+        </div>
+        <span class="chip"><svg class="ic"><use href="#i-shield"/></svg> Type IV</span>
+      </div>
+      <div class="tablewrap">
+        <table class="table">
+          <thead>
+            <tr><th>Session</th><th>Date</th><th class="tnum">Dose mJ/cm²</th><th class="tnum">Cumulative</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="tnum">1</td><td>02 Jul 2026</td><td class="tnum">300</td><td class="tnum">300</td></tr>
+            <tr><td class="tnum">2</td><td>06 Jul 2026</td><td class="tnum">360</td><td class="tnum">660</td></tr>
+            <tr><td class="tnum">3</td><td>09 Jul 2026</td><td class="tnum">430</td><td class="tnum">1,090</td></tr>
+            <tr><td class="tnum">4</td><td>11 Jul 2026</td><td class="tnum">515</td><td class="tnum">1,605</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card-body">
+        <div class="alert">
+          <span class="ai"><svg class="ic"><use href="#i-warn"/></svg></span>
+          <span class="txt"><b>Next dose suggestion:</b> 620 mJ/cm² (+20%) on 14 Jul 2026 — no erythema reported at session 4. Hold escalation if MED response noted.</span>
+        </div>
+        <div class="rowbtns" style="margin-top:12px">
+          <button class="btn sm"><svg class="ic"><use href="#i-plus"/></svg> Log session 5</button>
+          <button class="btn ghost sm"><svg class="ic"><use href="#i-edit"/></svg> Adjust protocol</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-head">
+        <div>
+          <h3>Assessment Trail</h3>
+          <p>Recent GAGS scores</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="timeline">
+          <div class="tl"><span class="tl-dot"></span><div class="tl-body"><b>GAGS 20 — Moderate</b> · Dr. Hina Raza<div class="tl-time">13 Jul 2026</div></div></div>
+          <div class="tl"><span class="tl-dot"></span><div class="tl-body"><b>GAGS 26 — Moderate</b> · Dr. Hina Raza · started doxycycline 100 mg<div class="tl-time">15 Jun 2026</div></div></div>
+          <div class="tl"><span class="tl-dot"></span><div class="tl-body"><b>GAGS 31 — Severe</b> · Dr. Salman Tariq · baseline, photos captured<div class="tl-time">18 May 2026</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

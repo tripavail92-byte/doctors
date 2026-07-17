@@ -1,0 +1,123 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Inventory · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script></head><body data-page="inventory" data-nav="inventory" data-title="Inventory" data-sub="Consumables &amp;amp; stock">
+<div class="toolbar">
+  <div class="filters">
+    <div class="field" style="min-width:240px"><input placeholder="Search item, batch, brand…"></div>
+    <div class="field"><select><option>All categories</option><option>Injectables</option><option>Fillers</option><option>Serums &amp; topicals</option><option>Consumables</option><option>Devices</option></select></div>
+    <div class="field"><select><option>All status</option><option>In stock</option><option>Low</option><option>Critical</option><option>Expiring</option></select></div>
+  </div>
+  <div class="rowbtns" style="margin-left:auto">
+    <button class="btn ghost sm"><svg class="ic"><use href="#i-download"/></svg> Export</button>
+    <button class="btn sm"><svg class="ic"><use href="#i-box"/></svg> Stock-in</button>
+    <button class="btn primary sm"><svg class="ic"><use href="#i-plus"/></svg> Item</button>
+  </div>
+</div>
+
+<div class="kpis">
+  <div class="kpi">
+    <div class="h"><span class="lab">Stock value</span><span class="ico"><svg class="ic"><use href="#i-wallet"/></svg></span></div>
+    <div class="val">Rs 3.6M</div>
+    <div class="foot"><span class="delta up">+4.2%</span> vs last month</div>
+  </div>
+  <div class="kpi">
+    <div class="h"><span class="lab">Low / critical</span><span class="ico"><svg class="ic"><use href="#i-warn"/></svg></span></div>
+    <div class="val">4</div>
+    <div class="foot"><span class="delta down">2 critical</span> need reorder</div>
+  </div>
+  <div class="kpi">
+    <div class="h"><span class="lab">Expiring &lt;60d</span><span class="ico"><svg class="ic"><use href="#i-clock"/></svg></span></div>
+    <div class="val">3</div>
+    <div class="foot">2 batches within 30 days</div>
+  </div>
+  <div class="kpi">
+    <div class="h"><span class="lab">Issued today</span><span class="ico"><svg class="ic"><use href="#i-box"/></svg></span></div>
+    <div class="val">27</div>
+    <div class="foot"><span class="delta up">+6</span> vs yesterday</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <div><h3>Inventory items</h3><p>9 of 142 items shown</p></div>
+    <button class="btn sm primary"><svg class="ic"><use href="#i-plus"/></svg> Add item</button>
+  </div>
+  <div class="tablewrap">
+    <table class="table">
+      <thead><tr><th>Item</th><th>Batch / Expiry</th><th class="tnum">In stock</th><th>Level</th><th class="tnum">Reorder</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><div class="who-cell"><div class="av-sm">BX</div><div><div class="nm">Botox 50U (Allergan)</div><div class="mt">Injectables · vial</div></div></div></td>
+          <td>AL2264 · <span class="status s-warn"><span class="dot"></span>Feb 2027</span></td>
+          <td class="tnum">18</td>
+          <td><div class="bar"><i style="width:60%"></i></div></td>
+          <td class="tnum">10</td>
+          <td><span class="status s-good"><span class="dot"></span>In stock</span></td>
+        </tr>
+        <tr>
+          <td><div class="who-cell"><div class="av-sm">JV</div><div><div class="nm">Juvederm Ultra XC</div><div class="mt">Fillers · 1ml syringe</div></div></div></td>
+          <td>JU8841 · <span class="status s-good"><span class="dot"></span>Sep 2027</span></td>
+          <td class="tnum">6</td>
+          <td><div class="bar"><i style="width:24%"></i></div></td>
+          <td class="tnum">8</td>
+          <td><span class="status s-warn"><span class="dot"></span>Low</span></td>
+        </tr>
+        <tr>
+          <td><div class="who-cell"><div class="av-sm">RV</div><div><div class="nm">Restylane Volyme</div><div class="mt">Fillers · 1ml syringe</div></div></div></td>
+          <td>RS3390 · <span class="status s-good"><span class="dot"></span>Nov 2027</span></td>
+          <td class="tnum">14</td>
+          <td><div class="bar"><i style="width:70%"></i></div></td>
+          <td class="tnum">6</td>
+          <td><span class="status s-good"><span class="dot"></span>In stock</span></td>
+        </tr>
+        <tr>
+          <td><div class="who-cell"><div class="av-sm">DY</div><div><div class="nm">Dysport 300U</div><div class="mt">Injectables · vial</div></div></div></td>
+          <td>DY1120 · <span class="status s-crit"><span class="dot"></span>Aug 2026</span></td>
+          <td class="tnum">3</td>
+          <td><div class="bar"><i style="width:12%"></i></div></td>
+          <td class="tnum">6</td>
+          <td><span class="status s-crit"><span class="dot"></span>Critical</span></td>
+        </tr>
+        <tr>
+          <td><div class="who-cell"><div class="av-sm">VC</div><div><div class="nm">Vitamin C 20% Serum</div><div class="mt">Serums · 30ml bottle</div></div></div></td>
+          <td>VC5567 · <span class="status s-good"><span class="dot"></span>Apr 2027</span></td>
+          <td class="tnum">42</td>
+          <td><div class="bar"><i style="width:84%"></i></div></td>
+          <td class="tnum">15</td>
+          <td><span class="status s-good"><span class="dot"></span>In stock</span></td>
+        </tr>
+        <tr>
+          <td><div class="who-cell"><div class="av-sm">HA</div><div><div class="nm">HA Booster (Profhilo)</div><div class="mt">Injectables · 2ml syringe</div></div></div></td>
+          <td>PH7702 · <span class="status s-warn"><span class="dot"></span>Jan 2027</span></td>
+          <td class="tnum">9</td>
+          <td><div class="bar"><i style="width:45%"></i></div></td>
+          <td class="tnum">6</td>
+          <td><span class="status s-good"><span class="dot"></span>In stock</span></td>
+        </tr>
+        <tr>
+          <td><div class="who-cell"><div class="av-sm">GF</div><div><div class="nm">Growth Factor Serum</div><div class="mt">Serums · 15ml vial</div></div></div></td>
+          <td>GF9014 · <span class="status s-crit"><span class="dot"></span>Sep 2026</span></td>
+          <td class="tnum">5</td>
+          <td><div class="bar"><i style="width:20%"></i></div></td>
+          <td class="tnum">10</td>
+          <td><span class="status s-warn"><span class="dot"></span>Low</span></td>
+        </tr>
+        <tr>
+          <td><div class="who-cell"><div class="av-sm">LC</div><div><div class="nm">Lidocaine Cream 5%</div><div class="mt">Consumables · 30g tube</div></div></div></td>
+          <td>LC2231 · <span class="status s-good"><span class="dot"></span>Mar 2028</span></td>
+          <td class="tnum">31</td>
+          <td><div class="bar"><i style="width:78%"></i></div></td>
+          <td class="tnum">12</td>
+          <td><span class="status s-good"><span class="dot"></span>In stock</span></td>
+        </tr>
+        <tr>
+          <td><div class="who-cell"><div class="av-sm">MN</div><div><div class="nm">Microneedle Cartridges 36G</div><div class="mt">Consumables · pack of 10</div></div></div></td>
+          <td>MN4408 · <span class="status s-muted"><span class="dot"></span>No expiry</span></td>
+          <td class="tnum">120</td>
+          <td><div class="bar"><i style="width:90%"></i></div></td>
+          <td class="tnum">40</td>
+          <td><span class="status s-good"><span class="dot"></span>In stock</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</body></html>

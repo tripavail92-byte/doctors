@@ -1,0 +1,71 @@
+# --- Secrets -----------------------------------------------------------------
+# .env holds a live JWT_SECRET and the Postgres passwords. A leaked JWT secret
+# lets anyone forge {tenantId: <victim>, isPlatformAdmin: true}, and the tenant
+# context that drives every RLS policy is built from that token — so the secret
+# is not a config wart, it is the whole isolation boundary. Commit .env.example
+# instead; it ships an empty sentinel and the app refuses to boot without a real
+# value (see main.ts assertJwtSecret).
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*
+secrets/
+
+# --- Dependencies ------------------------------------------------------------
+node_modules/
+.pnp
+.pnp.js
+
+# --- Build output ------------------------------------------------------------
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# --- Runtime / local data ----------------------------------------------------
+# Patient photos and uploaded documents. Never source control.
+uploads/
+*.log
+logs/
+coverage/
+.nyc_output/
+tmp/
+tmpaudit/
+
+# --- Editor / OS -------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*~
+
+# --- Client-facing commercial material ---------------------------------------
+# Proposals, pricing and the pitch deck for the Aesthetics Clinic engagement.
+# This repo is public: anything here is indexable and cached even after deletion,
+# so the client's commercial terms stay local. Engineering docs (*.md) DO ship —
+# they are the security and safety write-ups the code refers to.
+docs/*.pdf
+docs/*.docx
+docs/annexure/
+docs/*.png
+
+# Commercial markdown/HTML — a naive "*.pdf" glob misses these, and they are the
+# most sensitive things in the tree: the client proposal, competitor research,
+# pricing and the pitch deck.
+docs/clinic-proposal-faisalabad.md
+docs/aesthetic-clinic-management-system-plan.md
+docs/competitor-intelligence.md
+docs/product-expansion-saas-strategy.md
+docs/health-platform-master-plan.md
+docs/research-and-plan-improvements.md
+docs/health-os-deck.html
+docs/admin-dashboard-mockup.html
+
+# What DOES ship from docs/: the engineering record the code points at —
+# security-rls-bypass-finding.md, dermatology-safety-review.md,
+# specialty-packs-build-specs.md, specialty-packs-plan.md, and the
+# architecture/colour references.

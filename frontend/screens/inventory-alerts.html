@@ -1,0 +1,87 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Stock alerts · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script></head><body data-page="inventory-alerts" data-nav="inventory" data-title="Stock alerts" data-sub="Low &amp;amp; near-expiry">
+<div class="kpis">
+  <div class="kpi">
+    <div class="h"><span class="lab">Critical stock</span><span class="ico"><svg class="ic"><use href="#i-warn"/></svg></span></div>
+    <div class="val">2</div>
+    <div class="foot"><span class="delta down">Below safety</span> level</div>
+  </div>
+  <div class="kpi">
+    <div class="h"><span class="lab">Low stock</span><span class="ico"><svg class="ic"><use href="#i-bars"/></svg></span></div>
+    <div class="val">2</div>
+    <div class="foot">Reorder recommended</div>
+  </div>
+  <div class="kpi">
+    <div class="h"><span class="lab">Expiring &lt;60d</span><span class="ico"><svg class="ic"><use href="#i-clock"/></svg></span></div>
+    <div class="val">3</div>
+    <div class="foot"><span class="delta down">1 within 30d</span></div>
+  </div>
+  <div class="kpi">
+    <div class="h"><span class="lab">Value at risk</span><span class="ico"><svg class="ic"><use href="#i-wallet"/></svg></span></div>
+    <div class="val">Rs 214K</div>
+    <div class="foot">Near-expiry stock</div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-head"><div><h3>Low / critical stock</h3><p>At or below reorder level</p></div><button class="btn sm"><svg class="ic"><use href="#i-box"/></svg> Reorder all</button></div>
+    <div class="tablewrap">
+      <table class="table">
+        <thead><tr><th>Item</th><th class="tnum">In stock</th><th class="tnum">Reorder</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <tr>
+            <td><div class="who-cell"><div class="av-sm">DY</div><div><div class="nm">Dysport 300U</div><div class="mt">Injectables</div></div></div></td>
+            <td class="tnum">3</td><td class="tnum">6</td>
+            <td><span class="status s-crit"><span class="dot"></span>Critical</span></td>
+            <td><button class="btn primary sm">Reorder</button></td>
+          </tr>
+          <tr>
+            <td><div class="who-cell"><div class="av-sm">GF</div><div><div class="nm">Growth Factor Serum</div><div class="mt">Serums</div></div></div></td>
+            <td class="tnum">5</td><td class="tnum">10</td>
+            <td><span class="status s-crit"><span class="dot"></span>Critical</span></td>
+            <td><button class="btn primary sm">Reorder</button></td>
+          </tr>
+          <tr>
+            <td><div class="who-cell"><div class="av-sm">JV</div><div><div class="nm">Juvederm Ultra XC</div><div class="mt">Fillers</div></div></div></td>
+            <td class="tnum">6</td><td class="tnum">8</td>
+            <td><span class="status s-warn"><span class="dot"></span>Low</span></td>
+            <td><button class="btn sm">Reorder</button></td>
+          </tr>
+          <tr>
+            <td><div class="who-cell"><div class="av-sm">HA</div><div><div class="nm">HA Booster (Profhilo)</div><div class="mt">Injectables</div></div></div></td>
+            <td class="tnum">9</td><td class="tnum">6</td>
+            <td><span class="status s-warn"><span class="dot"></span>Watch</span></td>
+            <td><button class="btn sm">Reorder</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><h3>Near-expiry batches</h3><p>Use or discount first (FEFO)</p></div><button class="btn ghost sm"><svg class="ic"><use href="#i-tag"/></svg> Flag</button></div>
+    <div class="tablewrap">
+      <table class="table">
+        <thead><tr><th>Item</th><th>Batch</th><th>Expiry</th><th class="tnum">Qty</th><th class="tnum">Days left</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><div class="who-cell"><div class="av-sm">DY</div><div><div class="nm">Dysport 300U</div><div class="mt">Injectables</div></div></div></td>
+            <td>DY1120</td><td>Aug 2026</td><td class="tnum">3</td>
+            <td class="tnum"><span class="status s-crit"><span class="dot"></span>28</span></td>
+          </tr>
+          <tr>
+            <td><div class="who-cell"><div class="av-sm">GF</div><div><div class="nm">Growth Factor Serum</div><div class="mt">Serums</div></div></div></td>
+            <td>GF9014</td><td>Sep 2026</td><td class="tnum">5</td>
+            <td class="tnum"><span class="status s-warn"><span class="dot"></span>54</span></td>
+          </tr>
+          <tr>
+            <td><div class="who-cell"><div class="av-sm">PH</div><div><div class="nm">HA Booster (Profhilo)</div><div class="mt">Injectables</div></div></div></td>
+            <td>PH7702</td><td>Jan 2027</td><td class="tnum">9</td>
+            <td class="tnum"><span class="status s-info"><span class="dot"></span>203</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</body></html>

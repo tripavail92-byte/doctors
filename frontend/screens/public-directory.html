@@ -1,0 +1,198 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Find a Clinic · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script></head><body data-page="public-directory" data-title="Find a Clinic" data-shell="none">
+<div style="max-width:1000px;margin:0 auto;padding:24px 20px 48px">
+
+  <!-- HERO + SEARCH -->
+  <div class="card" style="background:linear-gradient(135deg,var(--accent),#0f766e);color:#fff;border:none;margin-bottom:20px">
+    <div class="card-body" style="padding:32px">
+      <h1 style="font-size:30px;margin:0 0 6px;color:#fff">Find &amp; book trusted clinics near you</h1>
+      <p style="margin:0 0 20px;font-size:15px;opacity:.95;max-width:640px">Compare dermatologists, dentists, labs and physios across Pakistan. Real reviews, live availability, and zero booking fees.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;background:#fff;padding:10px;border-radius:12px">
+        <div style="flex:1;min-width:180px;display:flex;align-items:center;gap:8px;padding:0 10px;color:var(--muted)">
+          <svg class="ic"><use href="#i-search"/></svg>
+          <input type="text" placeholder="Treatment or clinic (e.g. laser hair removal)" style="border:none;background:transparent;width:100%;padding:8px 0;color:var(--fg)"/>
+        </div>
+        <div style="flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:0 10px;border-left:1px solid var(--line);color:var(--muted)">
+          <svg class="ic"><use href="#i-building"/></svg>
+          <select style="border:none;background:transparent;padding:8px 0;color:var(--fg)"><option>Lahore</option><option>Karachi</option><option>Islamabad</option><option>Faisalabad</option><option>Multan</option></select>
+        </div>
+        <button class="btn primary">Search</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FILTER CHIPS -->
+  <div class="filters" style="margin-bottom:16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <span style="font-size:13px;color:var(--muted);font-weight:600">Specialty:</span>
+    <span class="chip" style="border-color:var(--accent);color:var(--accent)">All</span>
+    <span class="chip">Dermatology</span>
+    <span class="chip">Dental</span>
+    <span class="chip">Physiotherapy</span>
+    <span class="chip">Diagnostics / Lab</span>
+    <span class="chip">Gynaecology</span>
+    <span class="chip"><svg class="ic"><use href="#i-star"/></svg> 4.5+ rated</span>
+    <span class="chip"><svg class="ic"><use href="#i-clock"/></svg> Available today</span>
+  </div>
+
+  <!-- CLINIC GRID -->
+  <div class="grid-2">
+
+    <div class="card">
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+          <div style="display:flex;gap:12px">
+            <div class="av-sm" style="width:44px;height:44px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;border-radius:10px">GD</div>
+            <div>
+              <div class="nm" style="font-weight:700">Glow Derma Skin &amp; Laser</div>
+              <div class="mt">Dermatology &amp; Aesthetics</div>
+            </div>
+          </div>
+          <span class="status s-good"><span class="dot"></span>Open</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin:12px 0;font-size:13px;color:var(--muted)">
+          <span style="color:#f59e0b;font-weight:700">★ 4.8</span><span>(1,204)</span>
+          <span>·</span><span><svg class="ic"><use href="#i-building"/></svg> Gulberg, Lahore</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="tag" style="color:var(--good)"><svg class="ic"><use href="#i-clock"/></svg> Next: Today 11:30 AM</span>
+          <button class="btn sm primary">Book</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+          <div style="display:flex;gap:12px">
+            <div class="av-sm" style="width:44px;height:44px;background:#0ea5e9;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;border-radius:10px">SD</div>
+            <div>
+              <div class="nm" style="font-weight:700">Smile Dental Studio</div>
+              <div class="mt">Cosmetic &amp; General Dentistry</div>
+            </div>
+          </div>
+          <span class="status s-good"><span class="dot"></span>Open</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin:12px 0;font-size:13px;color:var(--muted)">
+          <span style="color:#f59e0b;font-weight:700">★ 4.7</span><span>(842)</span>
+          <span>·</span><span><svg class="ic"><use href="#i-building"/></svg> DHA Phase 5, Karachi</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="tag" style="color:var(--good)"><svg class="ic"><use href="#i-clock"/></svg> Next: Today 04:00 PM</span>
+          <button class="btn sm primary">Book</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+          <div style="display:flex;gap:12px">
+            <div class="av-sm" style="width:44px;height:44px;background:#8b5cf6;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;border-radius:10px">CL</div>
+            <div>
+              <div class="nm" style="font-weight:700">Chughtai Lab — Clifton</div>
+              <div class="mt">Diagnostics &amp; Pathology</div>
+            </div>
+          </div>
+          <span class="status s-good"><span class="dot"></span>Open</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin:12px 0;font-size:13px;color:var(--muted)">
+          <span style="color:#f59e0b;font-weight:700">★ 4.6</span><span>(3,110)</span>
+          <span>·</span><span><svg class="ic"><use href="#i-building"/></svg> Clifton, Karachi</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="tag" style="color:var(--good)"><svg class="ic"><use href="#i-clock"/></svg> Home sample: Today</span>
+          <button class="btn sm primary">Book</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+          <div style="display:flex;gap:12px">
+            <div class="av-sm" style="width:44px;height:44px;background:#f59e0b;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;border-radius:10px">RP</div>
+            <div>
+              <div class="nm" style="font-weight:700">ReVive Physiotherapy</div>
+              <div class="mt">Rehab &amp; Sports Injury</div>
+            </div>
+          </div>
+          <span class="status s-warn"><span class="dot"></span>Busy</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin:12px 0;font-size:13px;color:var(--muted)">
+          <span style="color:#f59e0b;font-weight:700">★ 4.9</span><span>(517)</span>
+          <span>·</span><span><svg class="ic"><use href="#i-building"/></svg> F-7, Islamabad</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="tag" style="color:var(--warn)"><svg class="ic"><use href="#i-clock"/></svg> Next: Tomorrow 09:30 AM</span>
+          <button class="btn sm primary">Book</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+          <div style="display:flex;gap:12px">
+            <div class="av-sm" style="width:44px;height:44px;background:#ec4899;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;border-radius:10px">MW</div>
+            <div>
+              <div class="nm" style="font-weight:700">Mother &amp; Wellness Clinic</div>
+              <div class="mt">Gynaecology &amp; Obstetrics</div>
+            </div>
+          </div>
+          <span class="status s-good"><span class="dot"></span>Open</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin:12px 0;font-size:13px;color:var(--muted)">
+          <span style="color:#f59e0b;font-weight:700">★ 4.7</span><span>(689)</span>
+          <span>·</span><span><svg class="ic"><use href="#i-building"/></svg> Johar Town, Lahore</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="tag" style="color:var(--good)"><svg class="ic"><use href="#i-clock"/></svg> Next: Today 06:00 PM</span>
+          <button class="btn sm primary">Book</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+          <div style="display:flex;gap:12px">
+            <div class="av-sm" style="width:44px;height:44px;background:#10b981;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;border-radius:10px">HC</div>
+            <div>
+              <div class="nm" style="font-weight:700">HealPoint Care Centre</div>
+              <div class="mt">General Physician &amp; ENT</div>
+            </div>
+          </div>
+          <span class="status s-muted"><span class="dot"></span>Closed</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin:12px 0;font-size:13px;color:var(--muted)">
+          <span style="color:#f59e0b;font-weight:700">★ 4.5</span><span>(430)</span>
+          <span>·</span><span><svg class="ic"><use href="#i-building"/></svg> Satellite Town, Faisalabad</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="tag"><svg class="ic"><use href="#i-clock"/></svg> Next: Tomorrow 11:00 AM</span>
+          <button class="btn sm primary">Book</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ZERO COMMISSION NOTE -->
+  <div class="alert" style="margin-top:20px">
+    <div class="ai"><svg class="ic"><use href="#i-shield"/></svg></div>
+    <div class="txt"><b>Zero-commission network.</b> Clinics keep 100% of their fees — Health OS never adds a markup or booking charge to your appointment.</div>
+  </div>
+
+  <!-- FOOTER -->
+  <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--line);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted)">
+    <div>
+      <div style="font-weight:700;color:var(--fg)">Health OS Directory</div>
+      <div style="margin-top:4px">2,300+ verified clinics · 42 cities across Pakistan</div>
+    </div>
+    <div style="text-align:right">
+      <div>For Clinics · About · Support</div>
+      <div style="margin-top:4px">© 2026 Health OS · Secure &amp; private</div>
+    </div>
+  </div>
+
+</div>
+</body></html>

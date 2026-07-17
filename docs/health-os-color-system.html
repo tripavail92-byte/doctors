@@ -1,0 +1,133 @@
+<style>
+  :root{
+    --bg:#f4f7f7; --panel:#ffffff; --ink:#16262b; --muted:#566a6e; --line:#e3ebea;
+    --teal:#0E7C74; --teald:#0B6259; --slate:#16262b; --gold:#C79A3A;
+  }
+  @media (prefers-color-scheme:dark){ :root{ --bg:#0d1618; --panel:#13201f; --ink:#eaf3f1; --muted:#9bb0b2; --line:#223330; } }
+  :root[data-theme="light"]{ --bg:#f4f7f7; --panel:#fff; --ink:#16262b; --muted:#566a6e; --line:#e3ebea; }
+  :root[data-theme="dark"]{ --bg:#0d1618; --panel:#13201f; --ink:#eaf3f1; --muted:#9bb0b2; --line:#223330; }
+  *{box-sizing:border-box}
+  .wrap{ font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--ink); background:var(--bg); padding:26px 22px 40px; }
+  .inner{ max-width:1100px; margin:0 auto; }
+  .kick{ color:var(--gold); font-weight:700; letter-spacing:.22em; text-transform:uppercase; font-size:11px; }
+  h1{ font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif; font-size:28px; color:var(--teal); margin:6px 0 4px; }
+  .lede{ color:var(--muted); font-size:14px; max-width:760px; line-height:1.55; }
+  h2{ font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:30px 0 12px; padding-bottom:6px; border-bottom:1px solid var(--line); }
+  .row{ display:flex; flex-wrap:wrap; gap:10px; align-items:stretch; }
+  .rowlab{ width:120px; flex:none; font-size:12.5px; font-weight:600; color:var(--ink); display:flex; align-items:center; }
+  .scale{ display:flex; gap:8px; flex-wrap:wrap; flex:1; min-width:280px; }
+  .sw{ width:104px; height:66px; border-radius:10px; padding:8px 9px; display:flex; flex-direction:column; justify-content:space-between; border:1px solid rgba(0,0,0,.06); box-shadow:0 1px 2px rgba(0,0,0,.05); }
+  .sw .n{ font-size:10.5px; font-weight:700; opacity:.9 }
+  .sw .h{ font-size:10.5px; font-variant-numeric:tabular-nums; opacity:.85 }
+  .sw.tag::after{ content:"PRIMARY"; font-size:8px; font-weight:800; letter-spacing:.08em; }
+  .chips{ display:flex; flex-wrap:wrap; gap:12px; }
+  .chip{ border-radius:12px; padding:12px 14px; min-width:150px; border:1px solid var(--line); background:var(--panel); }
+  .chip .dot{ width:14px;height:14px;border-radius:5px; display:inline-block; vertical-align:-2px; margin-right:8px; }
+  .chip .t{ font-size:13px; font-weight:700; }
+  .chip .s{ font-size:11px; color:var(--muted); margin-top:3px; font-variant-numeric:tabular-nums; }
+  .pill{ display:inline-block; font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; }
+  /* preview cards */
+  .cards{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .card{ border-radius:16px; overflow:hidden; border:1px solid var(--line); background:#fff; box-shadow:0 8px 26px rgba(20,40,42,.08); }
+  .card .top{ padding:14px 16px; color:#fff; display:flex; align-items:center; gap:10px; }
+  .card .mark{ width:30px;height:30px;border-radius:9px; background:rgba(255,255,255,.18); display:grid; place-items:center; font-weight:800; }
+  .card .body{ padding:16px; color:#16262b; }
+  .card h3{ margin:0 0 3px; font-size:15px; }
+  .card p{ margin:0 0 12px; font-size:12.5px; color:#566a6e; line-height:1.5; }
+  .btn{ font-size:12.5px; font-weight:700; padding:8px 14px; border-radius:9px; border:none; color:#fff; cursor:default; }
+  .btn.ghost{ background:transparent; border:1px solid; }
+  .kpi{ margin-top:14px; display:flex; gap:18px; }
+  .kpi .v{ font-size:20px; font-weight:800; font-family:"Iowan Old Style",Georgia,serif; }
+  .kpi .l{ font-size:10.5px; color:#8a9ca0; text-transform:uppercase; letter-spacing:.06em; }
+  .note{ font-size:12px; color:var(--muted); margin-top:14px; line-height:1.6; }
+  @media (max-width:720px){ .cards{ grid-template-columns:1fr } .rowlab{ width:100% } }
+</style>
+
+<div class="wrap"><div class="inner">
+  <div class="kick">Summit Systems &#183; Health OS</div>
+  <h1>Color System</h1>
+  <p class="lede">A calm, clinical, trustworthy brand that reads credibly from a solo doctor to a hospital &#8212; <b>teal</b> primary, <b>deep slate</b> ink, a restrained <b>gold</b> accent. Each edition carries its own accent tint, so the aesthetic/Specialty edition keeps its premium plum feel while the platform stays universally professional.</p>
+
+  <h2>Brand</h2>
+  <div style="display:flex;flex-direction:column;gap:14px">
+    <div class="row"><div class="rowlab">Teal &#183; primary</div><div class="scale">
+      <div class="sw" style="background:#E9F5F3;color:#0B6259"><span class="n">Teal 50</span><span class="h">#E9F5F3</span></div>
+      <div class="sw" style="background:#C9E8E3;color:#0B6259"><span class="n">Teal 100</span><span class="h">#C9E8E3</span></div>
+      <div class="sw" style="background:#5FB8AD;color:#08302b"><span class="n">Teal 300</span><span class="h">#5FB8AD</span></div>
+      <div class="sw" style="background:#2E9B8E;color:#fff"><span class="n">Teal 400</span><span class="h">#2E9B8E</span></div>
+      <div class="sw tag" style="background:#0E7C74;color:#fff"><span class="n">Teal 500</span><span class="h">#0E7C74</span></div>
+      <div class="sw" style="background:#0B6259;color:#fff"><span class="n">Teal 600</span><span class="h">#0B6259</span></div>
+      <div class="sw" style="background:#084C45;color:#fff"><span class="n">Teal 700</span><span class="h">#084C45</span></div>
+    </div></div>
+    <div class="row"><div class="rowlab">Slate &#183; ink</div><div class="scale">
+      <div class="sw" style="background:#E7ECEC;color:#16262b"><span class="n">Slate 100</span><span class="h">#E7ECEC</span></div>
+      <div class="sw" style="background:#5E7176;color:#fff"><span class="n">Slate 500</span><span class="h">#5E7176</span></div>
+      <div class="sw" style="background:#24505C;color:#fff"><span class="n">Slate 700</span><span class="h">#24505C</span></div>
+      <div class="sw" style="background:#16262B;color:#fff"><span class="n">Slate 900 &#183; text</span><span class="h">#16262B</span></div>
+      <div class="sw" style="background:#0E2A33;color:#fff"><span class="n">Ink &#183; dark bg</span><span class="h">#0E2A33</span></div>
+    </div></div>
+    <div class="row"><div class="rowlab">Gold &#183; accent</div><div class="scale">
+      <div class="sw" style="background:#F6EDD3;color:#7a5c14"><span class="n">Gold 50</span><span class="h">#F6EDD3</span></div>
+      <div class="sw" style="background:#E4CB84;color:#5c440e"><span class="n">Gold 200</span><span class="h">#E4CB84</span></div>
+      <div class="sw" style="background:#C79A3A;color:#fff"><span class="n">Gold 500</span><span class="h">#C79A3A</span></div>
+      <div class="sw" style="background:#A67E28;color:#fff"><span class="n">Gold 700</span><span class="h">#A67E28</span></div>
+    </div></div>
+  </div>
+
+  <h2>Neutrals (cool grey, slight teal bias)</h2>
+  <div class="scale">
+    <div class="sw" style="background:#F5F8F8;color:#16262b"><span class="n">ground</span><span class="h">#F5F8F8</span></div>
+    <div class="sw" style="background:#FFFFFF;color:#16262b;border-color:#e3ebea"><span class="n">surface</span><span class="h">#FFFFFF</span></div>
+    <div class="sw" style="background:#EFF4F3;color:#16262b"><span class="n">surface-2</span><span class="h">#EFF4F3</span></div>
+    <div class="sw" style="background:#E3EBEA;color:#16262b"><span class="n">line</span><span class="h">#E3EBEA</span></div>
+    <div class="sw" style="background:#8A9CA0;color:#fff"><span class="n">faint</span><span class="h">#8A9CA0</span></div>
+    <div class="sw" style="background:#566A6E;color:#fff"><span class="n">muted</span><span class="h">#566A6E</span></div>
+    <div class="sw" style="background:#16262B;color:#fff"><span class="n">ink</span><span class="h">#16262B</span></div>
+  </div>
+
+  <h2>Semantic (distinct from brand teal)</h2>
+  <div class="chips">
+    <div class="chip"><div class="t"><span class="dot" style="background:#1E9E6A"></span>Success</div><div class="s">#1E9E6A &#183; bg #E5F5EE</div><div style="margin-top:8px"><span class="pill" style="color:#1E9E6A;background:#E5F5EE">Paid</span></div></div>
+    <div class="chip"><div class="t"><span class="dot" style="background:#E0A11B"></span>Warning</div><div class="s">#E0A11B &#183; bg #FBF0D6</div><div style="margin-top:8px"><span class="pill" style="color:#9a6d0a;background:#FBF0D6">Low stock</span></div></div>
+    <div class="chip"><div class="t"><span class="dot" style="background:#D92D20"></span>Danger</div><div class="s">#D92D20 &#183; bg #FCE7E4</div><div style="margin-top:8px"><span class="pill" style="color:#D92D20;background:#FCE7E4">No-show</span></div></div>
+    <div class="chip"><div class="t"><span class="dot" style="background:#2F6FEB"></span>Info</div><div class="s">#2F6FEB &#183; bg #E7EFFD</div><div style="margin-top:8px"><span class="pill" style="color:#2F6FEB;background:#E7EFFD">Booked</span></div></div>
+  </div>
+
+  <h2>Per-edition accent (same platform, tinted per edition)</h2>
+  <div class="chips">
+    <div class="chip"><div class="t"><span class="dot" style="background:#0E7C74"></span>Solo / Clinic</div><div class="s">Teal &#183; #0E7C74 (brand)</div></div>
+    <div class="chip"><div class="t"><span class="dot" style="background:#6E2C57"></span>Specialty &#9733;</div><div class="s">Plum #6E2C57 &#183; rose #C77FA6</div></div>
+    <div class="chip"><div class="t"><span class="dot" style="background:#2E8B57"></span>Lab</div><div class="s">Green &#183; #2E8B57</div></div>
+    <div class="chip"><div class="t"><span class="dot" style="background:#D9822B"></span>Pharmacy</div><div class="s">Amber &#183; #D9822B</div></div>
+    <div class="chip"><div class="t"><span class="dot" style="background:#1E5FA8"></span>Hospital</div><div class="s">Blue &#183; #1E5FA8</div></div>
+    <div class="chip"><div class="t"><span class="dot" style="background:#3A4A50"></span>Enterprise</div><div class="s">Graphite &#183; #3A4A50</div></div>
+  </div>
+
+  <h2>In use</h2>
+  <div class="cards">
+    <div class="card">
+      <div class="top" style="background:linear-gradient(135deg,#0E7C74,#0B6259)"><div class="mark">H</div><div><div style="font-weight:800;font-size:14px">Health OS &#183; Clinic</div><div style="font-size:11px;opacity:.85">platform brand &#8212; teal</div></div></div>
+      <div class="body">
+        <h3>Today at your clinic</h3>
+        <p>Calm, clinical, trustworthy &#8212; the default look every edition inherits.</p>
+        <button class="btn" style="background:#0E7C74">Book appointment</button>
+        <button class="btn ghost" style="color:#0E7C74;border-color:#0E7C74">View calendar</button>
+        <span class="pill" style="color:#C79A3A;background:#F6EDD3;margin-left:8px">Gold accent</span>
+        <div class="kpi"><div><div class="v" style="color:#0E7C74">Rs 486k</div><div class="l">Revenue</div></div><div><div class="v" style="color:#16262b">18</div><div class="l">Appointments</div></div><div><div class="v" style="color:#1E9E6A">96%</div><div class="l">Attendance</div></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="top" style="background:linear-gradient(135deg,#6E2C57,#8A3A6E)"><div class="mark">&#9733;</div><div><div style="font-weight:800;font-size:14px">Health OS &#183; Specialty</div><div style="font-size:11px;opacity:.85">aesthetic edition &#8212; plum accent</div></div></div>
+      <div class="body">
+        <h3>Aesthetics Clinic</h3>
+        <p>The Specialty edition keeps the premium plum/rose identity we already designed.</p>
+        <button class="btn" style="background:#6E2C57">New treatment plan</button>
+        <button class="btn ghost" style="color:#6E2C57;border-color:#6E2C57">Before / after</button>
+        <span class="pill" style="color:#C79A3A;background:#F6EDD3;margin-left:8px">Gold accent</span>
+        <div class="kpi"><div><div class="v" style="color:#6E2C57">Rs 486k</div><div class="l">Revenue</div></div><div><div class="v" style="color:#16262b">18</div><div class="l">Sessions</div></div><div><div class="v" style="color:#1E9E6A">34</div><div class="l">Rebookings</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="note"><b>How it works:</b> one design-token set drives everything &#8212; the platform ships in <b>teal</b>, and an edition (or a white-label tenant) can override a single <code>--accent</code> token to re-tint the whole UI. Semantic colors (success/warning/danger/info) stay constant across editions so status always reads the same. Full light &amp; dark themes; WCAG-AA contrast on all text pairings.</p>
+</div></div>

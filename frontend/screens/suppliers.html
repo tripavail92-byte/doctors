@@ -1,0 +1,99 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Suppliers · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script></head><body data-page="suppliers" data-nav="inventory" data-title="Suppliers">
+<div class="toolbar">
+  <div class="filters">
+    <div class="field" style="min-width:240px"><input placeholder="Search supplier…"></div>
+    <div class="field"><select><option>All categories</option><option>Injectables</option><option>Fillers</option><option>Serums</option><option>Consumables</option></select></div>
+  </div>
+  <button class="btn primary sm" style="margin-left:auto"><svg class="ic"><use href="#i-plus"/></svg> Supplier</button>
+</div>
+
+<div class="kpis">
+  <div class="kpi">
+    <div class="h"><span class="lab">Active suppliers</span><span class="ico"><svg class="ic"><use href="#i-building"/></svg></span></div>
+    <div class="val">8</div>
+    <div class="foot">2 added this quarter</div>
+  </div>
+  <div class="kpi">
+    <div class="h"><span class="lab">Outstanding payable</span><span class="ico"><svg class="ic"><use href="#i-invoice"/></svg></span></div>
+    <div class="val">Rs 1.24M</div>
+    <div class="foot"><span class="delta down">3 overdue</span> invoices</div>
+  </div>
+  <div class="kpi">
+    <div class="h"><span class="lab">Spend (30d)</span><span class="ico"><svg class="ic"><use href="#i-cash"/></svg></span></div>
+    <div class="val">Rs 2.1M</div>
+    <div class="foot"><span class="delta up">+8.5%</span> vs prior</div>
+  </div>
+  <div class="kpi">
+    <div class="h"><span class="lab">Open POs</span><span class="ico"><svg class="ic"><use href="#i-box"/></svg></span></div>
+    <div class="val">3</div>
+    <div class="foot">1 awaiting delivery</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><div><h3>Suppliers</h3><p>8 vendors</p></div><button class="btn sm primary"><svg class="ic"><use href="#i-plus"/></svg> Add supplier</button></div>
+  <div class="tablewrap">
+    <table class="table">
+      <thead><tr><th>Supplier</th><th>Contact</th><th>Category</th><th>Last order</th><th class="tnum">Outstanding</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><div class="who-cell"><div class="av-sm">AP</div><div><div class="nm">Allergan Pakistan (Pvt) Ltd</div><div class="mt">Lahore</div></div></div></td>
+          <td>Bilal Ahmed<div class="mt">+92 300 4471120</div></td>
+          <td><span class="tag">Injectables</span></td>
+          <td>09 Jul 2026</td>
+          <td class="tnum">Rs 480,000</td>
+          <td><span class="status s-good"><span class="dot"></span>Active</span></td>
+        </tr>
+        <tr>
+          <td><div class="who-cell"><div class="av-sm">GD</div><div><div class="nm">Galderma Distributors</div><div class="mt">Karachi</div></div></div></td>
+          <td>Fatima Noor<div class="mt">+92 321 2298004</div></td>
+          <td><span class="tag">Fillers</span></td>
+          <td>02 Jul 2026</td>
+          <td class="tnum">Rs 226,800</td>
+          <td><span class="status s-good"><span class="dot"></span>Active</span></td>
+        </tr>
+        <tr>
+          <td><div class="who-cell"><div class="av-sm">DS</div><div><div class="nm">Derma Supplies Karachi</div><div class="mt">Karachi</div></div></div></td>
+          <td>Hassan Raza<div class="mt">+92 333 7781142</div></td>
+          <td><span class="tag">Serums</span></td>
+          <td>28 Jun 2026</td>
+          <td class="tnum">Rs 92,400</td>
+          <td><span class="status s-good"><span class="dot"></span>Active</span></td>
+        </tr>
+        <tr>
+          <td><div class="who-cell"><div class="av-sm">MG</div><div><div class="nm">MediGlow Traders</div><div class="mt">Islamabad</div></div></div></td>
+          <td>Ayesha Malik<div class="mt">+92 345 6612390</div></td>
+          <td><span class="tag">Consumables</span></td>
+          <td>21 Jun 2026</td>
+          <td class="tnum">Rs 38,900</td>
+          <td><span class="status s-warn"><span class="dot"></span>Overdue</span></td>
+        </tr>
+        <tr>
+          <td><div class="who-cell"><div class="av-sm">RS</div><div><div class="nm">Restylane Supply Co</div><div class="mt">Lahore</div></div></div></td>
+          <td>Zara Sheikh<div class="mt">+92 302 5590017</div></td>
+          <td><span class="tag">Fillers</span></td>
+          <td>18 Jun 2026</td>
+          <td class="tnum">Rs 0</td>
+          <td><span class="status s-good"><span class="dot"></span>Active</span></td>
+        </tr>
+        <tr>
+          <td><div class="who-cell"><div class="av-sm">PC</div><div><div class="nm">PharmaCare Wholesale</div><div class="mt">Faisalabad</div></div></div></td>
+          <td>Usman Tariq<div class="mt">+92 301 8842267</div></td>
+          <td><span class="tag">Consumables</span></td>
+          <td>14 Jun 2026</td>
+          <td class="tnum">Rs 12,900</td>
+          <td><span class="status s-warn"><span class="dot"></span>Overdue</span></td>
+        </tr>
+        <tr>
+          <td><div class="who-cell"><div class="av-sm">Sk</div><div><div class="nm">SkinLab Imports</div><div class="mt">Karachi</div></div></div></td>
+          <td>Nida Kamal<div class="mt">+92 312 4471900</div></td>
+          <td><span class="tag">Serums</span></td>
+          <td>08 Jun 2026</td>
+          <td class="tnum">Rs 0</td>
+          <td><span class="status s-muted"><span class="dot"></span>Inactive</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</body></html>

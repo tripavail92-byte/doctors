@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Scored-Instrument Runner · Health OS</title>
+<style>
+  :root{
+    --accent:#6E2C57; --accent-t:#6e2c571a; --accent-b:#6e2c5740;
+    --ink:#16262B; --muted:#5c6b70; --faint:#8a979c;
+    --line:#e6e9ea; --surface:#ffffff; --bg:#f5f7f8;
+    --good:#1E9E6A; --warn:#C98A12; --orange:#E8590C; --crit:#D92D20; --grey:#64748b;
+    --serif:"Iowan Old Style","Palatino Linotype",Georgia,serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .top{display:flex;align-items:center;gap:12px;padding:14px 22px;background:var(--surface);border-bottom:1px solid var(--line)}
+  .logo{width:38px;height:38px;border-radius:11px;background:var(--accent);display:grid;place-items:center;color:#fff;font-weight:700}
+  .top h1{font-family:var(--serif);font-size:19px;margin:0;color:var(--accent)}
+  .top .sub{letter-spacing:.14em;text-transform:uppercase;font-size:10px;color:var(--faint);font-weight:700}
+  .wrap{max-width:960px;margin:22px auto;padding:0 18px 60px;display:flex;flex-direction:column;gap:16px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;box-shadow:0 1px 2px #0000000a}
+  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 14px}
+  label{display:block;font-size:12px;color:var(--muted);margin:0 0 5px;font-weight:600}
+  input,select,button{font:inherit}
+  input,select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink)}
+  input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-t)}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .row>div{flex:1;min-width:200px}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:9px;border:1px solid var(--accent);background:var(--accent);color:#fff;font-weight:600;cursor:pointer;transition:filter .12s}
+  .btn:hover{filter:brightness(1.08)}
+  .btn.ghost{background:#fff;color:var(--accent)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .meta{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 14px}
+  .tag{font-size:11px;padding:3px 9px;border-radius:20px;background:var(--accent-t);color:var(--accent);font-weight:600}
+  .tag.grey{background:#eef1f2;color:var(--muted)}
+  .items{display:flex;flex-direction:column;gap:10px}
+  .item{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px dashed var(--line)}
+  .item:last-child{border-bottom:none}
+  .item .lbl{flex:1;font-size:13.5px}
+  .item .wt{font-size:11px;color:var(--faint)}
+  .item select{max-width:230px}
+  .result{display:none;align-items:center;gap:22px;padding:18px 20px;border-radius:12px;border:1px solid var(--line);background:#fbfcfc}
+  .result.show{display:flex}
+  .score-big{font-family:var(--serif);font-size:44px;line-height:1;font-weight:600}
+  .score-max{color:var(--faint);font-size:16px}
+  .chip{display:inline-block;padding:5px 13px;border-radius:20px;color:#fff;font-weight:700;font-size:13px}
+  .bar{height:9px;border-radius:6px;background:#eef1f2;overflow:hidden;margin-top:9px}
+  .bar>i{display:block;height:100%;border-radius:6px}
+  .muted{color:var(--muted)}
+  .note{font-size:12px;color:var(--faint)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
+  .banner{padding:9px 13px;border-radius:9px;font-size:13px;display:none}
+  .banner.show{display:block}
+  .banner.err{background:#fdecec;color:var(--crit);border:1px solid #f5c2c2}
+  .banner.ok{background:#e8f7f0;color:var(--good);border:1px solid #b6e4cf}
+  .hide{display:none}
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="logo">✚</div>
+    <div>
+      <h1>Health OS</h1>
+      <div class="sub">Scored-Instrument Runner · live API</div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div id="banner" class="banner"></div>
+
+    <!-- Auth -->
+    <div class="card" id="authCard">
+      <h2>Sign in</h2>
+      <div class="row">
+        <div><label>Email</label><input id="email" value="owner@glowderma.pk" /></div>
+        <div><label>Password</label><input id="password" type="password" value="Password123!" /></div>
+        <div style="flex:0 0 auto;display:flex;align-items:flex-end"><button class="btn" id="loginBtn">Sign in</button></div>
+      </div>
+      <p class="note" style="margin:12px 0 0">Calls <code>POST /auth/login</code> on this same origin, then uses the JWT for every request. Guards, tenant context and RLS all apply.</p>
+    </div>
+
+    <!-- Runner -->
+    <div class="card hide" id="runnerCard">
+      <h2>Instrument</h2>
+      <div class="row">
+        <div><label>Instrument</label><select id="instrument"></select></div>
+        <div><label>Patient</label><select id="patient"></select></div>
+      </div>
+      <div class="meta" id="meta"></div>
+      <div class="items" id="items"></div>
+      <div style="display:flex;align-items:center;gap:14px;margin-top:16px">
+        <button class="btn" id="scoreBtn">Compute score →</button>
+        <span class="note">Score is computed <b>server-side</b> by the engine, then persisted for the patient.</span>
+      </div>
+
+      <div class="result" id="result" style="margin-top:18px">
+        <div style="text-align:center">
+          <div><span class="score-big" id="rScore">–</span> <span class="score-max" id="rMax"></span></div>
+          <div class="bar" style="width:150px"><i id="rBar"></i></div>
+        </div>
+        <div>
+          <div style="margin-bottom:6px"><span class="chip" id="rChip">–</span></div>
+          <div class="muted" id="rSev"></div>
+          <div class="note" id="rId" style="margin-top:6px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="card hide" id="historyCard">
+      <h2>Patient history</h2>
+      <table>
+        <thead><tr><th>Instrument</th><th>Score</th><th>Band</th><th>Recorded</th></tr></thead>
+        <tbody id="historyBody"><tr><td colspan="4" class="note">No results yet.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+<script>
+const API = ''; // same origin
+let token = null;
+let currentDef = null;
+
+const $ = (id) => document.getElementById(id);
+function banner(msg, kind){ const b=$('banner'); b.textContent=msg; b.className='banner show '+(kind||'ok'); if(kind==='ok') setTimeout(()=>b.className='banner',2500); }
+
+async function api(method, path, body){
+  const opt = { method, headers: { 'Content-Type':'application/json' } };
+  if(token) opt.headers['Authorization'] = 'Bearer '+token;
+  if(body !== undefined) opt.body = JSON.stringify(body);
+  const res = await fetch(API+path, opt);
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+  if(!res.ok){ throw new Error((data && (data.message||data.error)) || ('HTTP '+res.status)); }
+  return data;
+}
+
+const SEV = {
+  none:'var(--grey)', minimal:'var(--good)', mild:'#12A150',
+  moderate:'var(--warn)', severe:'var(--orange)', very_severe:'var(--crit)', crippled:'var(--crit)'
+};
+
+$('loginBtn').onclick = async () => {
+  try{
+    $('loginBtn').disabled = true;
+    const r = await api('POST','/auth/login',{ email:$('email').value.trim(), password:$('password').value });
+    token = r.accessToken;
+    $('authCard').classList.add('hide');
+    $('runnerCard').classList.remove('hide');
+    $('historyCard').classList.remove('hide');
+    banner('Signed in — token acquired.','ok');
+    await Promise.all([loadInstruments(), loadPatients()]);
+    await selectInstrument();
+  }catch(e){ banner('Login failed: '+e.message,'err'); }
+  finally{ $('loginBtn').disabled = false; }
+};
+
+async function loadInstruments(){
+  const list = await api('GET','/instruments');
+  $('instrument').innerHTML = list.map(i=>`<option value="${i.key}">${i.name}</option>`).join('');
+}
+async function loadPatients(){
+  const list = await api('GET','/patients');
+  $('patient').innerHTML = list.map(p=>`<option value="${p.id}">${p.name} · ${p.mrn}</option>`).join('');
+}
+
+$('instrument').onchange = selectInstrument;
+async function selectInstrument(){
+  const key = $('instrument').value;
+  const row = await api('GET','/instruments/'+key);
+  currentDef = row.definition; // the full spec: items, bands, scoring
+  renderMeta(row);
+  renderItems(currentDef);
+  $('result').classList.remove('show');
+}
+
+function renderMeta(row){
+  const d = row.definition;
+  $('meta').innerHTML =
+    `<span class="tag">${d.specialty||row.specialty||'General'}</span>`+
+    `<span class="tag grey">scoring: ${d.scoring}</span>`+
+    `<span class="tag grey">v${row.version}</span>`+
+    (d.description?`<span class="note" style="width:100%;margin-top:4px">${d.description}</span>`:'');
+}
+
+function renderItems(def){
+  $('items').innerHTML = def.items.map(it=>{
+    const opts = (it.options||[]).map(o=>`<option value="${o.value}">${o.label}</option>`).join('');
+    const wt = it.weight ? `<span class="wt">× ${it.weight}</span>` : '';
+    return `<div class="item"><span class="lbl">${it.label}</span>${wt}<select data-k="${it.key}">${opts}</select></div>`;
+  }).join('');
+}
+
+$('scoreBtn').onclick = async () => {
+  try{
+    const answers = {};
+    document.querySelectorAll('#items select').forEach(s=>{ answers[s.dataset.k] = Number(s.value); });
+    const patientId = $('patient').value;
+    const key = $('instrument').value;
+    const r = await api('POST','/instruments/'+key+'/responses',{ patientId, answers });
+    showResult(r.result, r.id);
+    await loadHistory(patientId);
+    banner('Scored and saved.','ok');
+  }catch(e){ banner('Scoring failed: '+e.message,'err'); }
+};
+
+function showResult(res, id){
+  $('rScore').textContent = res.score;
+  $('rMax').textContent = '/ '+res.maxScore;
+  $('rChip').textContent = res.band;
+  const col = SEV[res.severity] || 'var(--grey)';
+  $('rChip').style.background = col;
+  $('rSev').textContent = 'severity: '+res.severity.replace('_',' ');
+  $('rId').textContent = 'saved id: '+id;
+  const pct = res.maxScore ? Math.min(100, Math.round(res.score/res.maxScore*100)) : 0;
+  const bar = $('rBar'); bar.style.width = pct+'%'; bar.style.background = col;
+  $('result').classList.add('show');
+}
+
+async function loadHistory(patientId){
+  const list = await api('GET','/instruments/responses/'+patientId);
+  const body = $('historyBody');
+  if(!list.length){ body.innerHTML = '<tr><td colspan="4" class="note">No results yet.</td></tr>'; return; }
+  body.innerHTML = list.map(r=>{
+    const dt = new Date(r.recordedAt).toLocaleString();
+    return `<tr><td>${r.instrumentKey}</td><td><b>${r.score}</b></td><td>${r.band||''}</td><td class="muted">${dt}</td></tr>`;
+  }).join('');
+}
+</script>
+</body>
+</html>

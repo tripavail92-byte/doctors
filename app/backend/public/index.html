@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Health OS — Backend</title>
+<style>
+  :root{ --accent:#0E7C74; --plum:#6E2C57; --ink:#16262B; --muted:#5c6b70; --faint:#8a979c; --line:#e6e9ea; --surface:#fff; --bg:#f5f7f8; --good:#1E9E6A; --serif:"Iowan Old Style","Palatino Linotype",Georgia,serif; }
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:14.5px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:820px;margin:40px auto;padding:0 20px 60px}
+  .brand{display:flex;align-items:center;gap:13px;margin-bottom:8px}
+  .logo{width:44px;height:44px;border-radius:12px;background:var(--accent);display:grid;place-items:center;color:#fff;font-weight:700;font-size:22px}
+  h1{font-family:var(--serif);font-size:25px;color:var(--accent);margin:0}
+  .sub{letter-spacing:.15em;text-transform:uppercase;font-size:10.5px;color:var(--faint);font-weight:700}
+  .status{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--good);font-weight:600;margin:6px 0 20px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px #1e9e6a22}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;box-shadow:0 1px 2px #0000000a;margin-bottom:16px}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 12px}
+  a.cta{display:inline-block;background:var(--plum);color:#fff;text-decoration:none;padding:11px 20px;border-radius:10px;font-weight:600}
+  a.cta:hover{filter:brightness(1.08)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td{padding:6px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+  td.m{font-weight:700;color:var(--plum);white-space:nowrap;width:70px}
+  code{background:#eef1f2;padding:1px 6px;border-radius:5px;font-size:12.5px}
+  .note{font-size:12.5px;color:var(--faint)}
+  .creds{font-size:13px}
+  .creds b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <div class="logo">✚</div>
+    <div><h1>Health OS</h1><div class="sub">Summit Systems · Backend</div></div>
+  </div>
+  <div class="status"><span class="dot"></span> API is running on this host</div>
+
+  <div class="card">
+    <h2>Live demo widget</h2>
+    <p style="margin:0 0 14px">A definition-driven scored-instrument tool that logs in, renders any instrument from its JSON definition, and scores it live through the engine.</p>
+    <a class="cta" href="/instrument-runner.html">Open the Instrument Runner →</a>
+    <a class="cta" href="/aesthetic-workspace.html" style="margin-left:8px">Aesthetic Workspace →</a>
+    <a class="cta" href="/pediatrics-workspace.html" style="margin-left:8px">Pediatrics Workspace →</a>
+    <p class="creds" style="margin:14px 0 0">Sign in with <b>owner@glowderma.pk</b> / <b>Password123!</b> (tenant owner) — or <b>admin@summitsystems.pk</b> / <b>Password123!</b> (platform admin).</p>
+  </div>
+
+  <div class="card">
+    <h2>API endpoints</h2>
+    <p class="note" style="margin:-4px 0 12px">All except <code>/health</code> require a Bearer token from <code>POST /auth/login</code>.</p>
+    <table>
+      <tr><td class="m">GET</td><td><code>/health</code> — liveness</td></tr>
+      <tr><td class="m">POST</td><td><code>/auth/login</code> — <code>{ email, password }</code> → <code>{ accessToken }</code></td></tr>
+      <tr><td class="m">GET</td><td><code>/packs</code>, <code>/packs/activated</code>, <code>/packs/:key/versions</code></td></tr>
+      <tr><td class="m">POST</td><td><code>/packs/validate</code>, <code>/packs/publish</code>, <code>/packs/:key/activate</code></td></tr>
+      <tr><td class="m">GET</td><td><code>/instruments</code>, <code>/instruments/:key</code>, <code>/instruments/responses/:patientId</code></td></tr>
+      <tr><td class="m">POST</td><td><code>/instruments/:key/responses</code> — score &amp; persist</td></tr>
+      <tr><td class="m">GET</td><td><code>/metrics</code>, <code>/patients/:id/trends</code>, <code>/patients/:id/trends/:metric</code></td></tr>
+      <tr><td class="m">POST</td><td><code>/observations</code> — record a measurement</td></tr>
+      <tr><td class="m">GET</td><td><code>/patients/:id/growth?indicator=wfa</code> — WHO z-scores; <code>/drugs</code></td></tr>
+      <tr><td class="m">POST</td><td><code>/growth/zscore</code>, <code>/dose</code> — LMS &amp; weight-based dosing</td></tr>
+      <tr><td class="m">POST</td><td><code>/consent</code>, <code>/photo-sessions</code>, <code>/photo-sessions/:id/photos</code></td></tr>
+      <tr><td class="m">GET</td><td><code>/patients/:id/photo-sessions</code> — before/after gallery; <code>/photos/:id/raw</code></td></tr>
+      <tr><td class="m">GET</td><td><code>/patients</code>, <code>/appointments</code></td></tr>
+    </table>
+  </div>
+
+  <p class="note">Health OS · one codebase, one data model, many editions. Postgres on :5433, API on :3000.</p>
+</div>
+</body>
+</html>

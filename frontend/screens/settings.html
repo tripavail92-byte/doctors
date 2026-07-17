@@ -1,0 +1,48 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script></head><body data-page="settings" data-nav="settings" data-title="Settings" data-sub="Clinic profile">
+<div class="tabs">
+  <a class="on">Profile</a>
+  <a>Branding</a>
+  <a>Services</a>
+  <a>Tax</a>
+  <a>Locations</a>
+</div>
+
+<div class="grid-2b">
+  <div class="card">
+    <div class="card-head"><div><h3>Clinic Profile</h3><p>Basic details shown on invoices &amp; patient app</p></div></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field full"><label>Clinic name</label><input type="text" value="Radiance Aesthetic Clinic"/></div>
+        <div class="field"><label>Registration / NTN</label><input type="text" value="4820193-7"/></div>
+        <div class="field"><label>Practice type</label><select><option selected>Aesthetic &amp; Dermatology</option><option>General Practice</option><option>Cosmetic Surgery</option></select></div>
+        <div class="field"><label>Contact phone</label><input type="text" value="+92 42 3577 8890"/></div>
+        <div class="field"><label>Contact email</label><input type="text" value="hello@radiance.pk"/></div>
+        <div class="field full"><label>Address</label><input type="text" value="42-C, MM Alam Road, Gulberg III, Lahore"/></div>
+        <div class="field"><label>Opening hours</label><input type="text" value="Mon-Sat 10:00 - 20:00"/></div>
+        <div class="field"><label>Timezone</label><select><option selected>PKT (UTC+5)</option></select></div>
+        <div class="field full"><label>Logo</label><input type="file"/></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><h3>Tax Configuration</h3><p>Applied to all new invoices</p></div></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field full"><label>Tax authority</label><select><option selected>PRA (Punjab Revenue Authority)</option><option>FBR (Federal)</option><option>SRB (Sindh)</option></select></div>
+        <div class="field"><label>Service tax rate (%)</label><input type="text" value="16"/></div>
+        <div class="field"><label>Product GST rate (%)</label><input type="text" value="18"/></div>
+        <div class="field full"><label>PRA registration no.</label><input type="text" value="PRA-32-0091847"/></div>
+        <div class="field"><label>Tax inclusive pricing</label><span class="switch on"></span></div>
+        <div class="field"><label>Show tax on receipt</label><span class="switch on"></span></div>
+      </div>
+      <div class="alert"><span class="ai"><svg class="ic"><use href="#i-warn"/></svg></span><div class="txt">Rate changes apply only to invoices created after saving. Existing invoices keep their original rate.</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <p class="meta-badge">Last saved 12 Jul 2026, 09:14 by Bilal Hussain</p>
+  <div class="rowbtns"><button class="btn ghost">Cancel</button><button class="btn primary"><svg class="ic"><use href="#i-check"/></svg> Save settings</button></div>
+</div>
+</body></html>

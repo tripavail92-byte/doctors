@@ -1,0 +1,53 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Front desk · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script></head><body data-page="dashboard-reception" data-nav="dashboard" data-title="Front desk" data-sub="Today at a glance" data-role="reception">
+<div class="toolbar"><div class="segmented"><button class="on">Today</button><button>Tomorrow</button><button>This week</button></div><div style="flex:1"></div><button class="btn primary sm"><svg class="ic"><use href="#i-plus"/></svg> New booking</button><button class="btn accent sm"><svg class="ic"><use href="#i-user"/></svg> New walk-in</button><button class="btn sm"><svg class="ic"><use href="#i-cash"/></svg> Take payment</button></div>
+
+<div class="kpis">
+  <div class="kpi"><div class="h"><span class="lab">Checked-in</span><span class="ico"><svg class="ic"><use href="#i-check"/></svg></span></div><div class="val">7</div><div class="foot"><span class="delta up">+2</span> since 9 AM</div></div>
+  <div class="kpi"><div class="h"><span class="lab">Waiting</span><span class="ico"><svg class="ic"><use href="#i-clock"/></svg></span></div><div class="val">4</div><div class="foot">avg wait 12 min</div></div>
+  <div class="kpi"><div class="h"><span class="lab">Booked today</span><span class="ico"><svg class="ic"><use href="#i-cal"/></svg></span></div><div class="val">18</div><div class="foot"><span class="delta up">+3</span> vs yesterday</div></div>
+  <div class="kpi"><div class="h"><span class="lab">Walk-ins</span><span class="ico"><svg class="ic"><use href="#i-users"/></svg></span></div><div class="val">3</div><div class="foot">2 pending triage</div></div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-head"><div><h3>Live queue</h3><p>Current tokens &middot; updated just now</p></div><button class="btn ghost sm"><svg class="ic"><use href="#i-bell"/></svg> Call next</button></div>
+    <div class="tablewrap"><table class="table"><thead><tr><th>Token</th><th>Patient</th><th>For</th><th>Status</th><th style="text-align:right">Action</th></tr></thead><tbody>
+      <tr><td class="tnum">A-12</td><td><div class="who-cell"><div class="av-sm">AM</div><div><div class="nm">Ayesha Malik</div><div class="mt">Dr. Sana &middot; Botox review</div></div></div></td><td>Consultation</td><td><span class="status s-accent"><span class="dot"></span>In room</span></td><td style="text-align:right"><button class="btn sm">Call</button></td></tr>
+      <tr><td class="tnum">A-13</td><td><div class="who-cell"><div class="av-sm">BA</div><div><div class="nm">Bilal Ahmed</div><div class="mt">Dr. Sana &middot; Laser hair</div></div></div></td><td>Treatment</td><td><span class="status s-warn"><span class="dot"></span>Waiting</span></td><td style="text-align:right"><button class="btn sm primary">Call</button></td></tr>
+      <tr><td class="tnum">A-14</td><td><div class="who-cell"><div class="av-sm">FN</div><div><div class="nm">Fatima Noor</div><div class="mt">Walk-in &middot; Skin consult</div></div></div></td><td>Consultation</td><td><span class="status s-warn"><span class="dot"></span>Waiting</span></td><td style="text-align:right"><button class="btn sm primary">Call</button></td></tr>
+      <tr><td class="tnum">A-15</td><td><div class="who-cell"><div class="av-sm">HR</div><div><div class="nm">Hassan Raza</div><div class="mt">Dr. Imran &middot; Hydrafacial</div></div></div></td><td>Treatment</td><td><span class="status s-info"><span class="dot"></span>Arrived</span></td><td style="text-align:right"><button class="btn sm">Check in</button></td></tr>
+      <tr><td class="tnum">A-16</td><td><div class="who-cell"><div class="av-sm">ZK</div><div><div class="nm">Zainab Khan</div><div class="mt">Dr. Sana &middot; Filler top-up</div></div></div></td><td>Treatment</td><td><span class="status s-muted"><span class="dot"></span>Not arrived</span></td><td style="text-align:right"><button class="btn sm">Check in</button></td></tr>
+      <tr><td class="tnum">A-17</td><td><div class="who-cell"><div class="av-sm">UF</div><div><div class="nm">Usman Farooq</div><div class="mt">Walk-in &middot; Acne review</div></div></div></td><td>Consultation</td><td><span class="status s-muted"><span class="dot"></span>Not arrived</span></td><td style="text-align:right"><button class="btn sm">Check in</button></td></tr>
+    </tbody></table></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><h3>Quick actions</h3><p>Common front-desk tasks</p></div></div>
+    <div class="card-body">
+      <div class="rowbtns" style="flex-direction:column;align-items:stretch;gap:10px">
+        <button class="btn primary" style="justify-content:flex-start"><svg class="ic"><use href="#i-cal"/></svg> New booking</button>
+        <button class="btn accent" style="justify-content:flex-start"><svg class="ic"><use href="#i-user"/></svg> Register walk-in</button>
+        <button class="btn" style="justify-content:flex-start"><svg class="ic"><use href="#i-cash"/></svg> Take payment</button>
+        <button class="btn ghost" style="justify-content:flex-start"><svg class="ic"><use href="#i-invoice"/></svg> Print receipt</button>
+        <button class="btn ghost" style="justify-content:flex-start"><svg class="ic"><use href="#i-search"/></svg> Find patient</button>
+      </div>
+      <div class="alert" style="margin-top:16px"><div class="ai"><svg class="ic"><use href="#i-warn"/></svg></div><div class="txt"><b>Room 2 running late</b><div class="mt">Dr. Imran is ~15 min behind. 2 patients affected.</div></div></div>
+      <div style="margin-top:14px"><div class="lab" style="font-size:12px;color:var(--muted);margin-bottom:6px">Rooms in use</div><div class="bar"><i style="width:75%"></i></div><div class="mt" style="margin-top:6px">3 of 4 rooms occupied</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><div><h3>Today's appointments</h3><p>Friday, 12 July 2026 &middot; 18 booked</p></div><button class="btn sm primary"><svg class="ic"><use href="#i-plus"/></svg> Add</button></div>
+  <div class="tablewrap"><table class="table"><thead><tr><th>Time</th><th>Patient</th><th>Service</th><th>Provider</th><th>Status</th><th style="text-align:right">Amount</th></tr></thead><tbody>
+    <tr><td class="tnum">09:30</td><td><div class="who-cell"><div class="av-sm">AM</div><div><div class="nm">Ayesha Malik</div><div class="mt">+92 300 1234567</div></div></div></td><td>Botox review</td><td>Dr. Sana Tariq</td><td><span class="status s-good"><span class="dot"></span>Checked in</span></td><td class="tnum" style="text-align:right">Rs 18,000</td></tr>
+    <tr><td class="tnum">10:00</td><td><div class="who-cell"><div class="av-sm">BA</div><div><div class="nm">Bilal Ahmed</div><div class="mt">+92 321 9876543</div></div></div></td><td>Laser hair removal</td><td>Dr. Sana Tariq</td><td><span class="status s-warn"><span class="dot"></span>Waiting</span></td><td class="tnum" style="text-align:right">Rs 12,900</td></tr>
+    <tr><td class="tnum">10:30</td><td><div class="who-cell"><div class="av-sm">HR</div><div><div class="nm">Hassan Raza</div><div class="mt">+92 333 4567890</div></div></div></td><td>Hydrafacial</td><td>Dr. Imran Shah</td><td><span class="status s-info"><span class="dot"></span>Arrived</span></td><td class="tnum" style="text-align:right">Rs 15,500</td></tr>
+    <tr><td class="tnum">11:00</td><td><div class="who-cell"><div class="av-sm">ZK</div><div><div class="nm">Zainab Khan</div><div class="mt">+92 301 2223334</div></div></div></td><td>Filler top-up</td><td>Dr. Sana Tariq</td><td><span class="status s-muted"><span class="dot"></span>Booked</span></td><td class="tnum" style="text-align:right">Rs 42,000</td></tr>
+    <tr><td class="tnum">11:30</td><td><div class="who-cell"><div class="av-sm">MI</div><div><div class="nm">Maryam Iqbal</div><div class="mt">+92 345 7778889</div></div></div></td><td>Chemical peel</td><td>Dr. Imran Shah</td><td><span class="status s-muted"><span class="dot"></span>Booked</span></td><td class="tnum" style="text-align:right">Rs 9,500</td></tr>
+    <tr><td class="tnum">12:00</td><td><div class="who-cell"><div class="av-sm">SA</div><div><div class="nm">Sana Aslam</div><div class="mt">+92 312 6665554</div></div></div></td><td>Microneedling</td><td>Dr. Sana Tariq</td><td><span class="status s-muted"><span class="dot"></span>Booked</span></td><td class="tnum" style="text-align:right">Rs 22,000</td></tr>
+    <tr><td class="tnum">12:30</td><td><div class="who-cell"><div class="av-sm">TN</div><div><div class="nm">Tahir Nadeem</div><div class="mt">+92 300 1112223</div></div></div></td><td>Skin consultation</td><td>Dr. Imran Shah</td><td><span class="status s-crit"><span class="dot"></span>No-show</span></td><td class="tnum" style="text-align:right">Rs 3,500</td></tr>
+    <tr><td class="tnum">14:00</td><td><div class="who-cell"><div class="av-sm">RN</div><div><div class="nm">Rabia Nawaz</div><div class="mt">+92 302 4445556</div></div></div></td><td>PRP therapy</td><td>Dr. Sana Tariq</td><td><span class="status s-muted"><span class="dot"></span>Booked</span></td><td class="tnum" style="text-align:right">Rs 28,000</td></tr>
+  </tbody></table></div>
+</div>
+</body></html>

@@ -1,0 +1,34 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Roles &amp;amp; Permissions · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script></head><body data-page="admin-permissions" data-nav="admin-users" data-title="Roles &amp;amp; Permissions" data-sub="Access matrix">
+<div class="toolbar">
+  <div class="filters">
+    <div class="field"><label>View role</label><select><option>All roles (matrix)</option><option>Admin</option><option>Reception</option><option>Doctor</option><option>Sales</option><option>Treatment</option><option>Inventory</option><option>Finance</option></select></div>
+    <div class="field"><label>Area group</label><select><option>All areas</option><option>Clinical</option><option>Commercial</option><option>Operations</option></select></div>
+  </div>
+  <div class="rowbtns"><button class="btn ghost">Reset defaults</button><button class="btn primary"><svg class="ic"><use href="#i-check"/></svg> Save changes</button></div>
+</div>
+
+<div class="alert">
+  <span class="ai"><svg class="ic"><use href="#i-shield"/></svg></span>
+  <div class="txt"><b>Access levels:</b> <span class="pill">Full</span> edit all &middot; <span class="pill">Own</span> own records &middot; <span class="pill">Read</span> view only &middot; <span class="pill">Approve</span> sign-off rights &middot; <span class="tag">&mdash;</span> no access.</div>
+</div>
+
+<div class="card">
+  <div class="card-head"><div><h3>Permission Matrix</h3><p>9 areas &times; 7 roles &middot; Aesthetic Clinic policy</p></div></div>
+  <div class="tablewrap">
+    <table class="table">
+      <thead><tr><th>Area</th><th>Admin</th><th>Reception</th><th>Doctor</th><th>Sales</th><th>Treatment</th><th>Inventory</th><th>Finance</th></tr></thead>
+      <tbody>
+        <tr><td><b>Leads</b></td><td><span class="pill">Full</span></td><td><span class="pill">Full</span></td><td><span class="tag">&mdash;</span></td><td><span class="pill">Full</span></td><td><span class="tag">&mdash;</span></td><td><span class="tag">&mdash;</span></td><td><span class="pill">Read</span></td></tr>
+        <tr><td><b>Patients</b></td><td><span class="pill">Full</span></td><td><span class="pill">Full</span></td><td><span class="pill">Full</span></td><td><span class="pill">Read</span></td><td><span class="pill">Read</span></td><td><span class="tag">&mdash;</span></td><td><span class="pill">Read</span></td></tr>
+        <tr><td><b>Clinical notes</b></td><td><span class="pill">Read</span></td><td><span class="tag">&mdash;</span></td><td><span class="pill">Full</span></td><td><span class="tag">&mdash;</span></td><td><span class="pill">Own</span></td><td><span class="tag">&mdash;</span></td><td><span class="tag">&mdash;</span></td></tr>
+        <tr><td><b>Billing</b></td><td><span class="pill">Full</span></td><td><span class="pill">Full</span></td><td><span class="pill">Read</span></td><td><span class="pill">Own</span></td><td><span class="tag">&mdash;</span></td><td><span class="tag">&mdash;</span></td><td><span class="pill">Full</span></td></tr>
+        <tr><td><b>Discounts approve</b></td><td><span class="pill">Approve</span></td><td><span class="tag">&mdash;</span></td><td><span class="tag">&mdash;</span></td><td><span class="pill">Read</span></td><td><span class="tag">&mdash;</span></td><td><span class="tag">&mdash;</span></td><td><span class="pill">Approve</span></td></tr>
+        <tr><td><b>Payroll</b></td><td><span class="pill">Full</span></td><td><span class="tag">&mdash;</span></td><td><span class="tag">&mdash;</span></td><td><span class="tag">&mdash;</span></td><td><span class="tag">&mdash;</span></td><td><span class="tag">&mdash;</span></td><td><span class="pill">Full</span></td></tr>
+        <tr><td><b>Inventory</b></td><td><span class="pill">Full</span></td><td><span class="pill">Read</span></td><td><span class="pill">Read</span></td><td><span class="tag">&mdash;</span></td><td><span class="pill">Read</span></td><td><span class="pill">Full</span></td><td><span class="pill">Read</span></td></tr>
+        <tr><td><b>Reports</b></td><td><span class="pill">Full</span></td><td><span class="pill">Read</span></td><td><span class="pill">Own</span></td><td><span class="pill">Own</span></td><td><span class="pill">Own</span></td><td><span class="pill">Own</span></td><td><span class="pill">Full</span></td></tr>
+        <tr><td><b>Settings</b></td><td><span class="pill">Full</span></td><td><span class="tag">&mdash;</span></td><td><span class="tag">&mdash;</span></td><td><span class="tag">&mdash;</span></td><td><span class="tag">&mdash;</span></td><td><span class="tag">&mdash;</span></td><td><span class="pill">Read</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</body></html>

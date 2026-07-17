@@ -1,0 +1,37 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Staff &amp;amp; Roles · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script></head><body data-page="admin-users" data-nav="admin-users" data-title="Staff &amp;amp; Roles" data-sub="User accounts">
+<div class="kpis">
+  <div class="kpi"><div class="h"><span class="lab">Total Users</span><span class="ico"><svg class="ic"><use href="#i-users"/></svg></span></div><div class="val">24</div><div class="foot"><span class="delta up">+3</span> this quarter</div></div>
+  <div class="kpi"><div class="h"><span class="lab">Admins</span><span class="ico"><svg class="ic"><use href="#i-shield"/></svg></span></div><div class="val">2</div><div class="foot">Full access roles</div></div>
+  <div class="kpi"><div class="h"><span class="lab">2FA Enabled</span><span class="ico"><svg class="ic"><use href="#i-check"/></svg></span></div><div class="val">20</div><div class="foot"><span class="delta up">83%</span> of staff</div></div>
+  <div class="kpi"><div class="h"><span class="lab">Active Today</span><span class="ico"><svg class="ic"><use href="#i-clock"/></svg></span></div><div class="val">17</div><div class="foot">Signed in past 24h</div></div>
+</div>
+
+<div class="toolbar">
+  <div class="filters">
+    <div class="field"><label>Role</label><select><option>All roles</option><option>Admin</option><option>Reception</option><option>Doctor</option><option>Sales</option><option>Treatment</option><option>Inventory</option><option>Finance</option></select></div>
+    <div class="field"><label>Status</label><select><option>All statuses</option><option>Active</option><option>Invited</option><option>Suspended</option></select></div>
+    <div class="field"><label>Search</label><input type="text" placeholder="Name or email"/></div>
+  </div>
+  <button class="btn primary"><svg class="ic"><use href="#i-plus"/></svg> Add user</button>
+</div>
+
+<div class="card">
+  <div class="card-head"><div><h3>Staff Members</h3><p>24 users across Health OS Aesthetic Clinic</p></div><button class="btn ghost sm"><svg class="ic"><use href="#i-download"/></svg> Export</button></div>
+  <div class="tablewrap">
+    <table class="table">
+      <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Last active</th><th>2FA</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        <tr><td><div class="who-cell"><span class="av-sm">AM</span><div><div class="nm">Dr. Ayesha Malik</div><div class="mt">Chief Dermatologist</div></div></div></td><td>ayesha.malik@clinic.pk</td><td><span class="pill">Admin</span></td><td>2 min ago</td><td><span class="chip">On</span></td><td><span class="status s-good"><span class="dot"></span>Active</span></td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-edit"/></svg></button></td></tr>
+        <tr><td><div class="who-cell"><span class="av-sm">BH</span><div><div class="nm">Bilal Hussain</div><div class="mt">Clinic Manager</div></div></div></td><td>bilal.hussain@clinic.pk</td><td><span class="pill">Admin</span></td><td>18 min ago</td><td><span class="chip">On</span></td><td><span class="status s-good"><span class="dot"></span>Active</span></td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-edit"/></svg></button></td></tr>
+        <tr><td><div class="who-cell"><span class="av-sm">FN</span><div><div class="nm">Dr. Fahad Nawaz</div><div class="mt">Cosmetic Surgeon</div></div></div></td><td>fahad.nawaz@clinic.pk</td><td><span class="pill">Doctor</span></td><td>1 hr ago</td><td><span class="chip">On</span></td><td><span class="status s-good"><span class="dot"></span>Active</span></td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-edit"/></svg></button></td></tr>
+        <tr><td><div class="who-cell"><span class="av-sm">SK</span><div><div class="nm">Sana Khan</div><div class="mt">Front Desk Lead</div></div></div></td><td>sana.khan@clinic.pk</td><td><span class="pill">Reception</span></td><td>34 min ago</td><td><span class="chip">On</span></td><td><span class="status s-good"><span class="dot"></span>Active</span></td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-edit"/></svg></button></td></tr>
+        <tr><td><div class="who-cell"><span class="av-sm">UA</span><div><div class="nm">Usman Ali</div><div class="mt">Sales Consultant</div></div></div></td><td>usman.ali@clinic.pk</td><td><span class="pill">Sales</span></td><td>5 hr ago</td><td><span class="chip">On</span></td><td><span class="status s-good"><span class="dot"></span>Active</span></td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-edit"/></svg></button></td></tr>
+        <tr><td><div class="who-cell"><span class="av-sm">MR</span><div><div class="nm">Maryam Raza</div><div class="mt">Aesthetician</div></div></div></td><td>maryam.raza@clinic.pk</td><td><span class="pill">Treatment</span></td><td>3 hr ago</td><td><span class="chip">On</span></td><td><span class="status s-good"><span class="dot"></span>Active</span></td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-edit"/></svg></button></td></tr>
+        <tr><td><div class="who-cell"><span class="av-sm">HR</span><div><div class="nm">Hamza Rashid</div><div class="mt">Store Keeper</div></div></div></td><td>hamza.rashid@clinic.pk</td><td><span class="pill">Inventory</span></td><td>Yesterday</td><td><span class="chip" style="opacity:.55">Off</span></td><td><span class="status s-warn"><span class="dot"></span>Idle</span></td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-edit"/></svg></button></td></tr>
+        <tr><td><div class="who-cell"><span class="av-sm">NF</span><div><div class="nm">Nadia Farooq</div><div class="mt">Accounts Officer</div></div></div></td><td>nadia.farooq@clinic.pk</td><td><span class="pill">Finance</span></td><td>42 min ago</td><td><span class="chip">On</span></td><td><span class="status s-good"><span class="dot"></span>Active</span></td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-edit"/></svg></button></td></tr>
+        <tr><td><div class="who-cell"><span class="av-sm">ZI</span><div><div class="nm">Zainab Iqbal</div><div class="mt">Receptionist</div></div></div></td><td>zainab.iqbal@clinic.pk</td><td><span class="pill">Reception</span></td><td>Invited 9 Jul</td><td><span class="chip" style="opacity:.55">Off</span></td><td><span class="status s-info"><span class="dot"></span>Invited</span></td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-edit"/></svg></button></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</body></html>

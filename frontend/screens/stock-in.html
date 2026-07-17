@@ -1,0 +1,65 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Stock-in / Purchase order · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script></head><body data-page="stock-in" data-nav="inventory" data-title="Stock-in / Purchase order">
+<div class="alert">
+  <div class="ai"><svg class="ic"><use href="#i-scan"/></svg></div>
+  <div class="txt"><b>Scan DRAP 2D barcode to auto-fill</b><div class="mt">Point the scanner at the GS1 DataMatrix on each pack — item, batch (GTIN), expiry and pack size populate automatically. Manual entry is available below.</div></div>
+  <div class="rowbtns"><button class="btn sm"><svg class="ic"><use href="#i-scan"/></svg> Scan barcode</button></div>
+</div>
+
+<div class="card">
+  <div class="card-head"><div><h3>Purchase order details</h3><p>Receiving stock into main store</p></div></div>
+  <div class="card-body">
+    <div class="form-grid">
+      <div class="field"><label>Supplier</label><select><option>Allergan Pakistan (Pvt) Ltd</option><option>Galderma Distributors</option><option>Derma Supplies Karachi</option><option>MediGlow Traders</option></select></div>
+      <div class="field"><label>PO number</label><input value="PO-2026-0148"></div>
+      <div class="field"><label>Invoice / DC number</label><input placeholder="e.g. INV-88421"></div>
+      <div class="field"><label>Received date</label><input value="12 Jul 2026"></div>
+      <div class="field"><label>Received by</label><select><option>Sana Iqbal</option><option>Dr. Fatima Noor</option><option>Hassan Raza</option></select></div>
+      <div class="field"><label>Store location</label><select><option>Main cold store</option><option>Treatment room A</option><option>Front desk</option></select></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><div><h3>Items received</h3><p>Add each line from the delivery</p></div><button class="btn sm primary"><svg class="ic"><use href="#i-plus"/></svg> Add line</button></div>
+  <div class="tablewrap">
+    <table class="table">
+      <thead><tr><th>Item</th><th>Batch</th><th>Expiry</th><th class="tnum">Qty</th><th class="tnum">Unit cost</th><th class="tnum">Total</th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <td><div class="who-cell"><div class="av-sm">BX</div><div><div class="nm">Botox 50U (Allergan)</div><div class="mt">Injectables</div></div></div></td>
+          <td>AL2417</td><td>Aug 2027</td><td class="tnum">10</td><td class="tnum">Rs 25,300</td><td class="tnum">Rs 253,000</td>
+          <td><button class="btn ghost sm"><svg class="ic"><use href="#i-x"/></svg></button></td>
+        </tr>
+        <tr>
+          <td><div class="who-cell"><div class="av-sm">JV</div><div><div class="nm">Juvederm Ultra XC</div><div class="mt">Fillers</div></div></div></td>
+          <td>JU9102</td><td>Oct 2027</td><td class="tnum">12</td><td class="tnum">Rs 18,900</td><td class="tnum">Rs 226,800</td>
+          <td><button class="btn ghost sm"><svg class="ic"><use href="#i-x"/></svg></button></td>
+        </tr>
+        <tr>
+          <td><div class="who-cell"><div class="av-sm">LC</div><div><div class="nm">Lidocaine Cream 5%</div><div class="mt">Consumables</div></div></div></td>
+          <td>LC2298</td><td>May 2028</td><td class="tnum">20</td><td class="tnum">Rs 1,450</td><td class="tnum">Rs 29,000</td>
+          <td><button class="btn ghost sm"><svg class="ic"><use href="#i-x"/></svg></button></td>
+        </tr>
+        <tr>
+          <td><input placeholder="Search item to add…"></td>
+          <td><input placeholder="Batch"></td>
+          <td><input placeholder="MM/YYYY"></td>
+          <td><input class="tnum" placeholder="0"></td>
+          <td><input class="tnum" placeholder="Rs 0"></td>
+          <td class="tnum">—</td>
+          <td><button class="btn primary sm"><svg class="ic"><use href="#i-plus"/></svg></button></td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr><td colspan="5" style="text-align:right"><b>Grand total</b></td><td class="tnum"><b>Rs 508,800</b></td><td></td></tr>
+      </tfoot>
+    </table>
+  </div>
+  <div class="card-body">
+    <div class="rowbtns" style="justify-content:flex-end">
+      <button class="btn ghost">Save draft</button>
+      <button class="btn primary"><svg class="ic"><use href="#i-check"/></svg> Receive stock</button>
+    </div>
+  </div>
+</div>
+</body></html>

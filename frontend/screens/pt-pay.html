@@ -1,0 +1,45 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Patient App — Pay · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script></head><body data-page="pt-pay" data-title="Patient App — Pay" data-shell="none">
+<div class="phones"><div class="phone"><div class="screen">
+<div class="pt-top"><div class="nm" style="color:#fff;font-weight:700">Payments</div></div>
+<div class="pt-body">
+  <div class="card">
+    <div class="card-body" style="text-align:center">
+      <div class="lab">Outstanding balance</div>
+      <div class="val tnum" style="font-size:34px;color:var(--crit)">PKR 27,750</div>
+      <div class="meta-badge">Due by 20 Jul 2026</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="card-head"><div><h3>Invoices</h3></div></div>
+    <div class="tablewrap"><table class="table"><thead><tr><th>Invoice</th><th>Date</th><th class="tnum">Amount</th><th>Status</th></tr></thead><tbody>
+      <tr><td>INV-2041</td><td>01 Jul</td><td class="tnum">18,500</td><td><span class="status s-crit"><span class="dot"></span>Unpaid</span></td></tr>
+      <tr><td>INV-2018</td><td>18 Jun</td><td class="tnum">9,250</td><td><span class="status s-warn"><span class="dot"></span>Partial</span></td></tr>
+      <tr><td>INV-1996</td><td>02 Jun</td><td class="tnum">18,500</td><td><span class="status s-good"><span class="dot"></span>Paid</span></td></tr>
+      <tr><td>INV-1970</td><td>15 May</td><td class="tnum">12,000</td><td><span class="status s-good"><span class="dot"></span>Paid</span></td></tr>
+    </tbody></table></div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="card-head"><div><h3>Pay now</h3></div></div>
+    <div class="card-body">
+      <div class="segmented"><button class="on">Card</button><button>Safepay</button><button>EasyPaisa</button></div>
+      <div class="form-grid" style="margin-top:12px">
+        <div class="field full"><label>Card number</label><input value="4242 4242 4242 4242"></div>
+        <div class="field"><label>Expiry</label><input value="08/28"></div>
+        <div class="field"><label>CVC</label><input value="•••"></div>
+      </div>
+      <button class="btn primary" style="width:100%;margin-top:12px">Pay PKR 27,750</button>
+    </div>
+  </div>
+
+  <div class="alert s-good" style="margin-top:12px"><div class="ai"><svg class="ic"><use href="#i-check"/></svg></div><div class="txt"><b>Payment received</b><br>Receipt RCP-3390 · PKR 9,250 on 18 Jun. <a href="#">Download</a></div></div>
+</div>
+<div class="pt-tabs">
+  <a><svg class="ic"><use href="#i-dash"/></svg><span>Home</span></a>
+  <a><svg class="ic"><use href="#i-cal"/></svg><span>Book</span></a>
+  <a><svg class="ic"><use href="#i-plan"/></svg><span>Plan</span></a>
+  <a><svg class="ic"><use href="#i-user"/></svg><span>Profile</span></a>
+</div>
+</div></div></div>
+</body></html>

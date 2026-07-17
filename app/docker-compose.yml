@@ -1,0 +1,50 @@
+# Health OS — local development infrastructure.
+# Brings up PostgreSQL 16 for the backend. Run: `docker compose up -d postgres`
+#
+# The backend connects with DATABASE_URL from backend/.env, e.g.:
+#   postgresql://healthos:healthos@localhost:5432/healthos?schema=public
+#
+# NOTE ON RLS: Postgres Row-Level Security policies are NOT bypassed for the
+# owner of a table, but ARE bypassed for a superuser and for roles with the
+# BYPASSRLS attribute. The app should connect as a NON-superuser role so RLS
+# is enforced. For a starter skeleton we use the default role; see docs and
+# backend/rls.sql for how to create a dedicated `healthos_app` role in prod.
+
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: healthos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: healthos
+      POSTGRES_PASSWORD: healthos
+      POSTGRES_DB: healthos
+      # Consistent auth for local dev.
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U healthos -d healthos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Optional: a DB UI for inspecting tenant data during development.
+  # Uncomment to use; visit http://localhost:8080 (system: PostgreSQL,
+  # server: postgres, user/pass/db: healthos).
+  # adminer:
+  #   image: adminer:4
+  #   container_name: healthos-adminer
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - postgres
+  #   ports:
+  #     - "8080:8080"
+
+volumes:
+  pgdata:
+    driver: local

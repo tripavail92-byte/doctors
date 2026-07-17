@@ -1,0 +1,109 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Imaging Orders · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script></head><body data-page="imaging-orders" data-nav="imaging-orders" data-title="Imaging Orders" data-sub="Radiology">
+<div class="kpis">
+  <div class="kpi"><div class="h"><span class="lab">Open Orders</span><span class="ico"><svg class="ic"><use href="#i-scan"/></svg></span></div><div class="val">42</div><div class="foot"><span class="delta up">+8</span> vs last week</div></div>
+  <div class="kpi"><div class="h"><span class="lab">Awaiting Report</span><span class="ico"><svg class="ic"><use href="#i-clock"/></svg></span></div><div class="val">15</div><div class="foot"><span class="delta down">-3</span> since yesterday</div></div>
+  <div class="kpi"><div class="h"><span class="lab">STAT / Urgent</span><span class="ico"><svg class="ic"><use href="#i-warn"/></svg></span></div><div class="val">6</div><div class="foot"><span class="delta up">+2</span> today</div></div>
+  <div class="kpi"><div class="h"><span class="lab">Avg TAT</span><span class="ico"><svg class="ic"><use href="#i-bars"/></svg></span></div><div class="val">3.4h</div><div class="foot"><span class="delta down">-0.6h</span> improved</div></div>
+</div>
+
+<div class="toolbar">
+  <div class="filters">
+    <div class="segmented"><button class="on">All Modalities</button><button>X-ray</button><button>Ultrasound</button><button>CT</button><button>MRI</button></div>
+    <select><option>All Priorities</option><option>STAT</option><option>Urgent</option><option>Routine</option></select>
+    <select><option>All Statuses</option><option>Ordered</option><option>Scheduled</option><option>Acquired</option><option>Reported</option></select>
+    <div class="chip"><svg class="ic"><use href="#i-search"/></svg> Search patient / order #</div>
+  </div>
+  <button class="btn primary"><svg class="ic"><use href="#i-plus"/></svg> New Order</button>
+</div>
+
+<div class="card">
+  <div class="card-head"><div><h3>Imaging Worklist</h3><p>Radiology department · 12 Jul 2026</p></div><button class="btn ghost sm"><svg class="ic"><use href="#i-download"/></svg> Export</button></div>
+  <div class="tablewrap">
+    <table class="table">
+      <thead><tr><th>Order #</th><th>Patient</th><th>Modality</th><th>Body Part</th><th>Priority</th><th>Status</th><th>Referrer</th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="tnum">IMG-24817</td>
+          <td><div class="who-cell"><span class="av-sm">AK</span><div><div class="nm">Ayesha Khan</div><div class="mt">F · 34 · MRN 88214</div></div></div></td>
+          <td><span class="tag">CT</span></td>
+          <td>Chest</td>
+          <td><span class="pill">Routine</span></td>
+          <td><span class="status s-info"><span class="dot"></span>Scheduled</span></td>
+          <td>Dr. Bilal Ahmed</td>
+          <td><button class="btn ghost sm">Open</button></td>
+        </tr>
+        <tr>
+          <td class="tnum">IMG-24816</td>
+          <td><div class="who-cell"><span class="av-sm">MR</span><div><div class="nm">Muhammad Raza</div><div class="mt">M · 51 · MRN 71903</div></div></div></td>
+          <td><span class="tag">X-ray</span></td>
+          <td>Left Wrist</td>
+          <td><span class="pill">Urgent</span></td>
+          <td><span class="status s-warn"><span class="dot"></span>Acquired</span></td>
+          <td>Dr. Sana Malik</td>
+          <td><button class="btn ghost sm">Open</button></td>
+        </tr>
+        <tr>
+          <td class="tnum">IMG-24815</td>
+          <td><div class="who-cell"><span class="av-sm">FZ</span><div><div class="nm">Fatima Zahra</div><div class="mt">F · 28 · MRN 90551</div></div></div></td>
+          <td><span class="tag">US</span></td>
+          <td>Abdomen</td>
+          <td><span class="pill">Routine</span></td>
+          <td><span class="status s-good"><span class="dot"></span>Reported</span></td>
+          <td>Dr. Imran Sheikh</td>
+          <td><button class="btn ghost sm">Open</button></td>
+        </tr>
+        <tr>
+          <td class="tnum">IMG-24814</td>
+          <td><div class="who-cell"><span class="av-sm">HA</span><div><div class="nm">Hamza Ali</div><div class="mt">M · 62 · MRN 65418</div></div></div></td>
+          <td><span class="tag">CT</span></td>
+          <td>Head</td>
+          <td><span class="pill" style="color:var(--crit)">STAT</span></td>
+          <td><span class="status s-crit"><span class="dot"></span>Ordered</span></td>
+          <td>Dr. Nadia Farooq</td>
+          <td><button class="btn ghost sm">Open</button></td>
+        </tr>
+        <tr>
+          <td class="tnum">IMG-24813</td>
+          <td><div class="who-cell"><span class="av-sm">SB</span><div><div class="nm">Sadia Batool</div><div class="mt">F · 45 · MRN 77320</div></div></div></td>
+          <td><span class="tag">US</span></td>
+          <td>Pelvis</td>
+          <td><span class="pill">Routine</span></td>
+          <td><span class="status s-info"><span class="dot"></span>Scheduled</span></td>
+          <td>Dr. Bilal Ahmed</td>
+          <td><button class="btn ghost sm">Open</button></td>
+        </tr>
+        <tr>
+          <td class="tnum">IMG-24812</td>
+          <td><div class="who-cell"><span class="av-sm">UF</span><div><div class="nm">Usman Farid</div><div class="mt">M · 39 · MRN 58007</div></div></div></td>
+          <td><span class="tag">X-ray</span></td>
+          <td>Chest PA</td>
+          <td><span class="pill">Urgent</span></td>
+          <td><span class="status s-warn"><span class="dot"></span>Acquired</span></td>
+          <td>Dr. Sana Malik</td>
+          <td><button class="btn ghost sm">Open</button></td>
+        </tr>
+        <tr>
+          <td class="tnum">IMG-24811</td>
+          <td><div class="who-cell"><span class="av-sm">MZ</span><div><div class="nm">Maryam Zulfiqar</div><div class="mt">F · 55 · MRN 43092</div></div></div></td>
+          <td><span class="tag">MRI</span></td>
+          <td>Lumbar Spine</td>
+          <td><span class="pill">Routine</span></td>
+          <td><span class="status s-good"><span class="dot"></span>Reported</span></td>
+          <td>Dr. Imran Sheikh</td>
+          <td><button class="btn ghost sm">Open</button></td>
+        </tr>
+        <tr>
+          <td class="tnum">IMG-24810</td>
+          <td><div class="who-cell"><span class="av-sm">TK</span><div><div class="nm">Tariq Khan</div><div class="mt">M · 47 · MRN 61285</div></div></div></td>
+          <td><span class="tag">X-ray</span></td>
+          <td>Right Knee</td>
+          <td><span class="pill">Routine</span></td>
+          <td><span class="status s-muted"><span class="dot"></span>Cancelled</span></td>
+          <td>Dr. Nadia Farooq</td>
+          <td><button class="btn ghost sm">Open</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</body></html>

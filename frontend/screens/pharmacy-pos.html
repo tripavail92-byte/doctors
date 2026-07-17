@@ -1,0 +1,78 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pharmacy POS · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script></head><body data-page="pharmacy-pos" data-nav="pharmacy-pos" data-title="Pharmacy POS" data-sub="Dispensary" data-edition="pharmacy">
+<div class="kpis">
+  <div class="kpi"><div class="h"><span class="lab">Sales today</span><span class="ico"><svg class="ic"><use href="#i-cash"/></svg></span></div><div class="val">Rs 142,300</div><div class="foot"><span class="delta up">+11.4%</span> vs yesterday</div></div>
+  <div class="kpi"><div class="h"><span class="lab">Bills</span><span class="ico"><svg class="ic"><use href="#i-invoice"/></svg></span></div><div class="val">63</div><div class="foot"><span class="delta up">+7</span> more than avg</div></div>
+  <div class="kpi"><div class="h"><span class="lab">Avg bill</span><span class="ico"><svg class="ic"><use href="#i-pie"/></svg></span></div><div class="val">Rs 2,259</div><div class="foot"><span class="delta up">+3.1%</span> basket size</div></div>
+  <div class="kpi"><div class="h"><span class="lab">Returns</span><span class="ico"><svg class="ic"><use href="#i-x"/></svg></span></div><div class="val">Rs 1,840</div><div class="foot"><span class="delta down">2 bills</span> refunded</div></div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-head"><div><h3>Product search</h3><p>Scan barcode or type drug / brand name</p></div></div>
+    <div class="card-body">
+      <div class="toolbar">
+        <input placeholder="Search drug, brand or barcode..." style="flex:1"/>
+        <button class="btn primary"><svg class="ic"><use href="#i-scan"/></svg> Scan</button>
+      </div>
+      <div class="filters">
+        <span class="chip">Panadol</span><span class="chip">Augmentin 625</span><span class="chip">Brufen 400</span><span class="chip">Risek 20</span><span class="chip">Ventolin</span>
+      </div>
+      <div class="tablewrap">
+        <table class="table">
+          <thead><tr><th>Drug</th><th>Batch</th><th>Qty</th><th class="tnum">Price</th><th class="tnum">Total</th><th></th></tr></thead>
+          <tbody>
+            <tr><td><div class="nm">Augmentin 625mg</div><div class="mt">Tab · 14s</div></td><td><span class="tag">B-AG4521</span></td><td class="tnum">1</td><td class="tnum">Rs 545</td><td class="tnum">Rs 545</td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-x"/></svg></button></td></tr>
+            <tr><td><div class="nm">Panadol Extra</div><div class="mt">Tab · 10s</div></td><td><span class="tag">B-PN8830</span></td><td class="tnum">2</td><td class="tnum">Rs 60</td><td class="tnum">Rs 120</td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-x"/></svg></button></td></tr>
+            <tr><td><div class="nm">Risek 20mg</div><div class="mt">Cap · 14s</div></td><td><span class="tag">B-RS1290</span></td><td class="tnum">1</td><td class="tnum">Rs 385</td><td class="tnum">Rs 385</td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-x"/></svg></button></td></tr>
+            <tr><td><div class="nm">Brufen 400mg</div><div class="mt">Tab · 20s</div></td><td><span class="tag">B-BF6641</span></td><td class="tnum">1</td><td class="tnum">Rs 210</td><td class="tnum">Rs 210</td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-x"/></svg></button></td></tr>
+            <tr><td><div class="nm">Ventolin Inhaler</div><div class="mt">100mcg</div></td><td><span class="tag">B-VN4408</span></td><td class="tnum">1</td><td class="tnum">Rs 495</td><td class="tnum">Rs 495</td><td><button class="btn ghost sm"><svg class="ic"><use href="#i-x"/></svg></button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><h3>Checkout</h3><p>Bill #PH-20726 · Walk-in</p></div><button class="btn ghost sm"><svg class="ic"><use href="#i-user"/></svg> Link patient</button></div>
+    <div class="card-body">
+      <div class="tablewrap">
+        <table class="table">
+          <tbody>
+            <tr><td>Subtotal</td><td class="tnum">Rs 1,755</td></tr>
+            <tr><td>Discount (5%)</td><td class="tnum">- Rs 88</td></tr>
+            <tr><td>Sales tax (GST)</td><td class="tnum">Rs 250</td></tr>
+            <tr><td><b>Payable</b></td><td class="tnum"><b>Rs 1,917</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <label>Payment method</label>
+      <div class="filters">
+        <span class="chip on">Cash</span><span class="chip">Card</span><span class="chip">Bank</span><span class="chip">Safepay</span>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Amount received</label><input value="2,000"/></div>
+        <div class="field"><label>Change due</label><input value="Rs 83" disabled/></div>
+      </div>
+      <div class="rowbtns">
+        <button class="btn primary"><svg class="ic"><use href="#i-check"/></svg> Complete sale</button>
+        <button class="btn ghost">Hold</button>
+        <button class="btn ghost">Print</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><div><h3>Recent sales</h3><p>Last 6 transactions</p></div><button class="btn ghost sm">View all</button></div>
+  <div class="card-body">
+    <div class="filters">
+      <span class="pill">#PH-20725 · Rs 3,420 · Cash · 2:41 PM</span>
+      <span class="pill">#PH-20724 · Rs 890 · Card · 2:28 PM</span>
+      <span class="pill">#PH-20723 · Rs 5,110 · Safepay · 2:10 PM</span>
+      <span class="pill">#PH-20722 · Rs 1,260 · Cash · 1:52 PM</span>
+      <span class="pill">#PH-20721 · Rs 740 · Cash · 1:39 PM</span>
+      <span class="pill">#PH-20720 · Rs 2,980 · Bank · 1:15 PM</span>
+    </div>
+  </div>
+</div>
+</body></html>

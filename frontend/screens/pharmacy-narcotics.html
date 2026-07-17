@@ -1,0 +1,64 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Narcotics Register · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script></head><body data-page="pharmacy-narcotics" data-nav="pharmacy-pos" data-title="Narcotics Register" data-sub="Controlled substances" data-edition="pharmacy">
+<div class="toolbar">
+  <input placeholder="Search drug or patient..." style="flex:1"/>
+  <span class="segmented"><button class="on">July 2026</button><button>June 2026</button></span>
+  <button class="btn ghost"><svg class="ic"><use href="#i-download"/></svg> Export register</button>
+  <button class="btn primary"><svg class="ic"><use href="#i-plus"/></svg> New entry</button>
+</div>
+
+<div class="kpis">
+  <div class="kpi"><div class="h"><span class="lab">Entries this month</span><span class="ico"><svg class="ic"><use href="#i-note"/></svg></span></div><div class="val">38</div><div class="foot"><span class="delta up">+6</span> vs June</div></div>
+  <div class="kpi"><div class="h"><span class="lab">Controlled SKUs</span><span class="ico"><svg class="ic"><use href="#i-pill"/></svg></span></div><div class="val">9</div><div class="foot">tracked in register</div></div>
+  <div class="kpi"><div class="h"><span class="lab">Discrepancies</span><span class="ico"><svg class="ic"><use href="#i-warn"/></svg></span></div><div class="val">0</div><div class="foot"><span class="delta up">Reconciled</span></div></div>
+</div>
+
+<div class="grid-2b">
+  <div class="card">
+    <div class="card-head"><div><h3>Narcotics &amp; controlled register</h3><p>Every in/out movement logged with witness</p></div></div>
+    <div class="tablewrap">
+      <table class="table">
+        <thead><tr><th>Date</th><th>Drug</th><th>Patient</th><th>Prescriber</th><th class="tnum">In</th><th class="tnum">Out</th><th class="tnum">Balance</th><th>Witness</th></tr></thead>
+        <tbody>
+          <tr><td>01 Jul</td><td><div class="nm">Morphine 10mg</div><div class="mt">Inj</div></td><td>—</td><td>Distributor GRN</td><td class="tnum">50</td><td class="tnum">—</td><td class="tnum">50</td><td><span class="tag">R. Aslam</span></td></tr>
+          <tr><td>03 Jul</td><td><div class="nm">Morphine 10mg</div><div class="mt">Inj</div></td><td>Zainab Malik</td><td>Dr. Imran Ali</td><td class="tnum">—</td><td class="tnum">2</td><td class="tnum">48</td><td><span class="tag">S. Bibi</span></td></tr>
+          <tr><td>05 Jul</td><td><div class="nm">Tramadol 50mg</div><div class="mt">Cap</div></td><td>Usman Ghani</td><td>Dr. Nadia Khan</td><td class="tnum">—</td><td class="tnum">10</td><td class="tnum">140</td><td><span class="tag">R. Aslam</span></td></tr>
+          <tr><td>08 Jul</td><td><div class="nm">Lexotanil 3mg</div><div class="mt">Tab</div></td><td>Hina Pervez</td><td>Dr. Sana Tariq</td><td class="tnum">—</td><td class="tnum">10</td><td class="tnum">54</td><td><span class="tag">S. Bibi</span></td></tr>
+          <tr><td>10 Jul</td><td><div class="nm">Pethidine 100mg</div><div class="mt">Inj</div></td><td>Theatre OR-2</td><td>Dr. Kamran Shah</td><td class="tnum">—</td><td class="tnum">4</td><td class="tnum">26</td><td><span class="tag">A. Raza</span></td></tr>
+          <tr><td>11 Jul</td><td><div class="nm">Morphine 10mg</div><div class="mt">Inj</div></td><td>Ahsan Iqbal</td><td>Dr. Imran Ali</td><td class="tnum">—</td><td class="tnum">3</td><td class="tnum">45</td><td><span class="tag">R. Aslam</span></td></tr>
+          <tr><td>12 Jul</td><td><div class="nm">Tramadol 50mg</div><div class="mt">Cap</div></td><td>Nimra Shafiq</td><td>Dr. Nadia Khan</td><td class="tnum">—</td><td class="tnum">6</td><td class="tnum">134</td><td><span class="tag">S. Bibi</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><h3>Balance reconciliation</h3><p>Physical vs register count · 12 Jul</p></div></div>
+    <div class="card-body">
+      <div class="tablewrap">
+        <table class="table">
+          <thead><tr><th>Drug</th><th class="tnum">Register</th><th class="tnum">Physical</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Morphine 10mg</td><td class="tnum">45</td><td class="tnum">45</td><td><span class="status s-good"><span class="dot"></span>Match</span></td></tr>
+            <tr><td>Tramadol 50mg</td><td class="tnum">134</td><td class="tnum">134</td><td><span class="status s-good"><span class="dot"></span>Match</span></td></tr>
+            <tr><td>Lexotanil 3mg</td><td class="tnum">54</td><td class="tnum">54</td><td><span class="status s-good"><span class="dot"></span>Match</span></td></tr>
+            <tr><td>Pethidine 100mg</td><td class="tnum">26</td><td class="tnum">26</td><td><span class="status s-good"><span class="dot"></span>Match</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Counted by</label><input value="Rana Aslam (Pharmacist)"/></div>
+        <div class="field"><label>Witnessed by</label><input value="Shazia Bibi (Supervisor)"/></div>
+      </div>
+      <div class="rowbtns">
+        <button class="btn primary"><svg class="ic"><use href="#i-check"/></svg> Sign &amp; lock day</button>
+        <button class="btn ghost">Print</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="alert">
+  <div class="ai"><svg class="ic"><use href="#i-shield"/></svg></div>
+  <div class="txt"><b>Regulatory notice.</b> Under the Control of Narcotic Substances Act, controlled drugs must be stored in a double-lock cabinet, dispensed only against a signed prescription, and every movement co-signed by a witness. Register is subject to inspection by the Provincial Drug Inspector.</div>
+</div>
+</body></html>

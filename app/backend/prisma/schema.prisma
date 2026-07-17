@@ -1,0 +1,2545 @@
+// Prisma schema for Health OS (Summit Systems) — WAVE 0 starter.
+// Multi-tenant: shared Postgres, row-level `tenantId`, plus Postgres RLS (see rls.sql).
+// Services scope every query through prisma.forTenant(getTenant().tenantId, tx => ...)
+// which sets `app.tenant_id` so the RLS policies in rls.sql apply.
+
+datasource db {
+  provider  = "postgresql"
+  // Runtime connects as healthos_app — a NOSUPERUSER/NOBYPASSRLS role, so the
+  // per-table tenant_isolation policies actually execute. A superuser (or any
+  // role with BYPASSRLS) silently skips every policy, which makes RLS inert.
+  url       = env("DATABASE_URL")
+  // Migrations and introspection need the table owner (healthos).
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Edition {
+  SOLO
+  CLINIC
+  SPECIALTY
+  LAB
+  PHARMACY
+  HOSPITAL
+  ENTERPRISE
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  RECEPTION
+  DOCTOR
+  SALES
+  TREATMENT
+  INVENTORY
+  FINANCE
+  PLATFORM_ADMIN
+}
+
+enum TenantStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum AppointmentStatus {
+  BOOKED
+  CONFIRMED
+  CHECKED_IN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum InvoiceStatus {
+  DRAFT
+  UNPAID
+  PARTIAL
+  PAID
+  VOID
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  BANK_TRANSFER
+  SAFEPAY
+  PAYFAST
+  PAYPRO
+  POS
+}
+
+// ---------------------------------------------------------------------------
+// Platform / tenant core
+// ---------------------------------------------------------------------------
+
+model Tenant {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String       @unique
+  edition   Edition
+  status    TenantStatus @default(TRIAL)
+  createdAt DateTime     @default(now())
+
+  facilities    Facility[]
+  users         User[]
+  subscriptions Subscription[]
+  entitlements  TenantEntitlement[]
+  patients      Patient[]
+  appointments  Appointment[]
+  invoices      Invoice[]
+  payments      Payment[]
+  auditLogs     AuditLog[]
+
+  // Specialty-pack layer (all tenant-scoped, seeded on pack activation).
+  packActivations     PackActivation[]
+  serviceCatalog      ServiceCatalogItem[]
+  noteTemplates       NoteTemplate[]
+  intakeFieldGroups   IntakeFieldGroup[]
+  orderSets           OrderSet[]
+  instrumentResponses ScoredInstrumentResponse[]
+  observations        Observation[]
+  consentRecords      ConsentRecord[]
+  photoSessions       PhotoSession[]
+  photoAssets         PhotoAsset[]
+
+  // EMR / encounter layer.
+  encounters            Encounter[]
+  intakeSubmissions     IntakeSubmission[]
+  noteInstances         NoteInstance[]
+  treatmentPlans        TreatmentPlan[]
+  treatmentPlanItems    TreatmentPlanItem[]
+  invoiceLineItems      InvoiceLineItem[]
+  paymentIntents        PaymentIntent[]
+  refunds               Refund[]
+  immunizations         Immunization[]
+  toothRecords          ToothRecord[]
+  labOrders             LabOrder[]
+  labOrderItems         LabOrderItem[]
+  labResults            LabResult[]
+  stockItems            StockItem[]
+  dispenses             Dispense[]
+  dispenseItems         DispenseItem[]
+  employees             Employee[]
+  payrollRuns           PayrollRun[]
+  payslips              Payslip[]
+  wards                 Ward[]
+  beds                  Bed[]
+  admissions            Admission[]
+  leads                 Lead[]
+  leadActivities        LeadActivity[]
+  imagingOrders         ImagingOrder[]
+  imagingOrderItems     ImagingOrderItem[]
+  imagingReports        ImagingReport[]
+  pregnancyEpisodes     PregnancyEpisode[]
+  ancVisits             AncVisit[]
+  obstetricUltrasounds  ObstetricUltrasound[]
+  gynaeProfiles         GynaeProfile[]
+  partograms            Partogram[]
+  partogramEntries      PartogramEntry[]
+  doseCalculationLogs   DoseCalculationLog[]
+  perioExams            PerioExam[]
+  perioToothRecords     PerioToothRecord[]
+  toothPlanItems        ToothPlanItem[]
+  orthoCases            OrthoCase[]
+  orthoEvents           OrthoEvent[]
+  eyeExams              EyeExam[]
+  visualAcuityMeasures  VisualAcuityMeasure[]
+  refractions           Refraction[]
+  iopMeasurements       IopMeasurement[]
+  eyeSegmentFindings    EyeSegmentFinding[]
+  opticalPrescriptions  OpticalPrescription[]
+  rehabEpisodes         RehabEpisode[]
+  mskAssessments        MskAssessment[]
+  romMeasurements       RomMeasurement[]
+  rehabSessions         RehabSession[]
+  exercisePrescriptions ExercisePrescription[]
+  phototherapyCourses   PhototherapyCourse[]
+  phototherapySessions  PhototherapySession[]
+  skinLesions           SkinLesion[]
+  doseRules             DoseRule[]
+  prescriptions         Prescription[]
+  toothFindings         ToothFinding[]
+}
+
+// Tenant-scoped facility (clinic branch).
+model Facility {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  name      String
+  city      String
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+}
+
+// User. tenantId is nullable — platform admins have no tenant.
+model User {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String?  @db.Uuid
+  email           String   @unique
+  passwordHash    String
+  name            String
+  role            UserRole
+  isPlatformAdmin Boolean  @default(false)
+  status          String   @default("active")
+  createdAt       DateTime @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+
+  // Appointments where this user is the provider.
+  appointmentsAsProvider Appointment[] @relation("AppointmentProvider")
+
+  @@index([tenantId])
+}
+
+// ---------------------------------------------------------------------------
+// Billing / entitlements (platform-level plans + per-tenant subscription)
+// ---------------------------------------------------------------------------
+
+model Plan {
+  id       String  @id @default(uuid()) @db.Uuid
+  key      String  @unique
+  name     String
+  edition  Edition
+  pricePkr Int
+  priceUsd Int
+
+  features      PlanFeature[]
+  subscriptions Subscription[]
+}
+
+model Feature {
+  id       String @id @default(uuid()) @db.Uuid
+  key      String @unique
+  name     String
+  category String
+
+  plans PlanFeature[]
+}
+
+// Join table: which features a plan grants.
+model PlanFeature {
+  planId    String @db.Uuid
+  featureId String @db.Uuid
+
+  plan    Plan    @relation(fields: [planId], references: [id])
+  feature Feature @relation(fields: [featureId], references: [id])
+
+  @@id([planId, featureId])
+}
+
+model Subscription {
+  id               String             @id @default(uuid()) @db.Uuid
+  tenantId         String             @db.Uuid
+  planId           String             @db.Uuid
+  status           SubscriptionStatus @default(TRIALING)
+  currentPeriodEnd DateTime
+  createdAt        DateTime           @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  @@index([tenantId])
+}
+
+// Per-tenant feature toggle, keyed by feature key (e.g. "patients.manage").
+model TenantEntitlement {
+  id         String  @id @default(uuid()) @db.Uuid
+  tenantId   String  @db.Uuid
+  featureKey String
+  enabled    Boolean @default(true)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, featureKey])
+  @@index([tenantId])
+}
+
+// ---------------------------------------------------------------------------
+// Clinical / operational (all tenant-scoped)
+// ---------------------------------------------------------------------------
+
+model Patient {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @db.Uuid
+  mrn       String
+  name      String
+  phone     String
+  dob       DateTime?
+  gender    String?
+  createdAt DateTime  @default(now())
+
+  tenant               Tenant                     @relation(fields: [tenantId], references: [id])
+  appointments         Appointment[]
+  invoices             Invoice[]
+  instrumentResponses  ScoredInstrumentResponse[]
+  observations         Observation[]
+  consentRecords       ConsentRecord[]
+  photoSessions        PhotoSession[]
+  encounters           Encounter[]
+  intakeSubmissions    IntakeSubmission[]
+  noteInstances        NoteInstance[]
+  treatmentPlans       TreatmentPlan[]
+  immunizations        Immunization[]
+  toothRecords         ToothRecord[]
+  labOrders            LabOrder[]
+  dispenses            Dispense[]
+  admissions           Admission[]
+  imagingOrders        ImagingOrder[]
+  pregnancyEpisodes    PregnancyEpisode[]
+  gynaeProfiles        GynaeProfile[]
+  perioExams           PerioExam[]
+  toothPlanItems       ToothPlanItem[]
+  orthoCases           OrthoCase[]
+  eyeExams             EyeExam[]
+  opticalPrescriptions OpticalPrescription[]
+  rehabEpisodes        RehabEpisode[]
+  phototherapyCourses  PhototherapyCourse[]
+  skinLesions          SkinLesion[]
+  prescriptions        Prescription[]
+  toothFindings        ToothFinding[]
+
+  @@index([tenantId])
+}
+
+model Appointment {
+  id         String            @id @default(uuid()) @db.Uuid
+  tenantId   String            @db.Uuid
+  patientId  String            @db.Uuid
+  providerId String            @db.Uuid
+  start      DateTime
+  end        DateTime
+  status     AppointmentStatus @default(BOOKED)
+  service    String
+  createdAt  DateTime          @default(now())
+
+  tenant   Tenant  @relation(fields: [tenantId], references: [id])
+  patient  Patient @relation(fields: [patientId], references: [id])
+  provider User    @relation("AppointmentProvider", fields: [providerId], references: [id])
+
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+model Invoice {
+  id        String        @id @default(uuid()) @db.Uuid
+  tenantId  String        @db.Uuid
+  patientId String        @db.Uuid
+  number    String
+  total     Int
+  paid      Int           @default(0)
+  status    InvoiceStatus @default(DRAFT)
+  planId    String?       @db.Uuid // provenance: the TreatmentPlan it was raised from
+  createdAt DateTime      @default(now())
+
+  // FBR Digital Invoicing (Pakistan e-invoicing). Populated on successful submit.
+  fbrInvoiceNumber String? // IRN returned by FBR
+  fbrStatus        String? // e.g. SUBMITTED / VALIDATED / FAILED
+  fbrSubmittedAt   DateTime?
+
+  tenant         Tenant            @relation(fields: [tenantId], references: [id])
+  patient        Patient           @relation(fields: [patientId], references: [id])
+  payments       Payment[]
+  lines          InvoiceLineItem[]
+  paymentIntents PaymentIntent[]
+  refunds        Refund[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+enum PaymentIntentStatus {
+  PENDING
+  CONSUMED
+}
+
+// A gateway checkout intent created at pay-link time. confirmGateway validates
+// against this (reference belongs to the invoice, still PENDING, and pays the
+// intent's stored amount) so a payment can't be marked paid from a forged/
+// unissued reference. Tenant-scoped (RLS).
+model PaymentIntent {
+  id        String              @id @default(uuid()) @db.Uuid
+  tenantId  String              @db.Uuid
+  invoiceId String              @db.Uuid
+  provider  String
+  reference String
+  amountPkr Int
+  status    PaymentIntentStatus @default(PENDING)
+  createdAt DateTime            @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@unique([tenantId, reference])
+  @@index([tenantId])
+  @@index([invoiceId])
+}
+
+model InvoiceLineItem {
+  id           String @id @default(uuid()) @db.Uuid
+  tenantId     String @db.Uuid
+  invoiceId    String @db.Uuid
+  code         String
+  name         String
+  unitPricePkr Int
+  quantity     Int    @default(1)
+  lineTotalPkr Int
+
+  // Which side this line was billed for. Null = not a per-side procedure.
+  // A bilateral request without a bundle price expands into two rows, one per
+  // side, so the invoice says what was actually done to whom.
+  side BodySide?
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@index([tenantId])
+  @@index([invoiceId])
+}
+
+model Payment {
+  id        String        @id @default(uuid()) @db.Uuid
+  tenantId  String        @db.Uuid
+  invoiceId String        @db.Uuid
+  amount    Int
+  method    PaymentMethod
+  provider  String? // gateway provider for online payments (safepay/payfast/paypro)
+  reference String? // gateway/txn reference; unique per tenant for webhook idempotency
+  createdAt DateTime      @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@unique([tenantId, reference])
+  @@index([tenantId])
+  @@index([invoiceId])
+}
+
+// A recorded vaccine dose administered to a patient. Tenant-scoped (RLS).
+// The EPI schedule itself is reference data in src/immunization/epi-schedule.ts.
+model Immunization {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  patientId   String   @db.Uuid
+  vaccineCode String
+  dose        String
+  givenAt     DateTime
+  lotNumber   String?
+  site        String?
+  givenById   String?  @db.Uuid
+  recordedAt  DateTime @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@unique([tenantId, patientId, vaccineCode, dose])
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+// Current charted state of a single tooth (FDI notation). One row per tooth per
+// patient (upserted). Surfaces (MODBL) + condition drive the odontogram + the
+// DMFT index (see src/dental/). Tenant-scoped (RLS).
+model ToothRecord {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  patientId    String   @db.Uuid
+  toothFdi     String
+  condition    String
+  surfaces     Json?
+  note         String?
+  recordedById String?  @db.Uuid
+  recordedAt   DateTime @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@unique([tenantId, patientId, toothFdi])
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+// ---------------------------------------------------------------------------
+// Lab / LIS vertical: order -> accession -> result -> report.
+// The test catalog itself is reference data in src/lab/lab-catalog.ts.
+// ---------------------------------------------------------------------------
+
+enum LabOrderStatus {
+  ORDERED
+  COLLECTED
+  RESULTED
+  REPORTED
+  CANCELLED
+}
+
+model LabOrder {
+  id              String         @id @default(uuid()) @db.Uuid
+  tenantId        String         @db.Uuid
+  patientId       String         @db.Uuid
+  orderNumber     String
+  status          LabOrderStatus @default(ORDERED)
+  accessionNumber String?
+  note            String?
+  orderedById     String?        @db.Uuid
+  orderedAt       DateTime       @default(now())
+
+  tenant  Tenant         @relation(fields: [tenantId], references: [id])
+  patient Patient        @relation(fields: [patientId], references: [id])
+  items   LabOrderItem[]
+  results LabResult[]
+
+  @@unique([tenantId, orderNumber])
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+model LabOrderItem {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  orderId  String @db.Uuid
+  testCode String
+  testName String
+  pricePkr Int
+
+  tenant Tenant   @relation(fields: [tenantId], references: [id])
+  order  LabOrder @relation(fields: [orderId], references: [id])
+
+  @@index([tenantId])
+  @@index([orderId])
+}
+
+model LabResult {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  orderId      String   @db.Uuid
+  testCode     String
+  value        Float?
+  valueText    String?
+  unit         String?
+  refLow       Float?
+  refHigh      Float?
+  flag         String
+  resultedById String?  @db.Uuid
+  resultedAt   DateTime @default(now())
+
+  tenant Tenant   @relation(fields: [tenantId], references: [id])
+  order  LabOrder @relation(fields: [orderId], references: [id])
+
+  @@unique([tenantId, orderId, testCode])
+  @@index([tenantId])
+  @@index([orderId])
+}
+
+// ---------------------------------------------------------------------------
+// Pharmacy vertical: formulary (reference, src/pharmacy/formulary.ts) + stock
+// batches + dispensing (POS). Dispense decrements stock FEFO.
+// ---------------------------------------------------------------------------
+
+model StockItem {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @db.Uuid
+  formularyCode  String
+  name           String
+  batchNo        String
+  expiry         DateTime
+  quantityOnHand Int
+  unitCostPkr    Int
+  createdAt      DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, formularyCode])
+}
+
+model Dispense {
+  id            String        @id @default(uuid()) @db.Uuid
+  tenantId      String        @db.Uuid
+  patientId     String?       @db.Uuid
+  receiptNumber String
+  totalPkr      Int
+  paymentMethod PaymentMethod
+  dispensedById String?       @db.Uuid
+  createdAt     DateTime      @default(now())
+
+  tenant  Tenant         @relation(fields: [tenantId], references: [id])
+  patient Patient?       @relation(fields: [patientId], references: [id])
+  items   DispenseItem[]
+
+  @@unique([tenantId, receiptNumber])
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+model DispenseItem {
+  id            String  @id @default(uuid()) @db.Uuid
+  tenantId      String  @db.Uuid
+  dispenseId    String  @db.Uuid
+  formularyCode String
+  name          String
+  quantity      Int
+  unitPricePkr  Int
+  lineTotalPkr  Int
+  batchNo       String?
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  dispense Dispense @relation(fields: [dispenseId], references: [id])
+
+  @@index([tenantId])
+  @@index([dispenseId])
+}
+
+// ---------------------------------------------------------------------------
+// HR / Payroll: staff records + monthly payroll runs + payslips.
+// ---------------------------------------------------------------------------
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  TERMINATED
+}
+
+enum PayrollStatus {
+  DRAFT
+  FINALIZED
+}
+
+model Employee {
+  id            String         @id @default(uuid()) @db.Uuid
+  tenantId      String         @db.Uuid
+  name          String
+  designation   String
+  baseSalaryPkr Int
+  allowancesPkr Int            @default(0)
+  phone         String?
+  cnic          String?
+  joinDate      DateTime?
+  status        EmployeeStatus @default(ACTIVE)
+  createdAt     DateTime       @default(now())
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  payslips Payslip[]
+
+  @@index([tenantId])
+}
+
+model PayrollRun {
+  id          String        @id @default(uuid()) @db.Uuid
+  tenantId    String        @db.Uuid
+  period      String
+  status      PayrollStatus @default(DRAFT)
+  totalNetPkr Int           @default(0)
+  createdById String?       @db.Uuid
+  createdAt   DateTime      @default(now())
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  payslips Payslip[]
+
+  @@unique([tenantId, period])
+  @@index([tenantId])
+}
+
+model Payslip {
+  id            String @id @default(uuid()) @db.Uuid
+  tenantId      String @db.Uuid
+  runId         String @db.Uuid
+  employeeId    String @db.Uuid
+  baseSalaryPkr Int
+  allowancesPkr Int
+  deductionsPkr Int
+  netPkr        Int
+
+  tenant   Tenant     @relation(fields: [tenantId], references: [id])
+  run      PayrollRun @relation(fields: [runId], references: [id])
+  employee Employee   @relation(fields: [employeeId], references: [id])
+
+  @@index([tenantId])
+  @@index([runId])
+}
+
+// ---------------------------------------------------------------------------
+// Hospital / IPD: wards, beds, and admissions (bed occupancy management).
+// ---------------------------------------------------------------------------
+
+enum BedStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+}
+
+enum AdmissionStatus {
+  ADMITTED
+  DISCHARGED
+}
+
+model Ward {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  name      String
+  floor     String?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  beds   Bed[]
+
+  @@index([tenantId])
+}
+
+model Bed {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @db.Uuid
+  wardId    String    @db.Uuid
+  code      String
+  status    BedStatus @default(AVAILABLE)
+  createdAt DateTime  @default(now())
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  ward       Ward        @relation(fields: [wardId], references: [id])
+  admissions Admission[]
+
+  @@unique([tenantId, wardId, code])
+  @@index([tenantId])
+  @@index([wardId])
+}
+
+model Admission {
+  id                String          @id @default(uuid()) @db.Uuid
+  tenantId          String          @db.Uuid
+  patientId         String          @db.Uuid
+  bedId             String          @db.Uuid
+  admittingDoctorId String?         @db.Uuid
+  diagnosis         String?
+  status            AdmissionStatus @default(ADMITTED)
+  admittedAt        DateTime        @default(now())
+  dischargedAt      DateTime?
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+  bed     Bed     @relation(fields: [bedId], references: [id])
+
+  @@index([tenantId])
+  @@index([patientId])
+  @@index([bedId])
+}
+
+// ---------------------------------------------------------------------------
+// CRM / marketing: lead pipeline (lead -> activities -> convert to patient).
+// ---------------------------------------------------------------------------
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  LOST
+}
+
+model Lead {
+  id                 String     @id @default(uuid()) @db.Uuid
+  tenantId           String     @db.Uuid
+  name               String
+  phone              String
+  source             String?
+  interest           String?
+  status             LeadStatus @default(NEW)
+  assignedToId       String?    @db.Uuid
+  note               String?
+  convertedPatientId String?    @db.Uuid
+  createdAt          DateTime   @default(now())
+
+  tenant     Tenant         @relation(fields: [tenantId], references: [id])
+  activities LeadActivity[]
+
+  @@index([tenantId])
+}
+
+model LeadActivity {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @db.Uuid
+  leadId      String    @db.Uuid
+  type        String
+  note        String?
+  dueAt       DateTime?
+  done        Boolean   @default(false)
+  createdById String?   @db.Uuid
+  createdAt   DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  lead   Lead   @relation(fields: [leadId], references: [id])
+
+  @@index([tenantId])
+  @@index([leadId])
+}
+
+// ---------------------------------------------------------------------------
+// Imaging / RIS: order -> acquire -> radiologist report.
+// The study catalog is reference data in src/imaging/imaging-catalog.ts.
+// ---------------------------------------------------------------------------
+
+enum ImagingOrderStatus {
+  ORDERED
+  ACQUIRED
+  REPORTED
+  CANCELLED
+}
+
+model ImagingOrder {
+  id              String             @id @default(uuid()) @db.Uuid
+  tenantId        String             @db.Uuid
+  patientId       String             @db.Uuid
+  orderNumber     String
+  status          ImagingOrderStatus @default(ORDERED)
+  accessionNumber String?
+  note            String?
+  orderedById     String?            @db.Uuid
+  orderedAt       DateTime           @default(now())
+
+  tenant  Tenant             @relation(fields: [tenantId], references: [id])
+  patient Patient            @relation(fields: [patientId], references: [id])
+  items   ImagingOrderItem[]
+  reports ImagingReport[]
+
+  @@unique([tenantId, orderNumber])
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+model ImagingOrderItem {
+  id        String @id @default(uuid()) @db.Uuid
+  tenantId  String @db.Uuid
+  orderId   String @db.Uuid
+  studyCode String
+  studyName String
+  modality  String
+  pricePkr  Int
+
+  tenant Tenant       @relation(fields: [tenantId], references: [id])
+  order  ImagingOrder @relation(fields: [orderId], references: [id])
+
+  @@index([tenantId])
+  @@index([orderId])
+}
+
+model ImagingReport {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  orderId      String   @db.Uuid
+  studyCode    String
+  findings     String
+  impression   String
+  reportedById String?  @db.Uuid
+  reportedAt   DateTime @default(now())
+
+  tenant Tenant       @relation(fields: [tenantId], references: [id])
+  order  ImagingOrder @relation(fields: [orderId], references: [id])
+
+  @@unique([tenantId, orderId, studyCode])
+  @@index([tenantId])
+  @@index([orderId])
+}
+
+// A refund against an invoice (reduces invoice.paid). Manual finance action.
+model Refund {
+  id          String        @id @default(uuid()) @db.Uuid
+  tenantId    String        @db.Uuid
+  invoiceId   String        @db.Uuid
+  amountPkr   Int
+  method      PaymentMethod
+  reason      String?
+  createdById String?       @db.Uuid
+  createdAt   DateTime      @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@index([tenantId])
+  @@index([invoiceId])
+}
+
+// Audit trail. tenantId/userId nullable to cover platform-level actions.
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String?  @db.Uuid
+  userId    String?  @db.Uuid
+  action    String
+  entity    String
+  entityId  String?  @db.Uuid
+  createdAt DateTime @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+}
+
+// ---------------------------------------------------------------------------
+// Specialty Packs — the manifest registry + per-tenant activation.
+//
+// A Pack is a platform catalog entry (one per specialty). Each PackVersion
+// holds a full PackManifest (intake groups, note templates, service catalog,
+// order sets, instruments) as JSON. When a tenant activates a pack, the
+// manifest is expanded into tenant-scoped rows (ServiceCatalogItem, etc.) so
+// the rest of the app reads normal relational data — the manifest is the
+// authoring/versioning format, not the runtime read path.
+// ---------------------------------------------------------------------------
+
+enum PackTier {
+  LIGHT // config-only pack (intake + templates + catalog, no custom widget)
+  HEAVY // ships a custom clinical widget in addition to config
+}
+
+enum PackActivationStatus {
+  ACTIVE
+  DISABLED
+}
+
+// Platform catalog of available specialty packs (global — not tenant-scoped).
+model Pack {
+  id            String   @id @default(uuid()) @db.Uuid
+  key           String   @unique // "aesthetic", "dermatology", "dental"
+  name          String
+  specialty     String
+  tier          PackTier @default(HEAVY)
+  description   String
+  latestVersion String // semver of the newest PackVersion
+  createdAt     DateTime @default(now())
+
+  versions    PackVersion[]
+  activations PackActivation[]
+}
+
+// An immutable, versioned snapshot of a pack's manifest (global).
+model PackVersion {
+  id        String   @id @default(uuid()) @db.Uuid
+  packId    String   @db.Uuid
+  version   String // semver
+  manifest  Json // full PackManifest
+  createdAt DateTime @default(now())
+
+  pack        Pack             @relation(fields: [packId], references: [id])
+  activations PackActivation[]
+
+  @@unique([packId, version])
+}
+
+// Shared scored-instrument library (GAGS, PHQ-9, GAD-7, Oswestry, ...).
+// Reference data — global, not tenant-scoped. Responses are tenant-scoped.
+model InstrumentDefinition {
+  id         String   @id @default(uuid()) @db.Uuid
+  key        String   @unique // "gags", "phq9"
+  name       String
+  specialty  String?
+  version    String   @default("1.0.0")
+  definition Json // items + scoring rule + severity bands
+  createdAt  DateTime @default(now())
+}
+
+// A tenant's activation of a pack version. Tenant-scoped (RLS).
+model PackActivation {
+  id            String               @id @default(uuid()) @db.Uuid
+  tenantId      String               @db.Uuid
+  packId        String               @db.Uuid
+  packVersionId String               @db.Uuid
+  status        PackActivationStatus @default(ACTIVE)
+  config        Json?
+  activatedAt   DateTime             @default(now())
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  pack        Pack        @relation(fields: [packId], references: [id])
+  packVersion PackVersion @relation(fields: [packVersionId], references: [id])
+
+  @@unique([tenantId, packId])
+  @@index([tenantId])
+}
+
+// Billable services seeded from a pack manifest. Tenant-scoped (RLS).
+model ServiceCatalogItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  packKey     String
+  code        String
+  name        String
+  category    String
+  pricePkr    Int
+  durationMin Int?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  // Is this procedure performed per-side at all? A consultation is not; a
+  // tonometry is. Guards against recording a side on something that has none.
+  lateralizable     Boolean @default(false)
+  // Bundled price for BOTH sides. Null => a bilateral request bills as two
+  // lines at the unit price, because two sides is two procedures.
+  bilateralPricePkr Int?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+// Structured consultation note templates seeded from a manifest. Tenant-scoped.
+model NoteTemplate {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  packKey   String
+  key       String
+  name      String
+  specialty String?
+  schema    Json // sections + fields
+  createdAt DateTime @default(now())
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  noteInstances NoteInstance[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+}
+
+// Intake / registration field groups seeded from a manifest. Tenant-scoped.
+model IntakeFieldGroup {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  packKey   String
+  key       String
+  name      String
+  fields    Json
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+}
+
+// Reusable order sets (labs/meds/procedures) seeded from a manifest. Tenant-scoped.
+model OrderSet {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  packKey   String
+  key       String
+  name      String
+  items     Json
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+}
+
+// A recorded scored-instrument result for a patient. Tenant-scoped (RLS).
+// instrumentKey references InstrumentDefinition.key (global library) by value;
+// no FK relation because the two live in different scopes.
+model ScoredInstrumentResponse {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @db.Uuid
+  patientId     String   @db.Uuid
+  instrumentKey String
+  answers       Json
+  score         Float?
+  band          String?
+  flags         String[] // fired safety flags (e.g. PHQ-9 SELF_HARM_RISK)
+  recordedById  String?  @db.Uuid
+  recordedAt    DateTime @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+// Body laterality for paired-organ measurements (eyes, ears, limbs).
+enum BodySide {
+  LEFT
+  RIGHT
+  BILATERAL
+}
+
+// A generic clinical measurement over time (vitals, labs, anthropometry, ...).
+// The substrate the Trends engine reads. `metric` is a stable key (e.g.
+// "sbp_mmhg", "weight_kg", "hba1c_pct") mapped to a reference range in
+// src/observations/reference-ranges.ts. Tenant-scoped (RLS).
+model Observation {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @db.Uuid
+  patientId    String    @db.Uuid
+  metric       String
+  value        Float
+  unit         String?
+  side         BodySide? // null = not lateralized
+  note         String?
+  recordedById String?   @db.Uuid
+  recordedAt   DateTime  @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([tenantId])
+  @@index([patientId, metric])
+}
+
+// ---------------------------------------------------------------------------
+// Consent + clinical media (before/after photography).
+//
+// A PhotoSession may only be created against a granted, unexpired
+// CLINICAL_PHOTOGRAPHY consent — enforced in the service, not just the schema.
+// PhotoAsset.storageKey is opaque; bytes live behind the StorageService
+// (local disk in dev, S3/presigned in production). All tenant-scoped (RLS).
+// ---------------------------------------------------------------------------
+
+enum ConsentScope {
+  CLINICAL_PHOTOGRAPHY
+  TREATMENT
+  DATA_SHARING
+  TELEHEALTH
+}
+
+enum ConsentMethod {
+  WRITTEN
+  VERBAL
+  DIGITAL
+}
+
+enum PhotoKind {
+  BEFORE
+  AFTER
+  PROGRESS
+  CLINICAL
+}
+
+model ConsentRecord {
+  id           String        @id @default(uuid()) @db.Uuid
+  tenantId     String        @db.Uuid
+  patientId    String        @db.Uuid
+  scope        ConsentScope
+  granted      Boolean       @default(true)
+  method       ConsentMethod @default(WRITTEN)
+  grantedAt    DateTime      @default(now())
+  expiresAt    DateTime?
+  note         String?
+  capturedById String?       @db.Uuid
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id])
+  patient  Patient        @relation(fields: [patientId], references: [id])
+  sessions PhotoSession[]
+
+  @@index([tenantId])
+  @@index([patientId, scope])
+}
+
+model PhotoSession {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @db.Uuid
+  patientId    String    @db.Uuid
+  consentId    String    @db.Uuid
+  kind         PhotoKind
+  label        String?
+  area         String?
+  note         String?
+  capturedById String?   @db.Uuid
+  capturedAt   DateTime  @default(now())
+
+  tenant  Tenant        @relation(fields: [tenantId], references: [id])
+  patient Patient       @relation(fields: [patientId], references: [id])
+  consent ConsentRecord @relation(fields: [consentId], references: [id])
+  assets  PhotoAsset[]
+
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+model PhotoAsset {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  sessionId   String   @db.Uuid
+  storageKey  String
+  contentType String
+  sizeBytes   Int
+  createdAt   DateTime @default(now())
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id])
+  session PhotoSession @relation(fields: [sessionId], references: [id])
+
+  @@index([tenantId])
+  @@index([sessionId])
+}
+
+// ---------------------------------------------------------------------------
+// EMR / encounter layer.
+//
+// An Encounter is the visit envelope; NoteInstance / IntakeSubmission /
+// TreatmentPlan are the filled clinical artifacts (each references Encounter
+// via a nullable encounterId so they can also stand alone). Filled values live
+// in Json columns (parallel to NoteTemplate.schema). Treatment plan totals are
+// recomputed server-side and item prices are snapshotted. All tenant-scoped RLS.
+// ---------------------------------------------------------------------------
+
+enum EncounterStatus {
+  OPEN
+  COMPLETED
+  CANCELLED
+}
+
+enum TreatmentPlanStatus {
+  PROPOSED
+  ACCEPTED
+  COMPLETED
+  CANCELLED
+}
+
+model Encounter {
+  id            String          @id @default(uuid()) @db.Uuid
+  tenantId      String          @db.Uuid
+  patientId     String          @db.Uuid
+  appointmentId String?         @db.Uuid
+  providerId    String?         @db.Uuid
+  packKey       String?
+  status        EncounterStatus @default(OPEN)
+  reason        String?
+  occurredAt    DateTime        @default(now())
+  createdById   String?         @db.Uuid
+  createdAt     DateTime        @default(now())
+
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
+  patient           Patient            @relation(fields: [patientId], references: [id])
+  noteInstances     NoteInstance[]
+  intakeSubmissions IntakeSubmission[]
+  treatmentPlans    TreatmentPlan[]
+
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+model IntakeSubmission {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @db.Uuid
+  patientId     String   @db.Uuid
+  encounterId   String?  @db.Uuid
+  packKey       String
+  answers       Json // { groupKey: { fieldKey: value } }
+  submittedById String?  @db.Uuid
+  createdAt     DateTime @default(now())
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  patient   Patient    @relation(fields: [patientId], references: [id])
+  encounter Encounter? @relation(fields: [encounterId], references: [id])
+
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+model NoteInstance {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  patientId    String   @db.Uuid
+  encounterId  String?  @db.Uuid
+  templateId   String?  @db.Uuid
+  templateKey  String // snapshot for stability across template versions
+  data         Json // { sectionKey: { fieldKey: value } }
+  authoredById String?  @db.Uuid
+  createdAt    DateTime @default(now())
+
+  tenant    Tenant        @relation(fields: [tenantId], references: [id])
+  patient   Patient       @relation(fields: [patientId], references: [id])
+  encounter Encounter?    @relation(fields: [encounterId], references: [id])
+  template  NoteTemplate? @relation(fields: [templateId], references: [id])
+
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+model TreatmentPlan {
+  id          String              @id @default(uuid()) @db.Uuid
+  tenantId    String              @db.Uuid
+  patientId   String              @db.Uuid
+  encounterId String?             @db.Uuid
+  status      TreatmentPlanStatus @default(PROPOSED)
+  totalPkr    Int                 @default(0)
+  createdById String?             @db.Uuid
+  createdAt   DateTime            @default(now())
+
+  tenant    Tenant              @relation(fields: [tenantId], references: [id])
+  patient   Patient             @relation(fields: [patientId], references: [id])
+  encounter Encounter?          @relation(fields: [encounterId], references: [id])
+  items     TreatmentPlanItem[]
+
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+model TreatmentPlanItem {
+  id                   String  @id @default(uuid()) @db.Uuid
+  tenantId             String  @db.Uuid
+  planId               String  @db.Uuid
+  serviceCatalogItemId String? @db.Uuid
+  code                 String // snapshot
+  name                 String // snapshot
+  unitPricePkr         Int // snapshot (price frozen at selection)
+  quantity             Int     @default(1)
+  lineTotalPkr         Int
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id])
+  plan   TreatmentPlan @relation(fields: [planId], references: [id])
+
+  @@index([tenantId])
+  @@index([planId])
+}
+
+// ---------------------------------------------------------------------------
+// Obstetrics & Gynaecology pack (pack.obgyn)
+//
+// A complete pregnancy episode (booking -> ANC contacts -> ultrasound ->
+// delivery/outcome) plus a WHO Labour Care Guide partogram and a gynae profile.
+// All GA displays derive from PregnancyEpisode.eddFinal. Every clinical write
+// is tenant-scoped with RLS. Alert flags are computed server-side (see
+// src/obstetrics/engines).
+// ---------------------------------------------------------------------------
+
+enum EddMethod {
+  LMP
+  USG
+  CLINICAL
+}
+
+enum RhFactor {
+  POSITIVE
+  NEGATIVE
+  UNKNOWN
+}
+
+enum PregnancyStatus {
+  ACTIVE
+  DELIVERED
+  MISCARRIED
+  TERMINATED
+  ECTOPIC
+  TRANSFERRED_OUT
+  LOST_TO_FOLLOWUP
+}
+
+enum DeliveryMode {
+  SVD
+  ASSISTED_VACUUM
+  ASSISTED_FORCEPS
+  ELECTIVE_CS
+  EMERGENCY_CS
+}
+
+enum Presentation {
+  CEPHALIC
+  BREECH
+  TRANSVERSE
+  OBLIQUE
+  UNSTABLE
+  NOT_ASSESSED
+}
+
+enum DipstickResult {
+  NIL
+  TRACE
+  PLUS_1
+  PLUS_2
+  PLUS_3
+  PLUS_4
+}
+
+enum FhrMethod {
+  DOPPLER
+  PINARD
+  CTG
+  USG
+}
+
+enum OedemaGrade {
+  NONE
+  ANKLE
+  PITTING_KNEE
+  GENERALIZED
+}
+
+enum FmStatus {
+  NORMAL
+  REDUCED
+  ABSENT
+  NA_TOO_EARLY
+}
+
+enum ScanType {
+  DATING
+  NT
+  ANOMALY
+  GROWTH
+  BPP
+  DOPPLER
+  CERVICAL_LENGTH
+}
+
+enum PlacentaSite {
+  ANTERIOR
+  POSTERIOR
+  FUNDAL
+  LATERAL_LEFT
+  LATERAL_RIGHT
+  LOW_LYING
+  PREVIA_MARGINAL
+  PREVIA_COMPLETE
+}
+
+enum LiquorAssessment {
+  NORMAL
+  OLIGOHYDRAMNIOS
+  POLYHYDRAMNIOS
+  ANHYDRAMNIOS
+}
+
+enum MembraneStatus {
+  INTACT
+  RUPTURED_SPONT
+  RUPTURED_ARM
+}
+
+enum PartogramStatus {
+  ACTIVE
+  DELIVERED
+  REFERRED
+  CS_DECIDED
+  CLOSED
+}
+
+enum FhrDecel {
+  NONE
+  EARLY
+  LATE
+  VARIABLE
+  UNKNOWN
+}
+
+enum AmnioticFluid {
+  INTACT
+  CLEAR
+  MECONIUM
+  BLOOD_STAINED
+  ABSENT
+}
+
+enum CycleRegularity {
+  REGULAR
+  IRREGULAR
+  AMENORRHEA
+  OLIGOMENORRHEA
+}
+
+enum FlowAmount {
+  LIGHT
+  NORMAL
+  HEAVY
+  HEAVY_WITH_CLOTS
+}
+
+enum DysmenorrheaSeverity {
+  NONE
+  MILD
+  MODERATE
+  SEVERE
+}
+
+enum ContraceptionMethod {
+  NONE
+  OCP
+  IUCD
+  INJECTABLE
+  IMPLANT
+  CONDOM
+  TL
+  OTHER
+}
+
+enum InfertilityType {
+  PRIMARY
+  SECONDARY
+}
+
+enum TubalTest {
+  NONE
+  HSG
+  LAPAROSCOPY
+}
+
+model PregnancyEpisode {
+  id                   String          @id @default(uuid()) @db.Uuid
+  tenantId             String          @db.Uuid
+  patientId            String          @db.Uuid
+  // Dating
+  lmp                  DateTime?
+  lmpReliable          Boolean         @default(false)
+  eddByLmp             DateTime?
+  eddByUsg             DateTime?
+  eddFinal             DateTime?
+  eddMethod            EddMethod       @default(LMP)
+  eddLockedAt          DateTime?
+  // Obstetric history (booking snapshot)
+  gravida              Int
+  para                 Int
+  abortus              Int
+  livingChildren       Int             @default(0)
+  bloodGroup           String?
+  rhFactor             RhFactor?
+  heightCm             Int?
+  prePregnancyWeightKg Int?
+  prevCsCount          Int             @default(0)
+  // Risk
+  riskFlags            String[]
+  riskNotes            String?
+  fetusCount           Int             @default(1)
+  status               PregnancyStatus @default(ACTIVE)
+  treatmentPlanId      String?         @db.Uuid
+  // Outcome (filled at closure)
+  deliveryDate         DateTime?
+  deliveryMode         DeliveryMode?
+  deliveryEncounterId  String?         @db.Uuid
+  babyRecords          Json?
+  complications        String[]
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  tenant      Tenant                @relation(fields: [tenantId], references: [id])
+  patient     Patient               @relation(fields: [patientId], references: [id])
+  ancVisits   AncVisit[]
+  ultrasounds ObstetricUltrasound[]
+  partograms  Partogram[]
+
+  @@index([tenantId])
+  @@index([tenantId, patientId, status])
+}
+
+model AncVisit {
+  id                 String          @id @default(uuid()) @db.Uuid
+  tenantId           String          @db.Uuid
+  pregnancyEpisodeId String          @db.Uuid
+  encounterId        String?         @db.Uuid
+  visitDate          DateTime
+  contactNumber      Int?
+  gaWeeks            Int?
+  gaDays             Int?
+  weightKg           Int?
+  bpSystolic         Int?
+  bpDiastolic        Int?
+  fundalHeightCm     Int?
+  fhrBpm             Int?
+  fhrPerFetus        Json?
+  fhrMethod          FhrMethod?
+  presentation       Presentation?
+  engagementFifths   Int?
+  urineAlbumin       DipstickResult?
+  urineSugar         DipstickResult?
+  hbGdl              Float?
+  oedema             OedemaGrade?
+  fetalMovements     FmStatus?
+  dangerSigns        String[]
+  ironFolateGiven    Boolean         @default(false)
+  calciumGiven       Boolean         @default(false)
+  ttImmunizationId   String?         @db.Uuid
+  planNotes          String?
+  nextVisitDate      DateTime?
+  alertFlags         String[]
+  createdById        String?         @db.Uuid
+  createdAt          DateTime        @default(now())
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id])
+  episode PregnancyEpisode @relation(fields: [pregnancyEpisodeId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, pregnancyEpisodeId, visitDate])
+}
+
+model ObstetricUltrasound {
+  id                 String            @id @default(uuid()) @db.Uuid
+  tenantId           String            @db.Uuid
+  pregnancyEpisodeId String            @db.Uuid
+  encounterId        String?           @db.Uuid
+  orderId            String?           @db.Uuid
+  scanDate           DateTime
+  scanType           ScanType
+  fetusNumber        Int               @default(1)
+  studyId            String
+  crlMm              Float?
+  gsMm               Float?
+  bpdMm              Float?
+  hcMm               Float?
+  acMm               Float?
+  flMm               Float?
+  efwGrams           Int?
+  efwFormula         String?
+  efwPercentile      Float?
+  gaByUsgWeeks       Int?
+  gaByUsgDays        Int?
+  fetalHeartActivity Boolean?
+  fhrBpm             Int?
+  presentation       Presentation?
+  placentaSite       PlacentaSite?
+  liquorAfiCm        Float?
+  liquorDvpCm        Float?
+  liquorAssessment   LiquorAssessment?
+  cervicalLengthMm   Float?
+  anomalyChecklist   Json?
+  adnexaFindings     Json?
+  impression         String
+  performedById      String?           @db.Uuid
+  mediaAssetIds      String[]
+  createdAt          DateTime          @default(now())
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id])
+  episode PregnancyEpisode @relation(fields: [pregnancyEpisodeId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, pregnancyEpisodeId, scanDate])
+}
+
+model Partogram {
+  id                  String          @id @default(uuid()) @db.Uuid
+  tenantId            String          @db.Uuid
+  pregnancyEpisodeId  String          @db.Uuid
+  encounterId         String?         @db.Uuid
+  startedAt           DateTime
+  parity              Int
+  membraneStatus      MembraneStatus  @default(INTACT)
+  membranesRupturedAt DateTime?
+  companionPresent    Boolean?
+  painReliefOffered   Boolean?
+  oralFluidsAllowed   Boolean?
+  status              PartogramStatus @default(ACTIVE)
+  closedAt            DateTime?
+  closureNote         String?
+  createdAt           DateTime        @default(now())
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id])
+  episode PregnancyEpisode @relation(fields: [pregnancyEpisodeId], references: [id])
+  entries PartogramEntry[]
+
+  @@index([tenantId])
+  @@index([tenantId, pregnancyEpisodeId])
+}
+
+// Append-only: no update/delete; corrections reference the corrected entry.
+model PartogramEntry {
+  id                     String          @id @default(uuid()) @db.Uuid
+  tenantId               String          @db.Uuid
+  partogramId            String          @db.Uuid
+  recordedAt             DateTime
+  recordedById           String?         @db.Uuid
+  correctsEntryId        String?         @db.Uuid
+  cervicalDilationCm     Int?
+  descentFifths          Int?
+  contractionsPer10Min   Int?
+  contractionDurationSec Int?
+  fhrBpm                 Int?
+  fhrDeceleration        FhrDecel?
+  amnioticFluid          AmnioticFluid?
+  caput                  Int?
+  moulding               Int?
+  maternalPulse          Int?
+  bpSystolic             Int?
+  bpDiastolic            Int?
+  temperatureC           Float?
+  urineOutput            String?
+  urineProtein           DipstickResult?
+  oxytocinUnitsPerL      Float?
+  oxytocinDropsPerMin    Int?
+  medicines              String?
+  ivFluids               String?
+  assessment             String?
+  plan                   String?
+  alertFlags             String[]
+  createdAt              DateTime        @default(now())
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  partogram Partogram @relation(fields: [partogramId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, partogramId, recordedAt])
+}
+
+model GynaeProfile {
+  id                        String                @id @default(uuid()) @db.Uuid
+  tenantId                  String                @db.Uuid
+  patientId                 String                @db.Uuid
+  menarcheAgeYears          Int?
+  cycleLengthDays           Int?
+  cycleRegularity           CycleRegularity?
+  flowDurationDays          Int?
+  flowAmount                FlowAmount?
+  dysmenorrhea              DysmenorrheaSeverity?
+  lmpRecorded               DateTime?
+  contraceptionMethod       ContraceptionMethod?
+  papSmearLastDate          DateTime?
+  pcosRotterdam             Json?
+  infertilityType           InfertilityType?
+  infertilityDurationMonths Int?
+  partnerSemenAnalysisDone  Boolean?
+  tubalPatencyTest          TubalTest?
+  priorTreatments           String?
+  createdAt                 DateTime              @default(now())
+  updatedAt                 DateTime              @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@unique([tenantId, patientId])
+  @@index([tenantId])
+}
+
+// Medico-legal audit of each weight-based dose calculation committed into an
+// order (SCCL Component 4). Append-only in practice.
+model DoseCalculationLog {
+  id                  String   @id @default(uuid()) @db.Uuid
+  tenantId            String   @db.Uuid
+  patientId           String   @db.Uuid
+  encounterId         String?  @db.Uuid
+  drugKey             String
+  weightKg            Float
+  ageMonths           Int?
+  computedMgPerDose   Float
+  computedMgPerDay    Float
+  cappedByMax         Boolean  @default(false)
+  chosenConcentration Json?
+  volumeMl            Float?
+  medicationRequestId String?
+  clinicianId         String?  @db.Uuid
+  createdAt           DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, patientId])
+}
+
+// ---------------------------------------------------------------------------
+// Dental depth (pack.dental): periodontal charting, tooth-level plan -> billing
+// glue, and the orthodontics add-on. Extends the existing ToothRecord
+// odontogram. All tenant-scoped with RLS.
+// ---------------------------------------------------------------------------
+
+enum FurcationGrade {
+  NONE
+  I
+  II
+  III
+}
+
+enum DentalPlanStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum OrthoCaseStatus {
+  PLANNED
+  ACTIVE
+  RETENTION
+  COMPLETED
+  DISCONTINUED
+}
+
+enum OrthoEventType {
+  RECORDS
+  BONDING
+  ADJUSTMENT
+  WIRE_CHANGE
+  ELASTICS_CHANGE
+  REPAIR
+  DEBOND
+  RETAINER_FIT
+  RETAINER_REVIEW
+}
+
+enum ApplianceType {
+  METAL_FIXED
+  CERAMIC_FIXED
+  SELF_LIGATING
+  LINGUAL
+  CLEAR_ALIGNER
+  REMOVABLE
+  FUNCTIONAL
+  RETAINER_HAWLEY
+  RETAINER_ESSIX
+  RETAINER_FIXED
+}
+
+// Six-site periodontal exam. bpeSextants optional for a BPE screen (0-4 x6).
+model PerioExam {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  patientId   String   @db.Uuid
+  encounterId String?  @db.Uuid
+  examType    String   @default("FULL") // FULL | BPE_SCREEN
+  bpeSextants Int[]
+  createdById String?  @db.Uuid
+  createdAt   DateTime @default(now())
+
+  tenant  Tenant             @relation(fields: [tenantId], references: [id])
+  patient Patient            @relation(fields: [patientId], references: [id])
+  teeth   PerioToothRecord[]
+
+  @@index([tenantId])
+  @@index([tenantId, patientId])
+}
+
+// Per-tooth six-site records. Arrays are ordered [DB, B, MB, DL, L, ML].
+model PerioToothRecord {
+  id          String         @id @default(uuid()) @db.Uuid
+  tenantId    String         @db.Uuid
+  perioExamId String         @db.Uuid
+  toothFdi    String
+  pocketMm    Int[] // 6 sites, 0-15 mm
+  recessionMm Int[] // 6 sites, mm from CEJ (CAL = pocket + recession)
+  bleeding    Boolean[] // 6 sites
+  suppuration Boolean[] // 6 sites
+  plaque      Boolean[] // 6 sites
+  furcation   FurcationGrade @default(NONE)
+  mobility    Int? // Miller 0-3
+
+  tenant Tenant    @relation(fields: [tenantId], references: [id])
+  exam   PerioExam @relation(fields: [perioExamId], references: [id])
+
+  @@unique([perioExamId, toothFdi])
+  @@index([tenantId])
+}
+
+// Tooth-level plan line that feeds billing. Self-contained (carries catalog
+// code + price) so completion can emit an InvoiceLineItem and write the
+// resulting ToothRecord condition.
+model ToothPlanItem {
+  id                   String           @id @default(uuid()) @db.Uuid
+  tenantId             String           @db.Uuid
+  patientId            String           @db.Uuid
+  encounterId          String?          @db.Uuid
+  catalogCode          String
+  name                 String
+  toothFdi             String? // null for whole-mouth procedures
+  surfaces             Json?
+  pricePkr             Int
+  status               DentalPlanStatus @default(PLANNED)
+  conditionOnComplete  String? // ToothRecord condition to write on completion (e.g. FILLED)
+  completedEncounterId String?          @db.Uuid
+  completedAt          DateTime?
+  invoiceLineItemId    String?          @db.Uuid
+  createdById          String?          @db.Uuid
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, patientId])
+}
+
+model OrthoCase {
+  id               String          @id @default(uuid()) @db.Uuid
+  tenantId         String          @db.Uuid
+  patientId        String          @db.Uuid
+  treatmentPlanId  String?         @db.Uuid
+  appliance        ApplianceType
+  angleClass       String?
+  startDate        DateTime?
+  plannedMonths    Int?
+  debondDate       DateTime?
+  status           OrthoCaseStatus @default(PLANNED)
+  applianceMap     Json
+  photoTimelineTag String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id])
+  patient Patient      @relation(fields: [patientId], references: [id])
+  events  OrthoEvent[]
+
+  @@index([tenantId])
+  @@index([tenantId, patientId])
+}
+
+model OrthoEvent {
+  id          String         @id @default(uuid()) @db.Uuid
+  tenantId    String         @db.Uuid
+  orthoCaseId String         @db.Uuid
+  encounterId String?        @db.Uuid
+  eventType   OrthoEventType
+  wireUpper   String?
+  wireLower   String?
+  elastics    String?
+  note        String?
+  occurredAt  DateTime       @default(now())
+
+  tenant Tenant    @relation(fields: [tenantId], references: [id])
+  case   OrthoCase @relation(fields: [orthoCaseId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, orthoCaseId])
+}
+
+// ---------------------------------------------------------------------------
+// Ophthalmology & Optometry pack (pack.ophthalmology)
+//
+// Per-eye eye-exam panel (VA / refraction / IOP / segment findings) + optical
+// prescription. Laterality via the shared BodySide enum (RIGHT=OD, LEFT=OS).
+// IOP mirrors into the core iop_mmhg Observation (per-eye trends); VA into a
+// new va_logmar metric. All tenant-scoped with RLS.
+// ---------------------------------------------------------------------------
+
+enum EyeExamStatus {
+  IN_PROGRESS
+  SIGNED
+  AMENDED
+}
+
+enum VaCondition {
+  UNAIDED
+  PINHOLE
+  WITH_GLASSES
+  BEST_CORRECTED
+}
+
+enum VaNotation {
+  SNELLEN_6
+  SNELLEN_20
+  LOGMAR
+}
+
+enum RefractionMethod {
+  AUTOREFRACTOR
+  RETINOSCOPY
+  SUBJECTIVE
+  CYCLOPLEGIC
+}
+
+enum IopMethod {
+  GAT
+  NCT
+  ICARE
+  PERKINS
+  TONOPEN
+}
+
+enum EyeSegment {
+  ANTERIOR
+  POSTERIOR
+}
+
+enum EyeStructure {
+  LIDS
+  CONJUNCTIVA
+  CORNEA
+  ANTERIOR_CHAMBER
+  IRIS
+  PUPIL
+  LENS
+  VITREOUS
+  DISC
+  CUP_DISC_RATIO
+  MACULA
+  VESSELS
+  PERIPHERY
+}
+
+enum EyeFindingStatus {
+  NORMAL
+  ABNORMAL
+  NOT_EXAMINED
+}
+
+enum RxType {
+  GLASSES
+  CONTACT_LENS
+}
+
+enum RxStatus {
+  DRAFT
+  FINAL
+  DISPENSED
+  EXPIRED
+  CANCELLED
+}
+
+model EyeExam {
+  id             String        @id @default(uuid()) @db.Uuid
+  tenantId       String        @db.Uuid
+  patientId      String        @db.Uuid
+  encounterId    String?       @db.Uuid
+  status         EyeExamStatus @default(IN_PROGRESS)
+  chiefComplaint String?
+  signedById     String?       @db.Uuid
+  signedAt       DateTime?
+  createdById    String?       @db.Uuid
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  tenant          Tenant                @relation(fields: [tenantId], references: [id])
+  patient         Patient               @relation(fields: [patientId], references: [id])
+  visualAcuities  VisualAcuityMeasure[]
+  refractions     Refraction[]
+  iopMeasurements IopMeasurement[]
+  segmentFindings EyeSegmentFinding[]
+  prescriptions   OpticalPrescription[]
+
+  @@index([tenantId])
+  @@index([tenantId, patientId])
+}
+
+model VisualAcuityMeasure {
+  id             String      @id @default(uuid()) @db.Uuid
+  tenantId       String      @db.Uuid
+  eyeExamId      String      @db.Uuid
+  laterality     BodySide
+  condition      VaCondition
+  notation       VaNotation
+  displayValue   String
+  logmarValue    Float?
+  chartDistanceM Float?
+  measuredAt     DateTime    @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  eyeExam EyeExam @relation(fields: [eyeExamId], references: [id])
+
+  @@index([tenantId])
+  @@index([eyeExamId])
+}
+
+model Refraction {
+  id            String           @id @default(uuid()) @db.Uuid
+  tenantId      String           @db.Uuid
+  eyeExamId     String           @db.Uuid
+  laterality    BodySide
+  method        RefractionMethod
+  sphere        Float
+  cylinder      Float?
+  axis          Int?
+  add           Float?
+  vaAchieved    String?
+  pdBinocularMm Float?
+  isFinal       Boolean          @default(false)
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  eyeExam EyeExam @relation(fields: [eyeExamId], references: [id])
+
+  @@index([tenantId])
+  @@index([eyeExamId])
+}
+
+model IopMeasurement {
+  id            String    @id @default(uuid()) @db.Uuid
+  tenantId      String    @db.Uuid
+  eyeExamId     String    @db.Uuid
+  laterality    BodySide
+  valueMmHg     Float
+  method        IopMethod
+  measuredAt    DateTime  @default(now())
+  cctMicrons    Int?
+  postDilation  Boolean   @default(false)
+  alertSeverity String?
+  observationId String?   @db.Uuid
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  eyeExam EyeExam @relation(fields: [eyeExamId], references: [id])
+
+  @@index([tenantId])
+  @@index([eyeExamId])
+}
+
+model EyeSegmentFinding {
+  id          String           @id @default(uuid()) @db.Uuid
+  tenantId    String           @db.Uuid
+  eyeExamId   String           @db.Uuid
+  laterality  BodySide
+  segment     EyeSegment
+  structure   EyeStructure
+  status      EyeFindingStatus
+  findingCode String?
+  gradeValue  String?
+  freeText    String?
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  eyeExam EyeExam @relation(fields: [eyeExamId], references: [id])
+
+  @@unique([tenantId, eyeExamId, laterality, structure])
+  @@index([tenantId])
+  @@index([eyeExamId])
+}
+
+model OpticalPrescription {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @db.Uuid
+  eyeExamId          String?  @db.Uuid
+  patientId          String   @db.Uuid
+  type               RxType
+  status             RxStatus @default(DRAFT)
+  odSphere           Float?
+  odCylinder         Float?
+  odAxis             Int?
+  odAdd              Float?
+  osSphere           Float?
+  osCylinder         Float?
+  osAxis             Int?
+  osAdd              Float?
+  pdBinocularMm      Float?
+  lensRecommendation Json?
+  validUntil         DateTime
+  prescribedById     String?  @db.Uuid
+  createdAt          DateTime @default(now())
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  patient Patient  @relation(fields: [patientId], references: [id])
+  eyeExam EyeExam? @relation(fields: [eyeExamId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, patientId])
+}
+
+// ---------------------------------------------------------------------------
+// Physiotherapy & Rehab pack (pack.physiotherapy)
+//
+// Episode of care (multi-session) -> MSK assessment (+ per-joint ROM with
+// deficit banding) -> treatment sessions (modality safety-gated) -> home
+// exercise programme. Outcome measures reuse the shared scored-instrument
+// engine (Oswestry/QuickDASH); pain (NPRS) rides the core Observation.
+// ---------------------------------------------------------------------------
+
+enum RehabEpisodeStatus {
+  ACTIVE
+  COMPLETED
+  DISCHARGED
+  DEFAULTED
+}
+
+enum RehabSessionStatus {
+  PLANNED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model RehabEpisode {
+  id              String             @id @default(uuid()) @db.Uuid
+  tenantId        String             @db.Uuid
+  patientId       String             @db.Uuid
+  diagnosis       String
+  bodyRegion      String
+  onsetDate       DateTime?
+  startDate       DateTime           @default(now())
+  status          RehabEpisodeStatus @default(ACTIVE)
+  sessionsPlanned Int                @default(0)
+  goals           String?
+  // Comorbidity flags read by the modality-safety engine.
+  safetyIntake    Json?
+  dischargedAt    DateTime?
+  dischargeNote   String?
+  createdById     String?            @db.Uuid
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  tenant      Tenant                 @relation(fields: [tenantId], references: [id])
+  patient     Patient                @relation(fields: [patientId], references: [id])
+  assessments MskAssessment[]
+  sessions    RehabSession[]
+  exercises   ExercisePrescription[]
+
+  @@index([tenantId])
+  @@index([tenantId, patientId, status])
+}
+
+model MskAssessment {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @db.Uuid
+  rehabEpisodeId String   @db.Uuid
+  encounterId    String?  @db.Uuid
+  assessedAt     DateTime @default(now())
+  posture        String?
+  gait           String?
+  palpation      String?
+  // Structured special tests: [{name, side, result}]
+  specialTests   Json?
+  notes          String?
+  assessedById   String?  @db.Uuid
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id])
+  episode RehabEpisode     @relation(fields: [rehabEpisodeId], references: [id])
+  rom     RomMeasurement[]
+
+  @@index([tenantId])
+  @@index([tenantId, rehabEpisodeId])
+}
+
+model RomMeasurement {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @db.Uuid
+  mskAssessmentId String    @db.Uuid
+  joint           String
+  movement        String
+  laterality      BodySide?
+  activeDegrees   Int?
+  passiveDegrees  Int?
+  // Snapshot of the reference normal at measurement time.
+  normalDegrees   Int
+  deficitPct      Int?
+  deficitBand     String?
+  note            String?
+
+  tenant     Tenant        @relation(fields: [tenantId], references: [id])
+  assessment MskAssessment @relation(fields: [mskAssessmentId], references: [id])
+
+  @@index([tenantId])
+  @@index([mskAssessmentId])
+}
+
+model RehabSession {
+  id             String             @id @default(uuid()) @db.Uuid
+  tenantId       String             @db.Uuid
+  rehabEpisodeId String             @db.Uuid
+  encounterId    String?            @db.Uuid
+  sessionNumber  Int
+  status         RehabSessionStatus @default(COMPLETED)
+  performedAt    DateTime           @default(now())
+  modalities     String[]
+  // Safety hits recorded at the time of application (audit).
+  safetyNotes    Json?
+  painPre        Int?
+  painPost       Int?
+  notes          String?
+  performedById  String?            @db.Uuid
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id])
+  episode RehabEpisode @relation(fields: [rehabEpisodeId], references: [id])
+
+  @@unique([tenantId, rehabEpisodeId, sessionNumber])
+  @@index([tenantId])
+  @@index([tenantId, rehabEpisodeId])
+}
+
+model ExercisePrescription {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @db.Uuid
+  rehabEpisodeId   String   @db.Uuid
+  exerciseCode     String
+  name             String
+  sets             Int?
+  reps             Int?
+  holdSeconds      Int?
+  frequencyPerWeek Int?
+  progression      String?
+  instructions     String?
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id])
+  episode RehabEpisode @relation(fields: [rehabEpisodeId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, rehabEpisodeId])
+}
+
+// ---------------------------------------------------------------------------
+// Dermatology pack (pack.dermatology)
+//
+// Grading instruments (GAGS/PASI/EASI/SCORAD/MASI/VASI) deliberately have NO
+// tables of their own — they persist through ScoredInstrumentResponse, so they
+// inherit the shared trends/reporting substrate. Only phototherapy and a thin
+// lesion layer are genuinely new.
+// ---------------------------------------------------------------------------
+
+enum PhototherapyModality {
+  NB_UVB
+  BB_UVB
+  PUVA
+  EXCIMER
+}
+
+enum PhototherapyStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ABANDONED
+}
+
+enum PhototherapyBodySite {
+  WHOLE_BODY
+  HANDS_FEET
+  SCALP
+  LOCALIZED
+}
+
+model PhototherapyCourse {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  patientId String @db.Uuid
+
+  modality   PhototherapyModality @default(NB_UVB)
+  bodySite   PhototherapyBodySite @default(WHOLE_BODY)
+  laterality BodySide? // for LOCALIZED sites
+
+  // Drives the start/increment/ceiling protocol. Unknown skin type blocks start.
+  fitzpatrickType Int
+  indication      String
+  protocolKey     String @default("NBUVB_STANDARD")
+
+  startDoseMj  Int
+  incrementPct Int  @default(15)
+  maxDoseMj    Int
+  medMj        Int? // measured Minimal Erythema Dose; overrides skin-type start
+
+  // Carries the burn interlock ACROSS visits. A grade-3 hold is stored as a
+  // skipped session with no deliveredAt, which every "last delivered session"
+  // filter excludes — so without this the engine forgets the burn and escalates
+  // above the dose that blistered the patient. Set to the burning dose on a
+  // grade-3; cleared once a session is actually delivered.
+  burnHoldDoseMj Int?
+  burnHoldAt     DateTime?
+
+  status    PhototherapyStatus @default(ACTIVE)
+  startedAt DateTime           @default(now())
+  endedAt   DateTime?
+
+  createdById String? @db.Uuid
+
+  tenant   Tenant                @relation(fields: [tenantId], references: [id])
+  patient  Patient               @relation(fields: [patientId], references: [id])
+  sessions PhototherapySession[]
+
+  @@index([tenantId, patientId, status])
+}
+
+model PhototherapySession {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  courseId String @db.Uuid
+
+  sessionNo   Int
+  deliveredAt DateTime?
+
+  doseMj       Int @default(0)
+  // Denormalized running total, recomputed server-side — never trusted from
+  // the client. A skipped session contributes 0.
+  cumulativeMj Int @default(0)
+
+  lampHours Float?
+  gapDays   Int?
+
+  // 0 none | 1 <24h pink | 2 24-48h | 3 >48h or blistering
+  erythemaGrade Int     @default(0)
+  burnFlag      Boolean @default(false)
+
+  // {suggested, applied, action, ruleFired, rationale, override, overrideReason}
+  doseDecision Json?
+
+  skipped    Boolean @default(false)
+  skipReason String?
+  notes      String?
+
+  deliveredById String? @db.Uuid
+
+  tenant Tenant             @relation(fields: [tenantId], references: [id])
+  course PhototherapyCourse @relation(fields: [courseId], references: [id])
+
+  @@unique([tenantId, courseId, sessionNo])
+  @@index([tenantId, courseId, deliveredAt])
+}
+
+model SkinLesion {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  patientId   String  @db.Uuid
+  encounterId String? @db.Uuid
+
+  bodyRegion String
+  laterality BodySide?
+
+  morphology    String // macule|papule|plaque|nodule|pustule|patch
+  diagnosisCode String? // ICD-10 (L70.0 acne, L40.x psoriasis, L80 vitiligo)
+
+  // Mole surveillance: {asymmetry, border, color, diameterMm, evolving}
+  abcde Json?
+
+  status String @default("active")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([tenantId, patientId, bodyRegion])
+}
+
+// Drug dosing rules — platform-seeded, tenant-extendable.
+//
+// Replaces the hardcoded DRUGS record in src/dosing/drug-catalog.ts as the
+// RUNTIME read path, so a clinic can correct a regimen (or add a local
+// formulary entry) without a code deploy. The pure computeDose() engine is
+// unchanged — this only moves where the numbers come from.
+//
+// STARTER DATA, NOT A FORMULARY: the seeded regimens are illustrative and must
+// be validated against a maintained PMDC/DRAP formulary before clinical use.
+model DoseRule {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  drugKey     String // "paracetamol"
+  displayName String
+  route       String  @default("oral")
+  form        String? // "syrup 120 mg/5 mL"
+
+  mgPerKgPerDay   Float
+  dosesPerDay     Int
+  maxSingleDoseMg Float? // absolute per-dose cap
+  maxDailyDoseMg  Float? // absolute per-day cap
+
+  minAgeMonths       Int? // rule invalid below this age
+  maxWeightKgForRule Float? // switch to adult dosing above this
+  roundingStepMl     Float  @default(0)
+
+  // [{ label: "120 mg/5 mL", mgPerMl: 24 }]
+  concentrations Json
+  cautions       String[]
+  highRisk       Boolean  @default(false) // mandatory double-check
+
+  isBuiltin Boolean  @default(true) // platform seed vs tenant-authored
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, drugKey, route])
+  @@index([tenantId])
+}
+
+enum PrescriptionStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+// The order produced when a computed dose is committed.
+//
+// A snapshot, deliberately: displayName/route/concentration are copied at commit
+// rather than joined from DoseRule, because a rule is now tenant-editable. If a
+// clinic corrects a regimen next month, the prescription must still say what was
+// actually prescribed today — a medico-legal record that silently follows its
+// source is not a record.
+model Prescription {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  patientId   String  @db.Uuid
+  encounterId String? @db.Uuid
+
+  drugKey     String
+  displayName String
+  route       String
+
+  mgPerDose          Float
+  dosesPerDay        Int
+  mgPerDay           Float
+  volumePerDoseMl    Float?
+  concentrationLabel String?
+
+  durationDays Int?
+  prn          Boolean @default(false)
+  instructions String? // caregiver-language sig
+
+  status PrescriptionStatus @default(ACTIVE)
+
+  // The calculation that produced this order (medico-legal chain).
+  doseCalculationLogId String? @db.Uuid
+  prescribedById       String? @db.Uuid
+
+  createdAt DateTime @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, patientId])
+}
+
+enum ToothType {
+  PERMANENT
+  PRIMARY
+  SUPERNUMERARY
+}
+
+enum FindingStatus {
+  EXISTING
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  HISTORICAL
+}
+
+// Append-only longitudinal tooth chart.
+//
+// ToothRecord stays as the fast "current state" projection (one row per tooth,
+// upserted). This is the HISTORY: rows are never updated or deleted, and a
+// correction supersedes the prior row rather than overwriting it. A dental
+// chart is a medico-legal record — "tooth 36 was sound in March and carious in
+// June" is the clinically meaningful fact, and an upsert-only chart destroys it.
+model ToothFinding {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  patientId   String  @db.Uuid
+  encounterId String? @db.Uuid
+
+  toothFdi         String // "11".."48" permanent, "51".."85" primary
+  toothType        ToothType @default(PERMANENT)
+  // e.g. "mesiodens near 11" — a supernumerary has no FDI number of its own.
+  supernumeraryRef String?
+
+  surfaces  String[] // subset of MODBL; empty = whole tooth
+  condition String
+  status    FindingStatus @default(EXISTING)
+
+  mobilityGrade Int? // Miller 0-3, only meaningful when condition = MOBILE
+
+  // Derived from the quadrant digit, never accepted from the client.
+  archSide BodySide?
+
+  note String?
+
+  // Append-only chain: null = the active tip for this tooth.
+  supersededById String? @db.Uuid
+
+  recordedById String?  @db.Uuid
+  createdAt    DateTime @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, patientId, toothFdi])
+  @@index([tenantId, encounterId])
+}

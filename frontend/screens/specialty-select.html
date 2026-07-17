@@ -1,0 +1,72 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Choose your specialty · Health OS</title><link rel="stylesheet" href="../assets/app.css"><script defer src="../assets/app.js"></script>
+<style>
+  .spec-wrap{max-width:1040px;margin:0 auto;padding:34px 22px 60px}
+  .spec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:14px;margin-top:18px}
+  .spec{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:15px;cursor:pointer;position:relative;transition:border-color .12s,box-shadow .12s;display:flex;flex-direction:column;gap:8px}
+  .spec:hover{border-color:var(--accent-b)}
+  .spec.sel{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-t)}
+  .spec.star{border-color:var(--accent)}
+  .spec .tile{width:38px;height:38px;border-radius:11px;background:var(--accent-t);color:var(--accent);display:grid;place-items:center}
+  .spec .tile .ic{width:20px;height:20px}
+  .spec .nm{font-weight:700;font-size:14px}
+  .spec .ds{font-size:11.5px;color:var(--muted);line-height:1.4}
+  .spec .chk{position:absolute;top:12px;right:12px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:none;place-items:center}
+  .spec.sel .chk{display:grid}
+  .spec .chk .ic{width:14px;height:14px}
+</style></head>
+<body data-shell="none">
+<div class="spec-wrap">
+  <div style="display:flex;align-items:center;gap:11px;margin-bottom:6px"><div style="width:40px;height:40px;border-radius:11px;background:var(--accent);display:grid;place-items:center;color:#fff"><svg class="ic" style="width:22px;height:22px"><use href="#i-plus"/></svg></div>
+    <div><div style="font-family:var(--serif);font-size:19px;color:var(--accent)">Health OS</div><div class="note" style="letter-spacing:.14em;text-transform:uppercase;font-size:10px;color:var(--gold);font-weight:700">Setup · step 2 of 4</div></div></div>
+
+  <h2 class="page-head" style="font-family:var(--serif);font-size:26px;margin:14px 0 4px">What kind of clinic are you?</h2>
+  <p style="color:var(--muted);max-width:60ch;margin:0">We'll tailor your patient records, note templates, service catalog and workflows to your specialty — automatically. You can add more later.</p>
+
+  <div class="segmented" style="margin-top:18px"><button class="on">Single specialty</button><button>Polyclinic (multiple)</button><button>Hospital (departments)</button></div>
+
+  <div class="spec-grid">
+    <div class="spec sel star"><div class="chk"><svg class="ic"><use href="#i-check"/></svg></div><div style="display:flex;align-items:center;justify-content:space-between"><div class="tile"><svg class="ic"><use href="#i-heart"/></svg></div><span class="status s-accent"><span class="dot"></span>Recommended</span></div><div class="nm">Aesthetic &amp; Cosmetic</div><div class="ds">Before/after, injectables, packages, memberships</div><span class="status s-good" style="align-self:flex-start"><span class="dot"></span>Pack ready</span></div>
+
+    <div class="spec"><div class="chk"><svg class="ic"><use href="#i-check"/></svg></div><div class="tile"><svg class="ic"><use href="#i-note"/></svg></div><div class="nm">Dermatology</div><div class="ds">Acne/eczema grading, phototherapy, skin dx</div><span class="status s-accent" style="align-self:flex-start"><span class="dot"></span>Wave A</span></div>
+
+    <div class="spec"><div class="chk"><svg class="ic"><use href="#i-check"/></svg></div><div class="tile"><svg class="ic"><use href="#i-plan"/></svg></div><div class="nm">Dental &amp; Orthodontics</div><div class="ds">Odontogram, perio chart, tooth-level plans</div><span class="status s-accent" style="align-self:flex-start"><span class="dot"></span>Wave A</span></div>
+
+    <div class="spec"><div class="chk"><svg class="ic"><use href="#i-check"/></svg></div><div class="tile"><svg class="ic"><use href="#i-user"/></svg></div><div class="nm">Obstetrics &amp; Gynae</div><div class="ds">Antenatal card, partogram, cycle tracking</div><span class="status s-accent" style="align-self:flex-start"><span class="dot"></span>Wave A</span></div>
+
+    <div class="spec"><div class="chk"><svg class="ic"><use href="#i-check"/></svg></div><div class="tile"><svg class="ic"><use href="#i-heart"/></svg></div><div class="nm">Pediatrics</div><div class="ds">Growth charts, EPI schedule, weight-based dosing</div><span class="status s-accent" style="align-self:flex-start"><span class="dot"></span>Wave A</span></div>
+
+    <div class="spec"><div class="chk"><svg class="ic"><use href="#i-check"/></svg></div><div class="tile"><svg class="ic"><use href="#i-shield"/></svg></div><div class="nm">Vaccination Clinic</div><div class="ds">EPI schedule engine, recall, lot/AEFI capture</div><span class="status s-accent" style="align-self:flex-start"><span class="dot"></span>Wave A</span></div>
+
+    <div class="spec"><div class="chk"><svg class="ic"><use href="#i-check"/></svg></div><div class="tile"><svg class="ic"><use href="#i-scan"/></svg></div><div class="nm">Ophthalmology</div><div class="ds">Refraction, IOP, slit-lamp, glasses Rx</div><span class="status s-accent" style="align-self:flex-start"><span class="dot"></span>Wave A</span></div>
+
+    <div class="spec"><div class="chk"><svg class="ic"><use href="#i-check"/></svg></div><div class="tile"><svg class="ic"><use href="#i-scan"/></svg></div><div class="nm">Optometry / Optical</div><div class="ds">Refraction + dispensing, optical inventory</div><span class="status s-muted" style="align-self:flex-start"><span class="dot"></span>Wave B</span></div>
+
+    <div class="spec"><div class="chk"><svg class="ic"><use href="#i-check"/></svg></div><div class="tile"><svg class="ic"><use href="#i-steth"/></svg></div><div class="nm">ENT</div><div class="ds">Audiogram, otoscopy/rhinoscopy findings</div><span class="status s-muted" style="align-self:flex-start"><span class="dot"></span>Wave B</span></div>
+
+    <div class="spec"><div class="chk"><svg class="ic"><use href="#i-check"/></svg></div><div class="tile"><svg class="ic"><use href="#i-bars"/></svg></div><div class="nm">Physiotherapy &amp; Rehab</div><div class="ds">ROM/MMT, outcome scores, session plans</div><span class="status s-muted" style="align-self:flex-start"><span class="dot"></span>Wave B</span></div>
+
+    <div class="spec"><div class="chk"><svg class="ic"><use href="#i-check"/></svg></div><div class="tile"><svg class="ic"><use href="#i-building"/></svg></div><div class="nm">Orthopaedics</div><div class="ds">Fracture notes, ROM, imaging orders</div><span class="status s-muted" style="align-self:flex-start"><span class="dot"></span>Wave B</span></div>
+
+    <div class="spec"><div class="chk"><svg class="ic"><use href="#i-check"/></svg></div><div class="tile"><svg class="ic"><use href="#i-pie"/></svg></div><div class="nm">Cardiology</div><div class="ds">ECG/echo, BP &amp; lipid trends, CV risk</div><span class="status s-muted" style="align-self:flex-start"><span class="dot"></span>Wave C</span></div>
+
+    <div class="spec"><div class="chk"><svg class="ic"><use href="#i-check"/></svg></div><div class="tile"><svg class="ic"><use href="#i-cash"/></svg></div><div class="nm">Diabetes &amp; Endocrine</div><div class="ds">HbA1c trend, insulin titration, foot exam</div><span class="status s-muted" style="align-self:flex-start"><span class="dot"></span>Wave C</span></div>
+
+    <div class="spec"><div class="chk"><svg class="ic"><use href="#i-check"/></svg></div><div class="tile"><svg class="ic"><use href="#i-steth"/></svg></div><div class="nm">GP / Family Medicine</div><div class="ds">General EMR base — the everyday clinic</div><span class="status s-muted" style="align-self:flex-start"><span class="dot"></span>Wave B</span></div>
+
+    <div class="spec"><div class="chk"><svg class="ic"><use href="#i-check"/></svg></div><div class="tile"><svg class="ic"><use href="#i-user"/></svg></div><div class="nm">Fertility / IVF</div><div class="ds">Cycle management, follicle tracking, embryology</div><span class="status s-muted" style="align-self:flex-start"><span class="dot"></span>Wave B</span></div>
+
+    <div class="spec"><div class="chk"><svg class="ic"><use href="#i-check"/></svg></div><div class="tile"><svg class="ic"><use href="#i-heart"/></svg></div><div class="nm">Psychiatry / Mental health</div><div class="ds">PHQ-9/GAD-7, mental-status exam, therapy notes</div><span class="status s-muted" style="align-self:flex-start"><span class="dot"></span>Wave C</span></div>
+
+    <div class="spec"><div class="chk"><svg class="ic"><use href="#i-check"/></svg></div><div class="tile"><svg class="ic"><use href="#i-plan"/></svg></div><div class="nm">Nutrition &amp; Dietetics</div><div class="ds">Anthropometry trends, diet-plan builder</div><span class="status s-muted" style="align-self:flex-start"><span class="dot"></span>Wave C</span></div>
+
+    <div class="spec"><div class="chk"><svg class="ic"><use href="#i-check"/></svg></div><div class="tile"><svg class="ic"><use href="#i-note"/></svg></div><div class="nm">Other medical</div><div class="ds">Gastro · Uro · Nephro · Pulmo · Neuro — template packs</div><span class="status s-muted" style="align-self:flex-start"><span class="dot"></span>Wave C</span></div>
+  </div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:26px;flex-wrap:wrap;gap:12px">
+    <p class="note" style="margin:0;max-width:52ch">Your choice seeds the right <b>note templates, service catalog, intake fields and order sets</b> — nothing to configure by hand.</p>
+    <div class="rowbtns"><button class="btn ghost">Back</button><button class="btn primary" id="cont">Continue — set up my clinic</button></div>
+  </div>
+</div>
+
+</body></html>
