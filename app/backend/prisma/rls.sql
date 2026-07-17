@@ -459,3 +459,16 @@ ALTER TABLE "ToothFinding" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "ToothFinding" FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON "ToothFinding"
   USING ("tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid);
+
+-- ---------------------------------------------------------------------------
+-- Cold chain + AEFI
+-- ---------------------------------------------------------------------------
+ALTER TABLE "VaccineBatch" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "VaccineBatch" FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON "VaccineBatch"
+  USING ("tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid);
+
+ALTER TABLE "Aefi" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Aefi" FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON "Aefi"
+  USING ("tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid);

@@ -176,6 +176,8 @@ model Tenant {
   doseRules             DoseRule[]
   prescriptions         Prescription[]
   toothFindings         ToothFinding[]
+  vaccineBatches        VaccineBatch[]
+  aefis                 Aefi[]
 }
 
 // Tenant-scoped facility (clinic branch).
@@ -317,6 +319,7 @@ model Patient {
   skinLesions          SkinLesion[]
   prescriptions        Prescription[]
   toothFindings        ToothFinding[]
+  aefis                Aefi[]
 
   @@index([tenantId])
 }
@@ -449,8 +452,13 @@ model Immunization {
   givenById   String?  @db.Uuid
   recordedAt  DateTime @default(now())
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id])
-  patient Patient @relation(fields: [patientId], references: [id])
+  /// The physical vial this dose came from. Without it a cold-chain break or a
+  /// bad lot cannot be traced to the children who received it.
+  batchId String? @db.Uuid
+
+  tenant  Tenant        @relation(fields: [tenantId], references: [id])
+  patient Patient       @relation(fields: [patientId], references: [id])
+  batch   VaccineBatch? @relation(fields: [batchId], references: [id])
 
   @@unique([tenantId, patientId, vaccineCode, dose])
   @@index([tenantId])
@@ -2542,4 +2550,103 @@ model ToothFinding {
   @@index([tenantId])
   @@index([tenantId, patientId, toothFdi])
   @@index([tenantId, encounterId])
+}
+
+// ---------------------------------------------------------------------------
+// Cold chain + AEFI
+// ---------------------------------------------------------------------------
+
+/// Vaccine Vial Monitor stage. The square on the label darkens with cumulative
+/// heat exposure — it is the only field evidence that a vial survived the cold
+/// chain between the depot and this arm.
+enum VvmStage {
+  STAGE_1 // square lighter than the ring — usable
+  STAGE_2 // still lighter — usable, use first
+  STAGE_3 // square matches the ring — DISCARD
+  STAGE_4 // square darker than the ring — DISCARD
+}
+
+enum AefiSeverity {
+  MINOR // expected, self-limiting (sore arm, low fever)
+  SEVERE // needs medical attention, not life-threatening
+  SERIOUS // death, life-threatening, hospitalisation, disability, congenital anomaly
+}
+
+enum AefiOutcome {
+  RECOVERED
+  RECOVERING
+  NOT_RECOVERED
+  RECOVERED_WITH_SEQUELAE
+  DIED
+  UNKNOWN
+}
+
+/// A physical vaccine lot held by a clinic.
+///
+/// Vaccines are not ordinary stock: potency depends on an unbroken cold chain,
+/// and a heat-damaged vial looks exactly like a good one. So a batch carries an
+/// expiry AND a VVM stage, and both are checked at administration — recording a
+/// dose from a discarded vial produces a child who is on paper immunised and in
+/// fact is not, which is the failure this whole module exists to prevent.
+model VaccineBatch {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  vaccineCode  String
+  lotNumber    String
+  manufacturer String?
+
+  expiry   DateTime
+  vvmStage VvmStage @default(STAGE_1)
+
+  dosesReceived  Int
+  dosesRemaining Int
+
+  // Where it is kept, for a cold-chain break investigation.
+  storageLocation String?
+
+  /// Set when the batch is pulled — expired, VVM stage 3/4, or a fridge failure.
+  discardedAt   DateTime?
+  discardReason String?
+
+  receivedAt DateTime @default(now())
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  immunizations Immunization[]
+
+  @@unique([tenantId, vaccineCode, lotNumber])
+  @@index([tenantId, vaccineCode, expiry])
+}
+
+/// Adverse Event Following Immunization.
+///
+/// Reportable regardless of whether the vaccine caused it — causality is
+/// assessed later, by someone else. The record exists so a cluster on one lot
+/// is visible; `batchId` is what makes that possible.
+model Aefi {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  patientId      String  @db.Uuid
+  immunizationId String? @db.Uuid
+  batchId        String? @db.Uuid
+
+  onsetAt   DateTime
+  symptoms  String[]
+  severity  AefiSeverity
+  outcome   AefiOutcome  @default(UNKNOWN)
+  narrative String?
+
+  /// A SERIOUS event is reportable to the national pharmacovigilance centre.
+  /// Recorded, never inferred: "was it reported" is a fact about the world.
+  reportedToAuthorityAt DateTime?
+
+  reportedById String?  @db.Uuid
+  createdAt    DateTime @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([tenantId, patientId])
+  @@index([tenantId, batchId])
 }
