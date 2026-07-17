@@ -18,8 +18,21 @@ import { RunPayrollDto } from './dto/run-payroll.dto';
 export class HrService {
   constructor(private readonly prisma: PrismaService) {}
 
-  addEmployee(dto: CreateEmployeeDto) {
+  async addEmployee(dto: CreateEmployeeDto) {
     const { tenantId } = getTenant();
+    // A duplicate CNIC is refused by a unique index rather than a read-then-write
+    // check: two clerks adding the same nurse at once would both pass the read.
+    // The index is the only thing that holds under concurrency.
+    if (dto.cnic) {
+      const clash = await this.prisma.forTenant(tenantId, (tx) =>
+        tx.employee.findFirst({ where: { cnic: dto.cnic } }),
+      );
+      if (clash) {
+        throw new BadRequestException(
+          `CNIC ${dto.cnic} already belongs to ${clash.name}. Payroll pays once per employee record.`,
+        );
+      }
+    }
     return this.prisma.forTenant(tenantId, (tx) =>
       tx.employee.create({
         data: {
@@ -102,6 +115,35 @@ export class HrService {
       }
       await tx.payrollRun.update({ where: { id: runId }, data: { status: PayrollStatus.FINALIZED } });
       return reload(tx, runId);
+    });
+  }
+
+  /**
+   * Discard a DRAFT run.
+   *
+   * A period is unique, and runPayroll refuses if any run exists for it. Without
+   * this, a draft computed with a wrong deduction is permanent: that month can
+   * never be run correctly. Payroll runs monthly, so that trap fires in month one.
+   *
+   * Only a DRAFT may go. A draft is a calculation nobody was paid from; a
+   * FINALIZED run is the record that they were, and deleting it would erase
+   * evidence of a payment. Hence delete, not a status flag: the unique
+   * constraint on (tenant, period) means a tombstone would block the re-run
+   * this method exists to allow.
+   */
+  async discardDraft(runId: string) {
+    const { tenantId } = getTenant();
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const run = await tx.payrollRun.findUnique({ where: { id: runId } });
+      if (!run) throw new NotFoundException(`Payroll run ${runId} not found`);
+      if (run.status === PayrollStatus.FINALIZED) {
+        throw new BadRequestException(
+          'A finalized payroll run cannot be discarded — it records that staff were paid.',
+        );
+      }
+      await tx.payslip.deleteMany({ where: { runId } });
+      await tx.payrollRun.delete({ where: { id: runId } });
+      return { discarded: true, period: run.period };
     });
   }
 

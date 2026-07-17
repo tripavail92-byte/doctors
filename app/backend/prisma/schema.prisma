@@ -648,6 +648,12 @@ model Employee {
   tenant   Tenant    @relation(fields: [tenantId], references: [id])
   payslips Payslip[]
 
+  // One CNIC, one employee row, per tenant. Payroll pays a salary per row, so a
+  // duplicated person is a duplicated salary and nothing in the run looks wrong.
+  // Name is not a key (two staff genuinely share one), but the national ID is.
+  // Postgres treats NULLs as distinct in a unique index, so staff whose CNIC has
+  // not been captured yet do not collide with each other.
+  @@unique([tenantId, cnic])
   @@index([tenantId])
 }
 

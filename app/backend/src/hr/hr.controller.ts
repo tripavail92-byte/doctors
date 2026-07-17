@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -47,6 +48,11 @@ export class HrController {
   @Get('payroll/runs/:id')
   run(@Param('id') id: string) {
     return this.hr.getRun(id);
+  }
+
+  @Delete('payroll/runs/:id')
+  discard(@Param('id') id: string) {
+    return this.hr.discardDraft(id);
   }
 
   @Patch('payroll/runs/:id/finalize')

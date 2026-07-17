@@ -12,6 +12,7 @@ import PartogramPage from './pages/PartogramPage';
 import ReportsPage from './pages/ReportsPage';
 import IntegrationsPage from './pages/IntegrationsPage';
 import PhototherapyPage from './pages/PhototherapyPage';
+import PayrollPage from './pages/PayrollPage';
 import ImmunizationPage from './pages/ImmunizationPage';
 
 // Application route tree.
@@ -35,6 +36,7 @@ export const router = createBrowserRouter([
       { path: 'anc', element: <AncCardPage /> },
       { path: 'partogram', element: <PartogramPage /> },
       { path: 'phototherapy', element: <PhototherapyPage /> },
+      { path: 'payroll', element: <PayrollPage /> },
       { path: 'immunization', element: <ImmunizationPage /> },
       { path: 'reports', element: <ReportsPage /> },
       { path: 'integrations', element: <IntegrationsPage /> },

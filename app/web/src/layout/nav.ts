@@ -15,6 +15,7 @@ import PregnantWomanIcon from "@mui/icons-material/PregnantWoman";
 import MonitorHeartIcon from "@mui/icons-material/MonitorHeart";
 import WbIridescentIcon from "@mui/icons-material/WbIridescent";
 import VaccinesOutlinedIcon from "@mui/icons-material/VaccinesOutlined";
+import PaymentsIcon from "@mui/icons-material/Payments";
 
 // A single clickable nav entry.
 export interface NavItem {
@@ -53,6 +54,7 @@ export const navGroups: NavGroup[] = [
   {
     label: "Business",
     items: [
+      { label: "Payroll", to: "/payroll", icon: PaymentsIcon },
       { label: "Reports", to: "/reports", icon: BarChartIcon },
       { label: "Integrations", to: "/integrations", icon: HubIcon },
     ],
