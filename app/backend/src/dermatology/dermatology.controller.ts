@@ -1,4 +1,5 @@
-import { BadRequestException, Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -79,7 +80,32 @@ export class DermatologyController {
   // onto blistered skin — the engine's own rationale says "notify prescriber".
   @Post('phototherapy/courses/:id/sessions')
   @Roles(...PRESCRIBER_ROLES)
-  recordSession(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RecordSessionDto) {
+  recordSession(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RecordSessionDto,
+    @Req() req: Request,
+  ) {
+    // Inspect the RAW grade, before class-transformer coerces it. The global
+    // ValidationPipe runs enableImplicitConversion, which turns "" / " " / false
+    // into 0 and true into 1 BEFORE any @Transform on the DTO can reject them —
+    // so a blistered patient's grade, arriving blank from a UI that left the
+    // control empty, was silently coerced to "no reaction", escalated the dose
+    // onto burnt skin, and never armed the interlock. A coerced grade is
+    // indistinguishable from an honest one by the time it reaches the DTO, so the
+    // check must read the pre-transform body. The preview endpoint already reads
+    // the raw query string for the same reason.
+    const raw = (req.body ?? {}).lastErythemaGrade;
+    if (raw !== undefined && raw !== null) {
+      const badBlank = typeof raw === 'string' && raw.trim() === '';
+      const badBool = typeof raw === 'boolean';
+      if (badBlank || badBool) {
+        throw new BadRequestException(
+          'lastErythemaGrade must be an integer 0-3 recording the reaction to the last ' +
+            'session. A blank or non-numeric value is not a reaction — pass 0 explicitly if ' +
+            'there was no erythema.',
+        );
+      }
+    }
     return this.derma.recordSession(id, dto);
   }
 

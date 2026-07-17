@@ -524,15 +524,22 @@ export class DermatologyService {
       });
 
       if (merged >= 3) {
-        // Arm the hold on the dose that burned. Ratchets DOWN only.
-        const anchor =
-          course.burnHoldDoseMj != null
-            ? Math.min(course.burnHoldDoseMj, last.doseMj)
-            : last.doseMj;
-        await tx.phototherapyCourse.update({
-          where: { id: courseId },
-          data: { burnHoldDoseMj: anchor, burnHoldAt: new Date() },
-        });
+        // Arm the hold on the dose that burned, on EVERY one of the patient's
+        // still-dosing courses — not just this one.
+        //
+        // The burn is the patient's SKIN, and resolution (in recordSession) now
+        // clears only the course that itself re-establishes tolerance. Arming a
+        // single course let a SECOND, higher course keep its stale pre-burn
+        // anchor: once any course cleared the hold, that course sprang back and
+        // delivered ~3x the dose that blistered the patient. So every active or
+        // paused course must physically carry the anchor. LEAST ratchets DOWN
+        // only — it never raises a course that already holds tighter.
+        await tx.$executeRaw`
+          UPDATE "PhototherapyCourse"
+             SET "burnHoldDoseMj" = LEAST(COALESCE("burnHoldDoseMj", ${last.doseMj}), ${last.doseMj}),
+                 "burnHoldAt" = now()
+           WHERE "patientId" = ${course.patientId}::uuid
+             AND status IN ('ACTIVE', 'PAUSED')`;
       }
     });
   }
@@ -570,7 +577,13 @@ export class DermatologyService {
       // clinical input — it is what gates escalation. Defaulting it to 0 would
       // manufacture an assertion ("no reaction") that no clinician made, and
       // write it into the audit trail as fact.
-      if (lastDelivered && dto.lastErythemaGrade == null) {
+      // Belt-and-braces behind the DTO's normalizeGrade transform: a value that
+      // is not a genuine integer is treated exactly like a missing one, so the
+      // record path stays honest even if the pipe config ever changes. A coerced
+      // 0-from-blank must never impersonate an asserted "no reaction".
+      const gradeMissing =
+        dto.lastErythemaGrade == null || !Number.isInteger(dto.lastErythemaGrade);
+      if (lastDelivered && gradeMissing) {
         throw new BadRequestException(
           `lastErythemaGrade is required: it records the reaction to session ` +
             `${lastDelivered.doseMj} mJ/cm2 and determines whether this dose may escalate. ` +
@@ -664,12 +677,18 @@ export class DermatologyService {
       // `doseMj > 0` matters: a 0 mJ row (a lamp fault) is not evidence of
       // tolerance, and clearing on it re-armed the full-dose override.
       //
-      // The hold may live on a DIFFERENT course of the same patient, so the
-      // clear is scoped to the patient — skin does not heal per course.
+      // Clear ONLY THIS course. Tolerance is established per skin-dose, per
+      // course: a session delivered at half-anchor here proves this course's skin
+      // tolerated it, not another course's. When every course is armed to the
+      // anchor (see commitReaction), each must individually deliver <= half-anchor
+      // before it may escalate again — patientBurnHold = MIN across still-held
+      // courses keeps binding the rest. Clearing patient-wide here was the bug: a
+      // single delivery on the lowest course freed a higher course to spring back
+      // to its stale anchor and ~3x the dose that blistered the patient.
       if (burnAnchor != null && !skipped && !decision.burnFlag && doseMj > 0) {
         if (doseMj <= Math.round(burnAnchor * 0.5)) {
           await tx.phototherapyCourse.updateMany({
-            where: { patientId: course.patientId, burnHoldDoseMj: { not: null } },
+            where: { id: courseId, burnHoldDoseMj: { not: null } },
             data: { burnHoldDoseMj: null, burnHoldAt: null },
           });
         }

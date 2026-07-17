@@ -11,12 +11,29 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import {
   PhototherapyBodySite,
   PhototherapyModality,
   PhototherapyStatus,
 } from '@prisma/client';
 import { IsBoundedJson } from '../../common/validation/is-bounded-json';
+
+// Normalise a safety-critical grade BEFORE class-transformer's implicit
+// conversion can coerce "" / " " / false / true into 0 / 1 and impersonate an
+// asserted erythema reaction. A blistered patient's grade must never be
+// manufactured from an empty field: anything that is not genuinely a number or a
+// clean integer string becomes NaN, which fails @IsInt and returns a 400 — the
+// same refusal the caller gets for a missing grade. Undefined/null pass through
+// so @IsOptional still allows an omitted field.
+function normalizeGrade({ value }: { value: unknown }): unknown {
+  if (value === undefined || value === null) return value;
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string' && value.trim() !== '' && /^-?\d+$/.test(value.trim())) {
+    return Number(value.trim());
+  }
+  return NaN;
+}
 import { GRADING_INSTRUMENTS } from '../engines/grading.engine';
 
 const SIDE = ['LEFT', 'RIGHT', 'BILATERAL', 'L', 'R'];
@@ -70,7 +87,12 @@ export class RecordSessionDto {
    * Erythema reaction to the PREVIOUS delivered session (0-3). This gates
    * escalation, so it is captured before the engine suggests a dose.
    */
-  @IsOptional() @IsInt() @Min(0) @Max(3) lastErythemaGrade?: number;
+  @IsOptional()
+  @Transform(normalizeGrade, { toClassOnly: true })
+  @IsInt()
+  @Min(0)
+  @Max(3)
+  lastErythemaGrade?: number;
 
   /** Clinician override of the suggested dose. Requires a typed reason. */
   @IsOptional() @IsInt() @Min(1) @Max(10000) overrideDoseMj?: number;
