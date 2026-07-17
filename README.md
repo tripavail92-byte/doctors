@@ -37,6 +37,7 @@ npx prisma db push
 psql "$DIRECT_DATABASE_URL" -f prisma/rls.sql        # policies
 psql "$DIRECT_DATABASE_URL" -f prisma/rls-roles.sql  # the non-bypassing runtime role
 psql "$DIRECT_DATABASE_URL" -f prisma/rls-user.sql   # User policy + the login function
+psql "$DIRECT_DATABASE_URL" -f prisma/constraints.sql # partial unique indexes Prisma can't express
 npm run db:seed
 npm run build && npm start
 ```

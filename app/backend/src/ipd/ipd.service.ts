@@ -80,6 +80,13 @@ export class IpdService {
     const { tenantId } = getTenant();
     return this.prisma.forTenant(tenantId, async (tx) => {
       await ensurePatient(tx, dto.patientId);
+      // Fast, friendly path — but NOT the guard. This read and the create below
+      // are a read-then-write: two concurrent admits of the same patient to
+      // different beds both pass here (the bed lock only serialises the same
+      // bed), and one patient lands in two beds. The real guard is the partial
+      // unique index "one ADMITTED per patient" (prisma/constraints.sql); this
+      // read just turns the common case into a clean message instead of a
+      // caught constraint violation.
       const active = await tx.admission.findFirst({
         where: { patientId: dto.patientId, status: AdmissionStatus.ADMITTED },
       });
@@ -93,15 +100,24 @@ export class IpdService {
         throw new BadRequestException(`Bed is ${bed.status.toLowerCase()} — not available`);
       }
 
-      const admission = await tx.admission.create({
-        data: {
-          tenantId: tenantId!,
-          patientId: dto.patientId,
-          bedId: dto.bedId,
-          admittingDoctorId: dto.admittingDoctorId ?? null,
-          diagnosis: dto.diagnosis ?? null,
-        },
-      });
+      let admission;
+      try {
+        admission = await tx.admission.create({
+          data: {
+            tenantId: tenantId!,
+            patientId: dto.patientId,
+            bedId: dto.bedId,
+            admittingDoctorId: dto.admittingDoctorId ?? null,
+            diagnosis: dto.diagnosis ?? null,
+          },
+        });
+      } catch (e) {
+        // The index is what actually holds under a race — the loser lands here.
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+          throw new BadRequestException('Patient is already admitted');
+        }
+        throw e;
+      }
       await tx.bed.update({ where: { id: dto.bedId }, data: { status: BedStatus.OCCUPIED } });
       return tx.admission.findUnique({ where: { id: admission.id }, include: ADM_DETAIL });
     });
