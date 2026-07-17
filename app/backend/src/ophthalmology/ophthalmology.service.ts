@@ -114,7 +114,18 @@ export class OphthalmologyService {
   async addIop(examId: string, dto: AddIopDto) {
     const tenantId = getTenantId();
     const side = toBodySide(dto.eye);
-    const alert = iopAlert(dto.valueMmHg); // throws if implausible
+    // The engine rejects physiologically implausible pressures by throwing — but
+    // the DTO bound (0..90) is wider than the engine's plausible range (1..80),
+    // so a value like 85 or 0 passes validation and then throws a RAW error,
+    // which NestJS renders as a 500. An out-of-range reading is bad INPUT, not a
+    // server fault: translate it to a 400, the same way the lab and grading
+    // engines' validation failures are surfaced.
+    let alert;
+    try {
+      alert = iopAlert(dto.valueMmHg);
+    } catch (e) {
+      throw new BadRequestException((e as Error).message);
+    }
     return this.prisma.forTenant(tenantId, async (tx) => {
       const exam = await this.requireOpenExam(tx, examId);
       // Mirror into the core iop_mmhg Observation (per-eye trends reuse).
