@@ -14,6 +14,7 @@ import VaccinesIcon from "@mui/icons-material/Vaccines";
 import PregnantWomanIcon from "@mui/icons-material/PregnantWoman";
 import MonitorHeartIcon from "@mui/icons-material/MonitorHeart";
 import WbIridescentIcon from "@mui/icons-material/WbIridescent";
+import RuleIcon from "@mui/icons-material/Rule";
 import VaccinesOutlinedIcon from "@mui/icons-material/VaccinesOutlined";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
@@ -48,6 +49,7 @@ export const navGroups: NavGroup[] = [
       { label: "Dose calculator", to: "/dose", icon: VaccinesIcon },
       { label: "ANC card", to: "/anc", icon: PregnantWomanIcon },
       { label: "Partogram", to: "/partogram", icon: MonitorHeartIcon },
+      { label: "Severity grading", to: "/grading", icon: RuleIcon },
       { label: "Phototherapy", to: "/phototherapy", icon: WbIridescentIcon },
       { label: "Immunization", to: "/immunization", icon: VaccinesOutlinedIcon },
     ],

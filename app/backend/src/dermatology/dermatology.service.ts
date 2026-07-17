@@ -61,15 +61,33 @@ export class DermatologyService {
       instruments: GRADING_INSTRUMENTS,
       areaBands: AREA_BANDS,
       gags: { regions: GAGS_REGIONS, max: 44 },
-      pasi: { regions: PASI_REGIONS, signRange: [0, 4], max: 72 },
+      // The per-region sign keys are part of the config the widget renders from,
+      // not just knowledge living in the engine. Without them a config-driven
+      // form knows a PASI region takes "signs 0-4" but not WHICH signs, and has
+      // to hardcode them — which is exactly the drift this catalog exists to
+      // prevent. SCORAD already listed its signs; PASI/EASI/MASI did not.
+      pasi: {
+        regions: PASI_REGIONS,
+        signs: ['erythema', 'induration', 'desquamation'],
+        signRange: [0, 4],
+        max: 72,
+      },
       easi: {
         regionsAdult: EASI_REGIONS_ADULT,
         regionsChild: EASI_REGIONS_CHILD,
+        signs: ['erythema', 'induration', 'excoriation', 'lichenification'],
         signRange: [0, 3],
         max: 72,
       },
       scorad: { signs: SCORAD_SIGNS, signRange: [0, 3], max: 103 },
-      masi: { regions: MASI_REGIONS, max: 48, modifiedMax: 24 },
+      masi: {
+        regions: MASI_REGIONS,
+        signs: ['darkness', 'homogeneity'],
+        modifiedSigns: ['darkness'],
+        signRange: [0, 4],
+        max: 48,
+        modifiedMax: 24,
+      },
       // max derived from the region table, not restated — a hardcoded 100 is
       // exactly how the table came to sum to 107 without anyone noticing.
       vasi: { regions: VASI_REGIONS, depigmentationGrades: VASI_DEPIGMENTATION, max: VASI_MAX },
