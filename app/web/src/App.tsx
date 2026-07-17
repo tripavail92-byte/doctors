@@ -13,6 +13,7 @@ import ReportsPage from './pages/ReportsPage';
 import IntegrationsPage from './pages/IntegrationsPage';
 import PhototherapyPage from './pages/PhototherapyPage';
 import PayrollPage from './pages/PayrollPage';
+import BillingPage from './pages/BillingPage';
 import ImmunizationPage from './pages/ImmunizationPage';
 
 // Application route tree.
@@ -37,6 +38,7 @@ export const router = createBrowserRouter([
       { path: 'partogram', element: <PartogramPage /> },
       { path: 'phototherapy', element: <PhototherapyPage /> },
       { path: 'payroll', element: <PayrollPage /> },
+      { path: 'billing', element: <BillingPage /> },
       { path: 'immunization', element: <ImmunizationPage /> },
       { path: 'reports', element: <ReportsPage /> },
       { path: 'integrations', element: <IntegrationsPage /> },
