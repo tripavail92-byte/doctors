@@ -19,6 +19,7 @@ import VaccinesOutlinedIcon from "@mui/icons-material/VaccinesOutlined";
 import ScienceIcon from "@mui/icons-material/Science";
 import HotelIcon from "@mui/icons-material/Hotel";
 import PaymentsIcon from "@mui/icons-material/Payments";
+import CampaignIcon from "@mui/icons-material/Campaign";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import LocalPharmacyIcon from "@mui/icons-material/LocalPharmacy";
 
@@ -65,6 +66,7 @@ export const navGroups: NavGroup[] = [
       { label: "Billing", to: "/billing", icon: ReceiptLongIcon },
       { label: "Pharmacy", to: "/pharmacy", icon: LocalPharmacyIcon },
       { label: "Payroll", to: "/payroll", icon: PaymentsIcon },
+      { label: "Leads", to: "/leads", icon: CampaignIcon },
       { label: "Reports", to: "/reports", icon: BarChartIcon },
       { label: "Integrations", to: "/integrations", icon: HubIcon },
     ],

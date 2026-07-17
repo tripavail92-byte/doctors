@@ -6,8 +6,22 @@ import {
 import { LeadStatus } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { getTenant } from '../common/tenant/tenant-context';
+import { Prisma } from '@prisma/client';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { LogActivityDto } from './dto/log-activity.dto';
+
+// Generate the next auto MRN (P-00001…) under a per-tenant advisory lock, so
+// concurrent conversions cannot count the same N and mint the same MRN — the
+// same collision-safe scheme the lab and invoice numbers use. Reproduced without
+// it: 8 concurrent converts produced P-00753 six times.
+async function nextMrn(tx: Prisma.TransactionClient, tenantId: string): Promise<string> {
+  await tx.$executeRawUnsafe(
+    'SELECT pg_advisory_xact_lock(hashtext($1)::bigint)',
+    `patient-mrn:${tenantId}`,
+  );
+  const count = await tx.patient.count();
+  return `P-${String(count + 1).padStart(5, '0')}`;
+}
 
 /**
  * CRM / marketing: lead pipeline. Leads are worked through activities and
@@ -93,13 +107,18 @@ export class CrmService {
   async convert(leadId: string) {
     const { tenantId } = getTenant();
     return this.prisma.forTenant(tenantId, async (tx) => {
+      // Lock the lead first. Without it, convert was a read-then-write: two
+      // concurrent converts of one lead both saw status != CONVERTED and both
+      // created a Patient — reproduced 5-6 duplicate patient records from a
+      // single lead. The lock serialises them so the loser sees CONVERTED.
+      await tx.$executeRaw`SELECT id FROM "Lead" WHERE id = ${leadId}::uuid FOR UPDATE`;
       const lead = await tx.lead.findUnique({ where: { id: leadId } });
       if (!lead) throw new NotFoundException(`Lead ${leadId} not found`);
       if (lead.status === LeadStatus.CONVERTED) {
         throw new BadRequestException('Lead is already converted');
       }
-      const count = await tx.patient.count();
-      const mrn = `P-${String(count + 1).padStart(5, '0')}`;
+
+      const mrn = await nextMrn(tx, tenantId!);
       const patient = await tx.patient.create({
         data: { tenantId: tenantId!, mrn, name: lead.name, phone: lead.phone },
       });
