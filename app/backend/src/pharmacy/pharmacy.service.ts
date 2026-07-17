@@ -44,19 +44,39 @@ export class PharmacyService {
   }
 
   // On-hand quantity per drug (optionally one drug) + its batches.
+  //
+  // `onHand` is the DISPENSABLE quantity — expired batches are excluded from it,
+  // because counting them would tell a pharmacist they have stock they are not
+  // allowed to hand out. Expired units are surfaced separately as a pull
+  // worklist, the same way the cold chain surfaces vials to remove from the
+  // fridge: they exist, they must come off the shelf, and they are not stock.
   async stock(formularyCode?: string) {
     const { tenantId } = getTenant();
+    const today = startOfToday();
     const batches = await this.prisma.forTenant(tenantId, (tx) =>
       tx.stockItem.findMany({
         where: { ...(formularyCode ? { formularyCode } : {}), quantityOnHand: { gt: 0 } },
         orderBy: [{ formularyCode: 'asc' }, { expiry: 'asc' }],
       }),
     );
-    const byDrug = new Map<string, { formularyCode: string; name: string; onHand: number; batches: typeof batches }>();
+    const byDrug = new Map<
+      string,
+      {
+        formularyCode: string;
+        name: string;
+        onHand: number;
+        expired: number;
+        batches: (typeof batches[number] & { expired: boolean })[];
+      }
+    >();
     for (const b of batches) {
-      const g = byDrug.get(b.formularyCode) ?? { formularyCode: b.formularyCode, name: b.name, onHand: 0, batches: [] };
-      g.onHand += b.quantityOnHand;
-      g.batches.push(b);
+      const g =
+        byDrug.get(b.formularyCode) ??
+        { formularyCode: b.formularyCode, name: b.name, onHand: 0, expired: 0, batches: [] };
+      const expired = b.expiry < today;
+      if (expired) g.expired += b.quantityOnHand;
+      else g.onHand += b.quantityOnHand;
+      g.batches.push({ ...b, expired });
       byDrug.set(b.formularyCode, g);
     }
     return Array.from(byDrug.values());
@@ -81,18 +101,32 @@ export class PharmacyService {
     return this.prisma.forTenant(tenantId, async (tx) => {
       if (dto.patientId) await ensurePatient(tx, dto.patientId);
 
+      const today = startOfToday();
       const usedBatch: Record<string, string> = {};
       for (const line of lines) {
         // Lock this drug's stock rows, then decrement FEFO.
         await tx.$executeRaw`SELECT id FROM "StockItem" WHERE "tenantId" = ${tenantId}::uuid AND "formularyCode" = ${line.formularyCode} AND "quantityOnHand" > 0 FOR UPDATE`;
-        const batches = await tx.stockItem.findMany({
+        const allBatches = await tx.stockItem.findMany({
           where: { formularyCode: line.formularyCode, quantityOnHand: { gt: 0 } },
           orderBy: { expiry: 'asc' },
         });
+        // FEFO among IN-DATE batches only. Ordering earliest-first without this
+        // filter dispenses the MOST expired batch first — verified live handing
+        // out paracetamol dated 2020. Expired medicine is not stock; it is a
+        // recall waiting to happen. Refused at dispensing, the same place the
+        // cold chain refuses a dead vaccine vial — a report nobody reads later
+        // is not a control.
+        const batches = allBatches.filter((b) => b.expiry >= today);
         const available = batches.reduce((s, b) => s + b.quantityOnHand, 0);
         if (available < line.quantity) {
+          const expiredQty = allBatches
+            .filter((b) => b.expiry < today)
+            .reduce((s, b) => s + b.quantityOnHand, 0);
+          const expiredNote = expiredQty
+            ? ` (${expiredQty} more on hand but EXPIRED — pull from shelf, do not dispense)`
+            : '';
           throw new BadRequestException(
-            `Insufficient stock for ${line.name}: ${available} on hand, ${line.quantity} requested`,
+            `Insufficient in-date stock for ${line.name}: ${available} usable, ${line.quantity} requested${expiredNote}`,
           );
         }
         let need = line.quantity;
@@ -154,6 +188,15 @@ export class PharmacyService {
       }),
     );
   }
+}
+
+// Start of the local day. A batch is expired once its expiry DATE has passed —
+// a batch expiring today is still usable today, so compare against midnight, not
+// the current instant.
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 async function ensurePatient(tx: Prisma.TransactionClient, patientId: string): Promise<void> {

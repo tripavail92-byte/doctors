@@ -18,6 +18,7 @@ import RuleIcon from "@mui/icons-material/Rule";
 import VaccinesOutlinedIcon from "@mui/icons-material/VaccinesOutlined";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
+import LocalPharmacyIcon from "@mui/icons-material/LocalPharmacy";
 
 // A single clickable nav entry.
 export interface NavItem {
@@ -58,6 +59,7 @@ export const navGroups: NavGroup[] = [
     label: "Business",
     items: [
       { label: "Billing", to: "/billing", icon: ReceiptLongIcon },
+      { label: "Pharmacy", to: "/pharmacy", icon: LocalPharmacyIcon },
       { label: "Payroll", to: "/payroll", icon: PaymentsIcon },
       { label: "Reports", to: "/reports", icon: BarChartIcon },
       { label: "Integrations", to: "/integrations", icon: HubIcon },
