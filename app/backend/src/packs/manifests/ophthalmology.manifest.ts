@@ -104,5 +104,29 @@ export const ophthalmologyManifest: PackManifest = {
 
   instruments: [],
 
-  widgets: [{ key: 'eye-exam-panel', route: 'eye-exam', name: 'Eye Exam Panel' }],
+  // Intraocular pressure over time, per eye, with the clinical normal band and a
+  // treatment target — the chart a clinician watches to see if a glaucoma drop is
+  // working. Bands are real (10–21 mmHg is the accepted normal range).
+  trendCharts: [
+    {
+      key: 'iop_trend',
+      title: 'Intraocular Pressure',
+      observationCodes: ['iop_mmhg'],
+      unit: 'mmHg',
+      splitByLaterality: true,
+      yMin: 0,
+      yMax: 40,
+      referenceBands: [
+        { label: 'Normal', low: 10, high: 21, color: 'green' },
+        { label: 'High', low: 21, high: 40, color: 'amber' },
+      ],
+      targetLines: [{ label: 'Target', value: 18 }],
+      aggregation: 'lastPerVisit',
+    },
+  ],
+
+  widgets: [
+    { key: 'eye-exam-panel', route: 'eye-exam', name: 'Eye Exam Panel' },
+    { key: 'trend-chart', route: 'trends', name: 'Trends' },
+  ],
 };

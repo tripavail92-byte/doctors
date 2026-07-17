@@ -125,5 +125,29 @@ export const physiotherapyManifest: PackManifest = {
   // Reuses the shared scored-instrument library.
   instruments: [{ key: 'oswestry', showInConsultation: true }],
 
-  widgets: [{ key: 'msk-assessment', route: 'msk', name: 'MSK Assessment' }],
+  // Pain (NPRS 0-10) over an episode. Not lateralized, and a patient may report
+  // it several times a day — so pool both sides into one line and average per
+  // day, which smooths intra-day noise into the trend that actually matters.
+  trendCharts: [
+    {
+      key: 'pain_trend',
+      title: 'Pain (NPRS)',
+      observationCodes: ['nprs'],
+      unit: 'score',
+      splitByLaterality: false,
+      yMin: 0,
+      yMax: 10,
+      referenceBands: [
+        { label: 'Mild', low: 0, high: 3, color: 'green' },
+        { label: 'Moderate', low: 4, high: 6, color: 'amber' },
+        { label: 'Severe', low: 7, high: 10, color: 'red' },
+      ],
+      aggregation: 'dailyMean',
+    },
+  ],
+
+  widgets: [
+    { key: 'msk-assessment', route: 'msk', name: 'MSK Assessment' },
+    { key: 'trend-chart', route: 'trends', name: 'Trends' },
+  ],
 };

@@ -115,6 +115,8 @@ model Tenant {
   orderSets           OrderSet[]
   instrumentResponses ScoredInstrumentResponse[]
   observations        Observation[]
+  trendChartDefinitions TrendChartDefinition[]
+  trendAnnotations      TrendAnnotation[]
   consentRecords      ConsentRecord[]
   photoSessions       PhotoSession[]
   photoAssets         PhotoAsset[]
@@ -295,6 +297,7 @@ model Patient {
   invoices             Invoice[]
   instrumentResponses  ScoredInstrumentResponse[]
   observations         Observation[]
+  trendAnnotations     TrendAnnotation[]
   consentRecords       ConsentRecord[]
   photoSessions        PhotoSession[]
   encounters           Encounter[]
@@ -1066,6 +1069,59 @@ model OrderSet {
 
   @@unique([tenantId, key])
   @@index([tenantId])
+}
+
+enum TrendAggregation {
+  RAW
+  DAILY_MEAN
+  LAST_PER_VISIT
+}
+
+// Declarative trend-chart definition, shipped by a pack and tenant-overridable.
+// Bands / target lines / aggregation live as data, not code, so a tenant can
+// tune what a chart plots without a deploy (same lifecycle as NoteTemplate/OrderSet).
+model TrendChartDefinition {
+  id                String           @id @default(uuid()) @db.Uuid
+  tenantId          String           @db.Uuid
+  packKey           String
+  key               String
+  title             String
+  observationCodes  String[]
+  unit              String
+  splitByLaterality Boolean          @default(false)
+  yMin              Float?
+  yMax              Float?
+  referenceBands    Json?
+  targetLines       Json?
+  aggregation       TrendAggregation @default(RAW)
+  active            Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+}
+
+// A clinician annotation pinned to a date on a chart ("started latanoprost OD").
+model TrendAnnotation {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @db.Uuid
+  patientId        String    @db.Uuid
+  chartKey         String
+  atDateTime       DateTime
+  label            String
+  side             BodySide?
+  linkedResourceId String?   @db.Uuid
+  createdById      String?   @db.Uuid
+  createdAt        DateTime  @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, patientId, chartKey])
 }
 
 // A recorded scored-instrument result for a patient. Tenant-scoped (RLS).

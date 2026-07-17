@@ -90,6 +90,21 @@ export interface PackWidget {
   name: string;
 }
 
+// A declarative trend-chart definition a pack ships. Seeded into
+// TrendChartDefinition (tenant-scoped, tenant-overridable).
+export interface TrendChartDefSpec {
+  key: string;
+  title: string;
+  observationCodes: string[];
+  unit: string;
+  splitByLaterality?: boolean;
+  yMin?: number;
+  yMax?: number;
+  referenceBands?: { label: string; low?: number; high?: number; color: string }[];
+  targetLines?: { label: string; value: number }[];
+  aggregation?: 'raw' | 'dailyMean' | 'lastPerVisit';
+}
+
 export interface PackManifest {
   key: string;
   name: string;
@@ -104,5 +119,6 @@ export interface PackManifest {
   serviceCatalog: ServiceItemSpec[];
   orderSets: OrderSetSpec[];
   instruments: InstrumentRef[];
+  trendCharts?: TrendChartDefSpec[];
   widgets?: PackWidget[];
 }

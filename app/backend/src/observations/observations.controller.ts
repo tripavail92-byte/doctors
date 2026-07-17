@@ -13,6 +13,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ObservationsService } from './observations.service';
 import { RecordObservationDto } from './dto/record-observation.dto';
+import { CreateTrendAnnotationDto } from './dto/create-trend-annotation.dto';
 
 /**
  * Observations + trends API. No controller prefix — routes are namespaced by
@@ -69,5 +70,40 @@ export class ObservationsController {
     @Query('side') side?: string,
   ) {
     return this.obs.trend(patientId, metric, side);
+  }
+
+  // --- Declarative trend charts ---
+
+  @Get('trends/definitions')
+  definitions(@Query('packKey') packKey?: string) {
+    return this.obs.listDefinitions(packKey);
+  }
+
+  @Get('trends/:chartKey/patient/:patientId')
+  chart(
+    @Param('chartKey') chartKey: string,
+    @Param('patientId') patientId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('laterality') laterality?: string,
+  ) {
+    return this.obs.chartForPatient(chartKey, patientId, { from, to, side: laterality });
+  }
+
+  @Get('trends/:chartKey/patient/:patientId/summary')
+  chartSummary(
+    @Param('chartKey') chartKey: string,
+    @Param('patientId') patientId: string,
+    @Query('laterality') laterality?: string,
+  ) {
+    return this.obs.chartSummary(chartKey, patientId, laterality);
+  }
+
+  // Pinning a note onto a chart is a clinical act (it explains a change in the
+  // data), so it is restricted to clinicians, not front desk.
+  @Post('trends/annotations')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.DOCTOR, UserRole.TREATMENT)
+  annotate(@Body() dto: CreateTrendAnnotationDto) {
+    return this.obs.createAnnotation(dto);
   }
 }

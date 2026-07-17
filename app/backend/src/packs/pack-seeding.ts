@@ -1,11 +1,13 @@
 import { Prisma } from '@prisma/client';
 import { PackManifest } from './manifest.types';
+import { assertDefinitionSane } from '../observations/trend-aggregation';
 
 export interface SeedCounts {
   services: number;
   notes: number;
   intake: number;
   orderSets: number;
+  trendCharts: number;
 }
 
 /**
@@ -106,10 +108,41 @@ export async function seedPackForTenant(
     });
   }
 
+  const AGG: Record<string, 'RAW' | 'DAILY_MEAN' | 'LAST_PER_VISIT'> = {
+    raw: 'RAW',
+    dailyMean: 'DAILY_MEAN',
+    lastPerVisit: 'LAST_PER_VISIT',
+  };
+  for (const c of manifest.trendCharts ?? []) {
+    // Reject an incoherent chart definition at seed time (bands inverted or off
+    // the axis, target out of range) rather than letting it render wrong later.
+    assertDefinitionSane({ unit: c.unit, yMin: c.yMin, yMax: c.yMax, referenceBands: c.referenceBands, targetLines: c.targetLines });
+    const key = `${manifest.key}:${c.key}`;
+    // Tenant-overridable, exactly like NoteTemplate/OrderSet: a tenant edit to a
+    // non-key field survives until the pack is re-activated (which re-upserts).
+    const data = {
+      title: c.title,
+      observationCodes: c.observationCodes,
+      unit: c.unit,
+      splitByLaterality: c.splitByLaterality ?? false,
+      yMin: c.yMin ?? null,
+      yMax: c.yMax ?? null,
+      referenceBands: (c.referenceBands ?? undefined) as unknown as Prisma.InputJsonValue | undefined,
+      targetLines: (c.targetLines ?? undefined) as unknown as Prisma.InputJsonValue | undefined,
+      aggregation: AGG[c.aggregation ?? 'raw'],
+    };
+    await tx.trendChartDefinition.upsert({
+      where: { tenantId_key: { tenantId, key } },
+      update: data,
+      create: { tenantId, packKey: manifest.key, key, ...data },
+    });
+  }
+
   return {
     services: manifest.serviceCatalog.length,
     notes: manifest.noteTemplates.length,
     intake: manifest.intakeGroups.length,
     orderSets: manifest.orderSets.length,
+    trendCharts: (manifest.trendCharts ?? []).length,
   };
 }

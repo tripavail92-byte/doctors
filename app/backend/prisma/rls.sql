@@ -122,6 +122,16 @@ ALTER TABLE "OrderSet" FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON "OrderSet"
   USING ("tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid);
 
+ALTER TABLE "TrendChartDefinition" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "TrendChartDefinition" FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON "TrendChartDefinition"
+  USING ("tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid);
+
+ALTER TABLE "TrendAnnotation" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "TrendAnnotation" FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON "TrendAnnotation"
+  USING ("tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid);
+
 ALTER TABLE "ScoredInstrumentResponse" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "ScoredInstrumentResponse" FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON "ScoredInstrumentResponse"

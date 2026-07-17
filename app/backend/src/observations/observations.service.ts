@@ -2,9 +2,13 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { getTenant } from '../common/tenant/tenant-context';
+import { NotFoundException } from '@nestjs/common';
+import { BodySide } from '@prisma/client';
 import { METRICS, metricRef } from './reference-ranges';
 import { BodySideName, normalizeSide } from './laterality';
 import { summarizeTrend, TrendSummary } from './trends';
+import { aggregate } from './trend-aggregation';
+import { CreateTrendAnnotationDto } from './dto/create-trend-annotation.dto';
 
 /**
  * Observations + Trends engine.
@@ -142,6 +146,122 @@ export class ObservationsService {
     }
     return Array.from(groups.values()).map((g) =>
       summarizeTrend(metricRef(g.metric), g.obs, g.side),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Declarative trend charts (TrendChartDefinition + TrendAnnotation)
+  // -------------------------------------------------------------------------
+
+  // The tenant's active chart definitions (pack-shipped, tenant-overridable).
+  listDefinitions(packKey?: string) {
+    return this.prisma.forCurrentTenant((tx) =>
+      tx.trendChartDefinition.findMany({
+        where: { active: true, ...(packKey ? { packKey } : {}) },
+        orderBy: { key: 'asc' },
+      }),
+    );
+  }
+
+  private async loadDefinition(chartKey: string) {
+    const def = await this.prisma.forCurrentTenant((tx) =>
+      tx.trendChartDefinition.findUnique({ where: { tenantId_key: { tenantId: getTenant().tenantId!, key: chartKey } } }),
+    );
+    if (!def || !def.active) throw new NotFoundException(`Trend chart "${chartKey}" not found`);
+    return def;
+  }
+
+  /**
+   * Render a chart for one patient: the definition, the aggregated series (one
+   * per side if the definition splits), the bands/targets to draw, and the
+   * clinician annotations pinned on it. Bands are resolved server-side so the
+   * client never re-derives clinical thresholds.
+   */
+  async chartForPatient(
+    chartKey: string,
+    patientId: string,
+    opts?: { from?: string; to?: string; side?: string },
+  ) {
+    const def = await this.loadDefinition(chartKey);
+    const { tenantId } = getTenant();
+    const sideFilter = opts?.side ? this.resolveSide(opts.side) : undefined;
+
+    const [rows, annotations] = await this.prisma.forTenant(tenantId, async (tx) => {
+      const obs = await tx.observation.findMany({
+        where: {
+          patientId,
+          metric: { in: def.observationCodes },
+          ...(sideFilter ? { side: sideFilter as BodySide } : {}),
+          ...(opts?.from || opts?.to
+            ? { recordedAt: { ...(opts?.from ? { gte: new Date(opts.from) } : {}), ...(opts?.to ? { lte: new Date(opts.to) } : {}) } }
+            : {}),
+        },
+        orderBy: { recordedAt: 'asc' },
+      });
+      const anns = await tx.trendAnnotation.findMany({
+        where: { patientId, chartKey },
+        orderBy: { atDateTime: 'asc' },
+      });
+      return [obs, anns] as const;
+    });
+
+    const series = aggregate(
+      rows.map((r) => ({ value: r.value, recordedAt: r.recordedAt, side: (r.side as BodySideName | null) ?? null })),
+      def.aggregation,
+      def.splitByLaterality,
+    );
+
+    return {
+      definition: def,
+      series,
+      referenceBands: def.referenceBands ?? [],
+      targetLines: def.targetLines ?? [],
+      annotations,
+    };
+  }
+
+  // Delta / min / max / slope summary for a chart, reusing summarizeTrend over
+  // the definition's pooled observations.
+  async chartSummary(chartKey: string, patientId: string, side?: string) {
+    const def = await this.loadDefinition(chartKey);
+    const { tenantId } = getTenant();
+    const resolvedSide = side ? this.resolveSide(side) : null;
+    const rows = await this.prisma.forTenant(tenantId, (tx) =>
+      tx.observation.findMany({
+        where: {
+          patientId,
+          metric: { in: def.observationCodes },
+          ...(resolvedSide ? { side: resolvedSide as BodySide } : {}),
+        },
+        orderBy: { recordedAt: 'asc' },
+      }),
+    );
+    return summarizeTrend(
+      { key: def.key, label: def.title, unit: def.unit },
+      rows.map((r) => ({ value: r.value, recordedAt: r.recordedAt })),
+      resolvedSide,
+    );
+  }
+
+  async createAnnotation(dto: CreateTrendAnnotationDto) {
+    const { tenantId, userId } = getTenant();
+    // The chart must exist for this tenant — an annotation on a chart nobody
+    // renders is a note that never surfaces.
+    await this.loadDefinition(dto.chartKey);
+    const side = dto.side ? (this.resolveSide(dto.side) as BodySide | null) : null;
+    return this.prisma.forTenant(tenantId, (tx) =>
+      tx.trendAnnotation.create({
+        data: {
+          tenantId: tenantId!,
+          patientId: dto.patientId,
+          chartKey: dto.chartKey,
+          atDateTime: new Date(dto.atDateTime),
+          label: dto.label,
+          side,
+          linkedResourceId: dto.linkedResourceId ?? null,
+          createdById: userId ?? null,
+        },
+      }),
     );
   }
 }
