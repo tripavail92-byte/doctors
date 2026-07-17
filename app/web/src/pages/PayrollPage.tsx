@@ -64,6 +64,7 @@ interface Run {
   totalNetPkr: number;
   createdAt: string;
   payslips?: Payslip[];
+  staleSlips?: { name: string; status: string; netPkr: number }[];
 }
 
 // PKR, grouped the way the client reads money. No decimals: the schema stores
@@ -346,6 +347,26 @@ export default function PayrollPage() {
               <Typography variant="caption" color="text.secondary">
                 Draft — check the figures before finalizing. Nothing has been paid.
               </Typography>
+            )}
+            {/* Stated, not decided. Whether a leaver is owed their final month is
+                the clinic's policy; the software's job is to make sure nobody
+                finalizes this without noticing. */}
+            {!!open.data.staleSlips?.length && (
+              <Alert severity="warning" sx={{ mt: 2 }}>
+                <AlertTitle>
+                  {open.data.staleSlips.length} payslip(s) belong to staff who are no longer active
+                </AlertTitle>
+                {open.data.staleSlips.map((s) => (
+                  <Typography key={s.name} variant="body2">
+                    <strong>{s.name}</strong> is {s.status.toLowerCase().replace('_', ' ')} and this run
+                    pays them {pkr(s.netPkr)}.
+                  </Typography>
+                ))}
+                <Typography variant="caption" color="text.secondary">
+                  They were active when this run was computed. If they are owed this month, finalize as
+                  is; if not, discard and run the month again.
+                </Typography>
+              </Alert>
             )}
           </CardContent>
           <Divider sx={{ mt: 2 }} />

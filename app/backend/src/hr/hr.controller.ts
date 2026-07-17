@@ -17,6 +17,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { HrService } from './hr.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { RunPayrollDto } from './dto/run-payroll.dto';
+import { UpdateEmployeeStatusDto } from './dto/update-employee-status.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard, EntitlementGuard)
 @RequiresEntitlement('hr.core')
@@ -33,6 +34,11 @@ export class HrController {
   @Get('employees')
   employees() {
     return this.hr.listEmployees();
+  }
+
+  @Patch('employees/:id/status')
+  setEmployeeStatus(@Param('id') id: string, @Body() dto: UpdateEmployeeStatusDto) {
+    return this.hr.setEmployeeStatus(id, dto.status);
   }
 
   @Post('payroll/runs')

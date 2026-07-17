@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PayrollStatus, Prisma } from '@prisma/client';
+import { EmployeeStatus, PayrollStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { getTenant } from '../common/tenant/tenant-context';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
@@ -47,6 +47,33 @@ export class HrService {
         },
       }),
     );
+  }
+
+  /**
+   * Move an employee between ACTIVE / ON_LEAVE / TERMINATED.
+   *
+   * runPayroll pays every employee whose status is ACTIVE. Until this existed,
+   * nothing could write that field: EmployeeStatus had three values, the payroll
+   * filter read it, and no route could reach it. Every employee was therefore
+   * ACTIVE from creation until the end of time, which means a nurse who resigned
+   * was paid in full, every month, forever — and could not be removed, because
+   * her payslips reference her.
+   *
+   * The guard read a flag nothing could set. It looked correct in review and in
+   * any test that seeded the row directly; only asking "can the API reach that
+   * state?" finds it.
+   *
+   * Terminating does NOT touch existing payslips. A payslip is a snapshot of a
+   * payment that happened, and someone leaving later does not unmake it.
+   */
+  async setEmployeeStatus(id: string, status: EmployeeStatus) {
+    const { tenantId } = getTenant();
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const emp = await tx.employee.findUnique({ where: { id } });
+      if (!emp) throw new NotFoundException(`Employee ${id} not found`);
+      if (emp.status === status) return emp;
+      return tx.employee.update({ where: { id }, data: { status } });
+    });
   }
 
   listEmployees() {
@@ -162,9 +189,30 @@ export class HrService {
   }
 }
 
-function reload(tx: Prisma.TransactionClient, id: string) {
-  return tx.payrollRun.findUnique({
+async function reload(tx: Prisma.TransactionClient, id: string) {
+  const run = await tx.payrollRun.findUnique({
     where: { id },
-    include: { payslips: { include: { employee: { select: { name: true, designation: true } } } } },
+    include: {
+      payslips: {
+        include: { employee: { select: { name: true, designation: true, status: true } } },
+      },
+    },
   });
+  if (!run) return null;
+
+  // A draft snapshots whoever was ACTIVE when it was computed. If someone is
+  // terminated afterwards, the draft still carries their payslip and finalizing
+  // it pays them.
+  //
+  // Deliberately a warning, not a refusal. Someone terminated on the 28th may be
+  // genuinely owed that month's wages, so blocking the run could withhold earned
+  // pay — wrong in the opposite direction, and worse. Whether a leaver is paid
+  // for their final month is the clinic's policy, not ours to invent. So state
+  // the fact and let a human decide. (Related open question for the client:
+  // there is no partial-month proration anywhere in this engine.)
+  const stale = run.payslips
+    .filter((p) => p.employee.status !== 'ACTIVE')
+    .map((p) => ({ name: p.employee.name, status: p.employee.status, netPkr: p.netPkr }));
+
+  return { ...run, staleSlips: stale };
 }

@@ -386,7 +386,9 @@ export class DentalService {
     let invoiceId: string;
     let invoiceLineItemId: string;
     if (dto.invoiceId) {
-      const res = await this.billing.appendLine(dto.invoiceId, lineInput);
+      // The plan item's own patient — never the caller's word for it. dto.invoiceId
+      // arrives from the request body and used to be appended to unchecked.
+      const res = await this.billing.appendLine(dto.invoiceId, lineInput, item.patientId);
       invoiceId = dto.invoiceId;
       invoiceLineItemId = res.line.id;
     } else {

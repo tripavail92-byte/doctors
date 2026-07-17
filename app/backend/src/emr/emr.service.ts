@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { EncounterStatus, Prisma, TreatmentPlanStatus } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { getTenant } from '../common/tenant/tenant-context';
@@ -6,6 +6,9 @@ import { CreateEncounterDto } from './dto/create-encounter.dto';
 import { CreateIntakeSubmissionDto } from './dto/create-intake-submission.dto';
 import { CreateNoteInstanceDto } from './dto/create-note-instance.dto';
 import { CreateTreatmentPlanDto } from './dto/create-treatment-plan.dto';
+
+// int4 ceiling. Money columns are int4; the DTO caps each field but not their product.
+const MAX_INT4 = 2_147_483_647;
 
 /**
  * EMR persistence: the visit envelope (Encounter) and the filled clinical
@@ -130,18 +133,35 @@ export class EmrService {
   createPlan(dto: CreateTreatmentPlanDto) {
     const { tenantId, userId } = getTenant();
     // Server computes line totals + total — the client figure is display-only.
+    // The DTO caps each field, but the caps alone do not bound the PRODUCT:
+    // 100,000,000 x 10,000 is 1e12, three orders of magnitude past int4. Both
+    // lineTotalPkr and totalPkr are int4 columns, so the multiply and the sum each
+    // need their own check — otherwise the write reaches Postgres and comes back
+    // as an HTTP 500 "Internal server error", which tells the caller nothing and
+    // reads to us like a crash rather than bad input.
     const items = dto.items.map((it) => {
       const quantity = it.quantity ?? 1;
+      const lineTotalPkr = it.unitPricePkr * quantity;
+      if (lineTotalPkr > MAX_INT4) {
+        throw new BadRequestException(
+          `Line "${it.name}" totals ${lineTotalPkr} PKR, which exceeds the maximum of ${MAX_INT4}`,
+        );
+      }
       return {
         serviceCatalogItemId: it.serviceCatalogItemId ?? null,
         code: it.code,
         name: it.name,
         unitPricePkr: it.unitPricePkr,
         quantity,
-        lineTotalPkr: it.unitPricePkr * quantity,
+        lineTotalPkr,
       };
     });
     const totalPkr = items.reduce((sum, i) => sum + i.lineTotalPkr, 0);
+    if (totalPkr > MAX_INT4) {
+      throw new BadRequestException(
+        `Plan totals ${totalPkr} PKR, which exceeds the maximum of ${MAX_INT4}`,
+      );
+    }
 
     return this.prisma.forTenant(tenantId, async (tx) => {
       await ensurePatient(tx, dto.patientId);

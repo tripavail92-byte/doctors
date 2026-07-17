@@ -374,6 +374,13 @@ model Invoice {
 enum PaymentIntentStatus {
   PENDING
   CONSUMED
+  // An intent is priced against the balance at mint time. Once that balance
+  // changes -- a refund, a void, a payment through another route -- the intent is
+  // stale, and a stale intent that stays PENDING stays confirmable forever. Void
+  // resurrection, refund reversal and the wedged webhook were all one omission:
+  // PENDING had no exit but CONSUMED, so nothing could retire an intent that
+  // reality had moved past.
+  CANCELLED
 }
 
 // A gateway checkout intent created at pay-link time. confirmGateway validates

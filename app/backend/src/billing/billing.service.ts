@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -86,7 +87,7 @@ export class BillingService {
         throw new BadRequestException('Cannot pay a void invoice');
       }
       if (opts?.reference) {
-        const dup = await this.findByReference(tx, tenantId!, opts.reference, invoiceId);
+        const dup = await this.findByReference(tx, tenantId!, opts.reference, invoiceId, amountPkr);
         if (dup) return dup;
       }
       return this.applyPayment(tx, tenantId!, invoice, amountPkr, method, opts?.provider ?? null, opts?.reference ?? null);
@@ -117,12 +118,57 @@ export class BillingService {
     });
   }
 
+  /**
+   * Retire every PENDING intent on an invoice.
+   *
+   * An intent snapshots `total - paid` at mint time and then stops tracking
+   * reality. Anything that moves the balance invalidates it, so every such path
+   * must call this in the SAME transaction as the change: otherwise the window
+   * between the two is a window in which the stale link still pays.
+   *
+   * `exceptId` exists for confirmGateway, which is consuming one intent while
+   * retiring its siblings — without it, the intent being consumed would cancel
+   * itself.
+   */
+  private async cancelPendingIntents(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    invoiceId: string,
+    exceptId?: string,
+  ) {
+    await tx.paymentIntent.updateMany({
+      where: {
+        tenantId,
+        invoiceId,
+        status: 'PENDING',
+        ...(exceptId ? { id: { not: exceptId } } : {}),
+      },
+      data: { status: 'CANCELLED' },
+    });
+  }
+
   // Confirm a gateway payment (simulated webhook). Validated against the
   // persisted intent: right invoice, still pending, pay the STORED amount.
   async confirmGateway(invoiceId: string, reference: string) {
     const { tenantId } = getTenant();
     return this.prisma.forTenant(tenantId, async (tx) => {
       const invoice = await this.lockInvoice(tx, invoiceId); // serialize on the invoice
+
+      // BEFORE the duplicate short-circuit, not after: a replayed webhook must
+      // not return a cheerful 200 against a cancelled bill either.
+      //
+      // This was the one money-moving path without this guard (recordPayment,
+      // createPayLink, refund and appendLine all had it). It was reachable by the
+      // most ordinary sequence there is: send a pay link, patient doesn't pay,
+      // clinic voids the bill. The void is permitted precisely because paid == 0
+      // -- which is exactly the condition applyPayment tests to accept money. The
+      // precondition for voiding an invoice was the precondition for collecting
+      // on it, so two individually-correct guards composed into a hole, and the
+      // cancelled invoice came back PAID with nothing recording it had been void.
+      if (invoice.status === InvoiceStatus.VOID) {
+        throw new BadRequestException('Cannot pay a void invoice');
+      }
+
       const intent = await tx.paymentIntent.findUnique({
         where: { tenantId_reference: { tenantId: tenantId!, reference } },
       });
@@ -130,12 +176,33 @@ export class BillingService {
       if (intent.invoiceId !== invoiceId) {
         throw new BadRequestException('Reference does not belong to this invoice');
       }
+      if (intent.status === 'CANCELLED') {
+        // Name staleness explicitly. The alternative was an accidental 400 from
+        // balance arithmetic ("amount exceeds outstanding"), which sends whoever
+        // reads it hunting the wrong bug.
+        throw new BadRequestException(
+          'This payment link is no longer valid — the invoice balance changed after it was issued. Issue a new link.',
+        );
+      }
       if (intent.status === 'CONSUMED') {
         const payment = await tx.payment.findUnique({
           where: { tenantId_reference: { tenantId: tenantId!, reference } },
         });
         return { duplicate: true, payment, invoice: await reload(tx, invoiceId) };
       }
+
+      // The intent being PENDING does not mean the reference is unused: a Payment
+      // can already carry it (the reference is public — it is in the pay-link body
+      // and in the checkout URL). applyPayment's unguarded create would then hit
+      // the (tenantId, reference) unique index and 500, on every webhook retry,
+      // forever. recordPayment already short-circuits on this key; confirmGateway
+      // checked only the intent's status, which is a different key.
+      const already = await this.findByReference(tx, tenantId!, reference, invoiceId, intent.amountPkr);
+      if (already) {
+        await tx.paymentIntent.update({ where: { id: intent.id }, data: { status: 'CONSUMED' } });
+        return { duplicate: true, payment: already, invoice: await reload(tx, invoiceId) };
+      }
+
       const method = this.gateway.methodFor(intent.provider as GatewayProvider);
       const result = await this.applyPayment(
         tx,
@@ -147,6 +214,9 @@ export class BillingService {
         reference,
       );
       await tx.paymentIntent.update({ where: { id: intent.id }, data: { status: 'CONSUMED' } });
+      // Any sibling link for this invoice is now priced against a balance that no
+      // longer exists.
+      await this.cancelPendingIntents(tx, tenantId!, invoiceId, intent.id);
       return result;
     });
   }
@@ -177,6 +247,15 @@ export class BillingService {
       const paid = invoice.paid - amountPkr;
       const status = paid <= 0 ? InvoiceStatus.UNPAID : InvoiceStatus.PARTIAL;
       await tx.invoice.update({ where: { id: invoiceId }, data: { paid, status } });
+
+      // A refunded invoice re-enters collections: paid collapses to 0 and the
+      // status derives to UNPAID, making it byte-identical to a never-paid bill.
+      // Any pay link minted before the refund therefore still confirms — the
+      // patient clicks the link they were emailed before their refund, is charged
+      // a second time, and the refund is silently reversed. The ledger stays
+      // arithmetically balanced through all of it (payments - refunds == paid), so
+      // no reconciliation job would ever flag it.
+      await this.cancelPendingIntents(tx, tenantId!, invoiceId);
       return { refund: refundRow, invoice: await reload(tx, invoiceId) };
     });
   }
@@ -193,6 +272,9 @@ export class BillingService {
         throw new BadRequestException('Refund all payments before voiding this invoice');
       }
       await tx.invoice.update({ where: { id: invoiceId }, data: { status: InvoiceStatus.VOID } });
+      // The patient may be holding a live checkout link to a bill we just
+      // cancelled. Killing the invoice is not enough; kill the links to it.
+      await this.cancelPendingIntents(tx, tenantId!, invoiceId);
       return reload(tx, invoiceId);
     });
   }
@@ -202,11 +284,28 @@ export class BillingService {
    * bill procedures as they are completed (e.g. dental tooth-plan completion).
    * Total only ever increases, so the paid<=total invariant is preserved; the
    * status is recomputed. Locks the invoice to serialize with payments.
+   *
+   * `expectedPatientId` is REQUIRED and is not ceremony. Callers hand this method
+   * an invoiceId that ultimately came from a request body, and it used to append
+   * to whatever id it was given. A DOCTOR — a role that gets 403 on every billing
+   * route, including reading the invoice — could complete a PKR 150,000 plan item
+   * for one patient onto a different patient's paid invoice, which then carried a
+   * debt for a procedure performed on someone else.
+   *
+   * The role bypass was the visible half; this ownership check is the half that
+   * matters, because a FINANCE user with a mistyped id does the same damage. Who
+   * may write money must not be decided by whichever controller happens to call
+   * in.
    */
-  async appendLine(invoiceId: string, item: InvoiceLineInput) {
+  async appendLine(invoiceId: string, item: InvoiceLineInput, expectedPatientId: string) {
     const { tenantId } = getTenant();
     return this.prisma.forTenant(tenantId, async (tx) => {
       const invoice = await this.lockInvoice(tx, invoiceId);
+      if (invoice.patientId !== expectedPatientId) {
+        throw new BadRequestException(
+          'This invoice belongs to a different patient — a procedure cannot be billed to someone else.',
+        );
+      }
       if (invoice.status === InvoiceStatus.VOID) {
         throw new BadRequestException('Cannot add a line to a void invoice');
       }
@@ -251,11 +350,26 @@ export class BillingService {
     return invoice;
   }
 
+  /**
+   * Idempotency lookup for a payment reference.
+   *
+   * `amountPkr` is compared, not ignored. Matching on the reference alone treats
+   * a reused receipt-book number as a replay of the first payment: the front desk
+   * takes PKR 3,000 in cash against reference RCPT-42 that was already used for
+   * PKR 5,000, gets a cheerful 201 back, and the 3,000 is silently discarded
+   * while the patient still shows as owing it. Reusing a receipt number is
+   * clerical, not adversarial — it will happen.
+   *
+   * An idempotency key must be validated against the request it claims to
+   * repeat. Same reference and same amount is a genuine replay; same reference
+   * and a different amount is two different payments wearing one name.
+   */
   private async findByReference(
     tx: Prisma.TransactionClient,
     tenantId: string,
     reference: string,
     invoiceId: string,
+    amountPkr?: number,
   ) {
     const existing = await tx.payment.findUnique({
       where: { tenantId_reference: { tenantId, reference } },
@@ -263,6 +377,11 @@ export class BillingService {
     if (!existing) return null;
     if (existing.invoiceId !== invoiceId) {
       throw new BadRequestException('Reference already used on another invoice');
+    }
+    if (amountPkr !== undefined && existing.amount !== amountPkr) {
+      throw new ConflictException(
+        `Reference ${reference} was already used for PKR ${existing.amount} — use a distinct reference for this PKR ${amountPkr} payment.`,
+      );
     }
     return { duplicate: true, payment: existing, invoice: await reload(tx, invoiceId) };
   }

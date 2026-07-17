@@ -101,6 +101,49 @@ ck('its payslips survived too', len(still.get('payslips') or []) > 0, len(still.
 s, refin = api('PATCH', '/hr/payroll/runs/%s/finalize' % r1['id'], tok, {})
 ck('it cannot be finalized twice', s == 400, (refin.get('message') or '')[:60])
 
+print('\n== Staff who leave stop being paid ==')
+# runPayroll pays everyone whose status is ACTIVE. Until setEmployeeStatus existed,
+# NOTHING could write that field -- the enum had three values, the filter read it,
+# and no route reached it. A nurse who resigned was paid in full, every month,
+# forever, and could not be deleted because her payslips referenced her.
+#
+# The guard looked correct in review and would pass any test that seeded the row
+# directly. Only asking "can the API reach that state?" finds it. So this asserts
+# reachability THROUGH THE API, not through Prisma.
+s, leaver = api('POST', '/hr/employees', tok, {'name': 'Rida Aslam %d' % U, 'designation': 'Nurse',
+                                               'baseSalaryPkr': 55000})
+s, term = api('PATCH', '/hr/employees/%s/status' % leaver['id'], tok, {'status': 'TERMINATED'})
+ck('an employee can actually be terminated through the API', s in (200, 201)
+   and term.get('status') == 'TERMINATED', term.get('status'))
+s, bogus = api('PATCH', '/hr/employees/%s/status' % leaver['id'], tok, {'status': 'RESIGNED'})
+ck('an invalid status is refused', s == 400, s)
+
+P3 = '20%02d-03' % (U % 90)
+s, r3 = api('POST', '/hr/payroll/runs', tok, {'period': P3, 'deductions': []})
+paid = [p['employee']['name'] for p in (r3.get('payslips') or [])]
+ck('a terminated employee is NOT in the next run', ('Rida Aslam %d' % U) not in paid,
+   'run pays %d people' % len(paid))
+s, ded = api('POST', '/hr/payroll/runs', tok, {
+    'period': '20%02d-04' % (U % 90),
+    'deductions': [{'employeeId': leaver['id'], 'amountPkr': 100}]})
+ck('and a deduction against them is refused as inactive', s == 400, (ded.get('message') or '')[:70])
+
+# The intersection: this draft was computed BEFORE the termination, so it still
+# carries their payslip. It must SAY so rather than silently pay them -- and must
+# not refuse, because a leaver may genuinely be owed their final month.
+s, back = api('PATCH', '/hr/employees/%s/status' % leaver['id'], tok, {'status': 'ACTIVE'})
+P5 = '20%02d-05' % (U % 90)
+s, r5 = api('POST', '/hr/payroll/runs', tok, {'period': P5, 'deductions': []})
+in5 = ('Rida Aslam %d' % U) in [p['employee']['name'] for p in (r5.get('payslips') or [])]
+ck('a rehired employee is paid again', in5, in5)
+api('PATCH', '/hr/employees/%s/status' % leaver['id'], tok, {'status': 'TERMINATED'})
+s, r5b = api('GET', '/hr/payroll/runs/%s' % r5['id'], tok)
+stale = r5b.get('staleSlips') or []
+ck('a draft that predates a termination flags the stale payslip',
+   any(x['name'] == ('Rida Aslam %d' % U) for x in stale), stale[:2])
+ck('and it is still finalizable — a leaver may be owed their final month',
+   api('PATCH', '/hr/payroll/runs/%s/finalize' % r5['id'], tok, {})[1].get('status') == 'FINALIZED')
+
 print('\n== Deductions cannot invent a debt ==')
 s, over = api('POST', '/hr/payroll/runs', tok, {
     'period': P2,
