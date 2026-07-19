@@ -357,6 +357,13 @@ model Invoice {
   planId    String?       @db.Uuid // provenance: the TreatmentPlan it was raised from
   createdAt DateTime      @default(now())
 
+  // Who cancelled this bill, when, and why. A void erases a charge; without an
+  // actor it is an unattributable write to the money record — nobody can answer
+  // "who cancelled this and on whose say-so?" months later.
+  voidedById String?   @db.Uuid
+  voidedAt   DateTime?
+  voidReason String?
+
   // FBR Digital Invoicing (Pakistan e-invoicing). Populated on successful submit.
   fbrInvoiceNumber String? // IRN returned by FBR
   fbrStatus        String? // e.g. SUBMITTED / VALIDATED / FAILED

@@ -261,8 +261,8 @@ export class BillingService {
   }
 
   // Void an invoice. Only allowed once fully refunded (paid == 0).
-  async voidInvoice(invoiceId: string) {
-    const { tenantId } = getTenant();
+  async voidInvoice(invoiceId: string, reason?: string) {
+    const { tenantId, userId } = getTenant();
     return this.prisma.forTenant(tenantId, async (tx) => {
       const invoice = await this.lockInvoice(tx, invoiceId);
       if (invoice.status === InvoiceStatus.VOID) {
@@ -271,7 +271,19 @@ export class BillingService {
       if (invoice.paid > 0) {
         throw new BadRequestException('Refund all payments before voiding this invoice');
       }
-      await tx.invoice.update({ where: { id: invoiceId }, data: { status: InvoiceStatus.VOID } });
+      // Stamp WHO cancelled the bill and when. A void erases a charge; leaving it
+      // unattributable meant nobody could later answer "who cancelled this, and
+      // on whose say-so?" — the one question an audit asks first. The reason is
+      // recorded when given (whether to REQUIRE one is the clinic's policy).
+      await tx.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          status: InvoiceStatus.VOID,
+          voidedById: userId ?? null,
+          voidedAt: new Date(),
+          voidReason: reason ?? null,
+        },
+      });
       // The patient may be holding a live checkout link to a bill we just
       // cancelled. Killing the invoice is not enough; kill the links to it.
       await this.cancelPendingIntents(tx, tenantId!, invoiceId);
@@ -404,9 +416,24 @@ export class BillingService {
         `Amount ${amountPkr} exceeds the outstanding balance ${outstanding}`,
       );
     }
-    const payment = await tx.payment.create({
-      data: { tenantId, invoiceId: invoice.id, amount: amountPkr, method, provider, reference },
-    });
+    // The cross-invoice reference check in findByReference is a READ, so two
+    // concurrent payments reusing one reference on DIFFERENT invoices both pass
+    // it and both insert — the loser hit the (tenantId, reference) unique index
+    // and surfaced as a 500. A reused receipt number is bad INPUT; it should get
+    // the same clean refusal whether it loses a race or not.
+    let payment;
+    try {
+      payment = await tx.payment.create({
+        data: { tenantId, invoiceId: invoice.id, amount: amountPkr, method, provider, reference },
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002' && reference) {
+        throw new ConflictException(
+          `Reference ${reference} is already in use — use a distinct reference for this payment.`,
+        );
+      }
+      throw e;
+    }
     const paid = invoice.paid + amountPkr;
     const status = paid >= invoice.total ? InvoiceStatus.PAID : InvoiceStatus.PARTIAL;
     await tx.invoice.update({ where: { id: invoice.id }, data: { paid, status } });

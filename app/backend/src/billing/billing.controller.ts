@@ -17,6 +17,7 @@ import { RecordPaymentDto } from './dto/record-payment.dto';
 import { PayLinkDto } from './dto/pay-link.dto';
 import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
 import { RefundDto } from './dto/refund.dto';
+import { VoidInvoiceDto } from './dto/void-invoice.dto';
 
 /**
  * Billing API — invoices + payments. Gated to finance/front-desk roles.
@@ -68,9 +69,11 @@ export class BillingController {
     return this.billing.refund(id, dto.amountPkr, dto.method, dto.reason);
   }
 
-  // Void an invoice (only once fully refunded).
+  // Void an invoice (only once fully refunded). The actor is taken from the
+  // authenticated user, never the body — a caller must not be able to attribute
+  // a cancellation to someone else.
   @Patch('invoices/:id/void')
-  void(@Param('id') id: string) {
-    return this.billing.voidInvoice(id);
+  void(@Param('id') id: string, @Body() dto?: VoidInvoiceDto) {
+    return this.billing.voidInvoice(id, dto?.reason);
   }
 }
