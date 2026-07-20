@@ -11,6 +11,8 @@ Run-unique ward/bed codes so stock of beds never leaks between runs.
 Run: python test/safety/ipd_safety_suite.py
 """
 import json, time, urllib.request, urllib.error, threading
+import os, sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _ids import mrn  # run-unique fixtures; see _ids.py
 
 BASE = 'http://localhost:3000'
 
@@ -42,7 +44,7 @@ U = int(time.time() * 1000) % 1000000
 
 
 def patient(tag):
-    s, p = api('POST', '/patients', tok, {'mrn': 'IPD-%s-%d' % (tag, U), 'name': 'IPD %s %d' % (tag, U),
+    s, p = api('POST', '/patients', tok, {'mrn': mrn('IPD-%s' % tag), 'name': 'IPD %s %d' % (tag, U),
                                           'phone': '+92 300 1111111'})
     return p['id']
 

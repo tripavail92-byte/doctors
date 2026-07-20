@@ -1,4 +1,6 @@
 import json, urllib.request, urllib.error
+import os, sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _ids import mrn  # run-unique fixtures; see _ids.py
 BASE='http://localhost:3000'
 def call(method, path, body=None, tok=None):
     req=urllib.request.Request(BASE+path, method=method)
@@ -50,7 +52,7 @@ print('\n== 3. Episode with pacemaker safety intake ==')
 # a suite flaky in CI.
 import time as _t
 _u = int(_t.time()*1000) % 1000000
-s,_pt = call('POST','/patients',{'mrn':'REHAB-%d'%_u,'name':'Rehab Probe %d'%_u,'phone':'+92 300 2222222'},tok)
+s,_pt = call('POST','/patients',{'mrn': mrn('REHAB'),'name':'Rehab Probe %d'%_u,'phone':'+92 300 2222222'},tok)
 pid = _pt['id']
 s,ep = call('POST','/rehab/episodes',{'patientId':pid,'diagnosis':'Post-ACL reconstruction, right knee',
     'bodyRegion':'KNEE','sessionsPlanned':10,'goals':'Restore knee flexion to 130 deg',

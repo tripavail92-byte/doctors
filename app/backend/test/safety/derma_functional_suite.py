@@ -1,4 +1,6 @@
 import json, urllib.request, urllib.error
+import os, sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _ids import mrn  # run-unique fixtures; see _ids.py
 BASE='http://localhost:3000'
 
 def call(method, path, body=None, tok=None):
@@ -28,7 +30,7 @@ tok=r['accessToken']; print('LOGIN', s)
 # depended on what had run before it. A suite whose outcome depends on execution
 # order is not a check.
 import time as _tt
-s,_pp = call('POST','/patients',{'mrn':'DERMAFN-%d'%(int(_tt.time()*1000)%100000000),
+s,_pp = call('POST','/patients',{'mrn': mrn('DERMAFN'),
     'name':'Derma Functional Probe','phone':'+92 300 8888888','dob':'1990-01-01'},tok)
 if 'id' not in _pp:
     raise SystemExit('need a fresh patient: %s %s' % (s, _pp))
@@ -213,7 +215,7 @@ from _db import psql
 # PATIENT-scoped (skin does not heal per course), so reusing that patient would
 # correctly suppress every dose here — this section would be testing the burn
 # hold rather than the gap rules.
-s,_p = call('POST','/patients',{'mrn':'GAPDEMO-%d'%(int(_t.time()*1000)%100000000),
+s,_p = call('POST','/patients',{'mrn': mrn('GAPDEMO'),
     'name':'Gap Demo','phone':'+92 300 9999999','dob':'1990-01-01'},tok)
 if 'id' not in _p:
     raise SystemExit('gap section needs a fresh patient: %s %s' % (s, _p))

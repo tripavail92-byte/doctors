@@ -19,8 +19,23 @@ async function nextMrn(tx: Prisma.TransactionClient, tenantId: string): Promise<
     'SELECT pg_advisory_xact_lock(hashtext($1)::bigint)',
     `patient-mrn:${tenantId}`,
   );
-  const count = await tx.patient.count();
-  return `P-${String(count + 1).padStart(5, '0')}`;
+  // Derive from the HIGHEST P-number already issued, not from the row count.
+  //
+  // count+1 assumes the P-series is dense and is the only source of MRNs, and
+  // neither holds: the demo data uses GD-####, patients can be registered with
+  // any MRN at the front desk, and a deletion leaves a hole. With 12 GD-*
+  // patients present, count+1 returns P-00013 while P-00013 may already exist —
+  // previously that silently minted a duplicate chart, and now that
+  // (tenantId, mrn) is unique it would be a 500 on a lead conversion.
+  //
+  // The advisory lock still matters: it serialises two conversions so they
+  // cannot read the same maximum.
+  const rows = await tx.$queryRaw<{ max: number | null }[]>`
+    SELECT MAX(SUBSTRING(mrn FROM '^P-([0-9]+)$')::int) AS max
+      FROM "Patient"
+     WHERE mrn ~ '^P-[0-9]+$'`;
+  const next = (rows[0]?.max ?? 0) + 1;
+  return `P-${String(next).padStart(5, '0')}`;
 }
 
 /**

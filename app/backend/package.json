@@ -25,7 +25,7 @@
     "check:harness": "python test/safety/db_helper_suite.py",
     "check:growth-dose": "ts-node scripts/check-growth-dose.ts",
     "check:engine": "ts-node scripts/check-engine.ts",
-    "check:clinical": "npm run check:harness && npm run check:growth-dose && npm run check:engine && npm run check:derma-safety && npm run check:derma-functional && npm run check:derma-dose5 && npm run check:dental && npm run check:epi && npm run check:epi-cold-chain && npm run check:payroll && npm run check:billing-money && npm run check:billing-void && npm run check:pharmacy && npm run check:lab && npm run check:ipd && npm run check:crm && npm run check:ophthalmology && npm run check:rehab && npm run check:trends",
+    "check:clinical": "npm run check:harness && npm run check:growth-dose && npm run check:engine && npm run check:derma-safety && npm run check:derma-functional && npm run check:derma-dose5 && npm run check:dental && npm run check:epi && npm run check:epi-cold-chain && npm run check:payroll && npm run check:billing-money && npm run check:billing-void && npm run check:patient-identity && npm run check:pharmacy && npm run check:lab && npm run check:ipd && npm run check:crm && npm run check:ophthalmology && npm run check:rehab && npm run check:trends",
     "check:wiring": "ts-node scripts/check-wiring.ts",
     "check:security": "npm run check:wiring && npm run check:rls && npm run check:isolation && npm run check:boot",
     "check:billing-money": "python test/safety/billing_money_suite.py",
@@ -37,7 +37,8 @@
     "check:rehab": "python test/safety/rehab_safety_suite.py",
     "check:trends": "python test/safety/trend_charts_suite.py",
     "check:derma-dose5": "python test/safety/derma_dose_fifth_pass_suite.py",
-    "check:billing-void": "python test/safety/billing_void_audit_suite.py"
+    "check:billing-void": "python test/safety/billing_void_audit_suite.py",
+    "check:patient-identity": "python test/safety/patient_identity_suite.py"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

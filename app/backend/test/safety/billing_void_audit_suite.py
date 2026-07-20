@@ -16,6 +16,8 @@ Fresh patient + invoice per scenario, so nothing depends on execution order.
 Run: python test/safety/billing_void_audit_suite.py
 """
 import json, time, urllib.request, urllib.error, threading
+import os, sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _ids import mrn  # run-unique fixtures; see _ids.py
 
 BASE = 'http://localhost:3000'
 
@@ -52,7 +54,7 @@ N = [0]
 
 def invoice(amount, tag):
     N[0] += 1
-    s, p = api('POST', '/patients', tok, {'mrn': 'VA-%d-%d' % (U, N[0]), 'name': 'VoidAudit %s %d' % (tag, U),
+    s, p = api('POST', '/patients', tok, {'mrn': mrn('VA'), 'name': 'VoidAudit %s %d' % (tag, U),
                                           'phone': '+92 300 4545454'})
     s, inv = api('POST', '/invoices', tok, {'patientId': p['id'], 'items': [
         {'code': 'SVC-%d' % U, 'name': 'Consult', 'unitPricePkr': amount, 'quantity': 1}]})

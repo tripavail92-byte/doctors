@@ -18,6 +18,8 @@ precondition for collecting on it.
 Run: python test/safety/billing_money_suite.py
 """
 import json, time, urllib.request, urllib.error
+import os, sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _ids import mrn  # run-unique fixtures; see _ids.py
 
 BASE = 'http://localhost:3000'
 
@@ -54,7 +56,7 @@ N = [0]
 
 def patient(tag):
     N[0] += 1
-    s, p = api('POST', '/patients', tok, {'mrn': 'BIL-%d-%d' % (U, N[0]), 'name': 'Billing %s %d' % (tag, U),
+    s, p = api('POST', '/patients', tok, {'mrn': mrn('BIL'), 'name': 'Billing %s %d' % (tag, U),
                                           'phone': '+92 300 1234567'})
     return p['id']
 

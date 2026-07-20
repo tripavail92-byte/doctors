@@ -295,6 +295,10 @@ model Patient {
   tenant               Tenant                     @relation(fields: [tenantId], references: [id])
   appointments         Appointment[]
   invoices             Invoice[]
+  // An MRN is the clinic's key for a person. Without this, one MRN could hold
+  // several charts — GD-BABY1 had five — and a patient's history silently
+  // splits across records nobody knows to join. Scoped to the tenant, because
+  // two clinics may legitimately both issue "P-00001".
   instrumentResponses  ScoredInstrumentResponse[]
   observations         Observation[]
   trendAnnotations     TrendAnnotation[]
@@ -324,6 +328,7 @@ model Patient {
   toothFindings        ToothFinding[]
   aefis                Aefi[]
 
+  @@unique([tenantId, mrn])
   @@index([tenantId])
 }
 

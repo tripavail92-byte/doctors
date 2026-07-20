@@ -10,6 +10,8 @@ Each scenario uses a fresh patient so order state never leaks between cases.
 Run: python test/safety/lab_safety_suite.py
 """
 import json, time, urllib.request, urllib.error
+import os, sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _ids import mrn  # run-unique fixtures; see _ids.py
 
 BASE = 'http://localhost:3000'
 
@@ -43,7 +45,7 @@ N = [0]
 
 def patient():
     N[0] += 1
-    s, p = api('POST', '/patients', tok, {'mrn': 'LAB-%d-%d' % (U, N[0]), 'name': 'Lab Probe %d' % U,
+    s, p = api('POST', '/patients', tok, {'mrn': mrn('LAB'), 'name': 'Lab Probe %d' % U,
                                           'phone': '+92 300 5555555'})
     return p['id']
 

@@ -8,6 +8,8 @@ ADMINISTRATION, not on a report someone reads later.
 Run: python test/safety/epi_cold_chain_suite.py
 """
 import json, time, urllib.request, urllib.error
+import os, sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _ids import mrn  # run-unique fixtures; see _ids.py
 
 BASE = 'http://localhost:3000'
 
@@ -49,7 +51,7 @@ VAX = 'TVX%d' % U       # stands in for PENTA
 VAX2 = 'TVY%d' % U      # stands in for PCV
 VAX3 = 'TVZ%d' % U      # stands in for MR
 VAX4 = 'TVW%d' % U      # stands in for BCG
-s, p = api('POST', '/patients', tok, {'mrn': 'EPI-%d' % U, 'name': 'EPI Probe',
+s, p = api('POST', '/patients', tok, {'mrn': mrn('EPI'), 'name': 'EPI Probe',
                                       'phone': '+92 300 7777777', 'dob': '2026-04-01'})
 pid = p['id']
 

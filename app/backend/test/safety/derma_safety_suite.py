@@ -27,6 +27,8 @@ Requires: a running API on :3000 and the healthos-db container.
 Run:  python test/safety/derma_safety_suite.py
 """
 import json, subprocess, urllib.request, urllib.error
+import os, sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _ids import mrn  # run-unique fixtures; see _ids.py
 BASE='http://localhost:3000'
 
 def call(method, path, body=None, tok=None):
@@ -64,7 +66,7 @@ s,pl = call('GET','/patients?take=1',tok=tok); pid=pl[0]['id']
 _seq = [0]
 def fresh_patient_row(label='Probe', dob='1990-01-01'):
     _seq[0] += 1
-    s, p = call('POST','/patients',{'mrn':'PROBE-%05d'%_seq[0], 'name':'%s %d'%(label,_seq[0]),
+    s, p = call('POST','/patients',{'mrn': mrn('PROBE'), 'name':'%s %d'%(label,_seq[0]),
         'phone':'+92 300 %07d'%_seq[0], 'dob':dob}, tok)
     if s not in (200,201):
         raise SystemExit('could not create a probe patient: %s %s' % (s, p))

@@ -9,6 +9,8 @@ come back server-side, and annotations attach.
 Run: python test/safety/trend_charts_suite.py
 """
 import json, time, urllib.request, urllib.error
+import os, sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _ids import mrn  # run-unique fixtures; see _ids.py
 
 BASE = 'http://localhost:3000'
 
@@ -52,7 +54,7 @@ s, byPack = api('GET', '/trends/definitions?packKey=ophthalmology', tok)
 ck('filtering by packKey returns it', any(d['key'] == CHART for d in byPack), len(byPack))
 
 print('\n== The chart aggregates a patient series per eye, last-per-visit ==')
-s, p = api('POST', '/patients', tok, {'mrn': 'TREND-%d' % U, 'name': 'Trend Probe %d' % U, 'phone': '+92 300 8888888'})
+s, p = api('POST', '/patients', tok, {'mrn': mrn('TREND'), 'name': 'Trend Probe %d' % U, 'phone': '+92 300 8888888'})
 pid = p['id']
 # OD: two readings on day 1 (last wins), one on day 2. OS: one each day.
 obs = [
@@ -101,14 +103,14 @@ ck('each eye delta is within that eye (OD plotted 22 -> 18 = -4), not across eye
 ck('and no summary reports side=null while mixing eyes', None not in sides, sides)
 
 print('\n== The summary flags a latest reading against the chart bands ==')
-fp = api('POST', '/patients', tok, {'mrn': 'FLAG-%d' % U, 'name': 'Flag %d' % U, 'phone': '+92 300 2020202'})[1]['id']
+fp = api('POST', '/patients', tok, {'mrn': mrn('FLAG'), 'name': 'Flag %d' % U, 'phone': '+92 300 2020202'})[1]['id']
 api('POST', '/observations', tok, {'patientId': fp, 'metric': 'iop_mmhg', 'value': 28, 'unit': 'mmHg', 'side': 'OD', 'recordedAt': '2026-06-01T10:00:00Z'})
 s, fs = api('GET', '/trends/%s/patient/%s/summary?laterality=OD' % (CHART, fp), tok)
 ck('IOP 28 (> 21 normal ceiling) flags HIGH, not "unknown"', (fs[0] if isinstance(fs, list) else fs).get('latestFlag') == 'high',
    (fs[0] if isinstance(fs, list) else fs).get('latestFlag'))
 
 print('\n== The date range is day-aligned and validated ==')
-rp = api('POST', '/patients', tok, {'mrn': 'RANGE-%d' % U, 'name': 'Range %d' % U, 'phone': '+92 300 3030303'})[1]['id']
+rp = api('POST', '/patients', tok, {'mrn': mrn('RANGE'), 'name': 'Range %d' % U, 'phone': '+92 300 3030303'})[1]['id']
 api('POST', '/observations', tok, {'patientId': rp, 'metric': 'iop_mmhg', 'value': 15, 'unit': 'mmHg', 'side': 'OD', 'recordedAt': '2026-07-15T09:00:00Z'})
 api('POST', '/observations', tok, {'patientId': rp, 'metric': 'iop_mmhg', 'value': 25, 'unit': 'mmHg', 'side': 'OD', 'recordedAt': '2026-07-17T14:00:00Z'})
 s, c = api('GET', '/trends/%s/patient/%s?to=2026-07-17' % (CHART, rp), tok)
@@ -142,7 +144,7 @@ s, defs2 = api('GET', '/trends/definitions?packKey=physiotherapy', tok)
 pdef = next((d for d in defs2 if d['key'] == PAIN), None)
 ck('the pain trend seeds with dailyMean + no laterality split',
    pdef and pdef.get('aggregation') == 'DAILY_MEAN' and pdef.get('splitByLaterality') is False, pdef and pdef.get('aggregation'))
-s, pp = api('POST', '/patients', tok, {'mrn': 'PAIN-%d' % U, 'name': 'Pain Probe %d' % U, 'phone': '+92 300 7777777'})
+s, pp = api('POST', '/patients', tok, {'mrn': mrn('PAIN'), 'name': 'Pain Probe %d' % U, 'phone': '+92 300 7777777'})
 ppid = pp['id']
 for v, at in [(6, '2026-05-01T09:00:00Z'), (4, '2026-05-01T17:00:00Z'), (2, '2026-05-05T10:00:00Z')]:
     api('POST', '/observations', tok, {'patientId': ppid, 'metric': 'nprs', 'value': v, 'unit': 'score', 'recordedAt': at})

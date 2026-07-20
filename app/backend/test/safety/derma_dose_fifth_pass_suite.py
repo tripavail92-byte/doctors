@@ -19,6 +19,8 @@ Fresh patient per scenario (a burn hold is the patient's, and must not leak).
 Run: python test/safety/derma_dose_fifth_pass_suite.py
 """
 import json, time, urllib.request, urllib.error
+import os, sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _ids import mrn  # run-unique fixtures; see _ids.py
 
 BASE = 'http://localhost:3000'
 
@@ -52,7 +54,7 @@ N = [0]
 
 def patient(tag, fitz):
     N[0] += 1
-    s, p = api('POST', '/patients', tok, {'mrn': 'PH5-%s-%d-%d' % (tag, U, N[0]), 'name': 'Photo5 %s %d' % (tag, U),
+    s, p = api('POST', '/patients', tok, {'mrn': mrn('PH5-%s' % tag), 'name': 'Photo5 %s %d' % (tag, U),
                                           'phone': '+92 300 6060606', 'dob': '1990-01-01'})
     s, c = api('POST', '/dermatology/phototherapy/courses', tok,
                {'patientId': p['id'], 'fitzpatrickType': fitz, 'indication': 'plaque psoriasis'})
