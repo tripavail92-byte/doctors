@@ -232,10 +232,47 @@ ck('child gets child head weight, derived from DOB', kh==3.6, 'child head=%s (do
 ck('adult gets adult head weight, derived from DOB', ah==1.8, 'adult head=%s (dob %s)'%(ah, adult['dob'][:10]))
 
 print('\n== D10. RECEPTION cannot override the burn interlock ==')
-recep = psql("SELECT count(*) FROM \"User\" WHERE role='RECEPTION';")
-ck('recordSession is prescriber-gated (RECEPTION excluded)',
-   'PRESCRIBER_ROLES' in open('D:/asthetic2/app/backend/src/dermatology/dermatology.controller.ts',encoding='utf-8').read().split("sessions')")[1][:80],
-   'route guarded by PRESCRIBER_ROLES')
+# This used to grep the controller SOURCE for the string 'PRESCRIBER_ROLES',
+# through a hardcoded absolute path on one developer's D: drive. Two problems,
+# and the path was the lesser one:
+#
+#   - it read source text, so a decorator that was COMMENTED OUT would still
+#     satisfy it. The check could not fail for the reason it existed.
+#   - it counted RECEPTION users in the line above and then never used the
+#     count — the behavioural test was started and abandoned.
+#
+# House rule: verify a control as the least-privileged principal that actually
+# exercises it, and assert the negative. So: mint a real RECEPTION user, log in
+# as them, and require the route to REFUSE.
+OWNER_TENANT = psql("SELECT \"tenantId\" FROM \"User\" WHERE email='owner@glowderma.pk';").strip()
+PW_HASH = psql("SELECT \"passwordHash\" FROM \"User\" WHERE email='owner@glowderma.pk';").strip()
+RECEP_EMAIL = 'reception.probe@glowderma.pk'
+# Same password as the owner, by reusing their bcrypt hash — the suite must not
+# know or invent credentials, and this keeps the fixture to one INSERT.
+psql("INSERT INTO \"User\" (id,\"tenantId\",email,\"passwordHash\",name,role) "
+     "VALUES (gen_random_uuid(),'%s','%s','%s','Reception Probe','RECEPTION') "
+     "ON CONFLICT (email) DO NOTHING;" % (OWNER_TENANT, RECEP_EMAIL, PW_HASH))
+
+s, rtok = call('POST', '/auth/login', {'email': RECEP_EMAIL, 'password': 'Password123!'})
+ck('a RECEPTION user exists and can log in', s == 200 and rtok.get('accessToken'), 'HTTP %s' % s)
+rt = rtok.get('accessToken')
+
+# The negative: the SAME request the prescriber makes successfully must be
+# refused for this principal.
+cid10, _ = new_course(3)
+s_ok, _ = call('POST', '/dermatology/phototherapy/courses/%s/sessions' % cid10, {}, tok)
+ck('the prescriber CAN record a session (the control is not just broken for everyone)',
+   s_ok in (200, 201), 'prescriber HTTP %s' % s_ok)
+s_no, denied = call('POST', '/dermatology/phototherapy/courses/%s/sessions' % cid10,
+                    {'lastErythemaGrade': 0}, rt)
+ck('RECEPTION is REFUSED at recordSession', s_no in (401, 403),
+   'HTTP %s %s' % (s_no, str(denied.get('message'))[:60]))
+
+# And the refusal must be a refusal, not a silent no-op that returns an error
+# page while still writing the row.
+n_after = psql("SELECT count(*) FROM \"PhototherapySession\" WHERE \"courseId\"='%s';" % cid10).strip()
+ck('and the refused request wrote no session row', n_after == '1',
+   '%s session rows (1 = only the prescriber\'s)' % n_after)
 
 
 print('\n== D11. Grade-3 must not outrank the gap rules (v2 regression) ==')
