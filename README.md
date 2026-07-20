@@ -72,15 +72,18 @@ nowhere else. And it does not fake money: an invoice with `paid > 0` gets a matc
 `Payment` row, because `Collected PKR 35,000 / Payments PKR 0` is the shape of a
 reconciliation bug.
 
-> **Known gap:** `Patient` has no unique constraint on `(tenantId, mrn)`, which is how one
-> MRN came to have five charts. Adding it is the right fix, but the dermatology suites reuse
-> `PROBE-00001` across runs, so the constraint needs their fixtures made run-unique first.
+That gap is now closed: `(tenantId, mrn)` is unique in the database, a duplicate is a 409
+rather than a second chart, and six concurrent registrations of one MRN return
+`[201, 409, 409, 409, 409, 409]`. Closing it first required fixing the fixtures — every
+suite derived its uniqueness token from `int(time.time()*1000) % 1000000`, a clock that
+**wraps every 16.7 minutes**, so repeated runs were colliding and only the absent constraint
+kept it invisible.
 
 ## Checks
 
 ```bash
 npm run check:security   # wiring + RLS coverage (static) + tenant isolation (live) + boot guards
-npm run check:clinical   # 18 suites, 449 checks — needs the API running
+npm run check:clinical   # 20 suites, 467 checks — needs the API running
 ```
 
 Both run on every push and pull request via [`.github/workflows/ci.yml`](.github/workflows/ci.yml),
