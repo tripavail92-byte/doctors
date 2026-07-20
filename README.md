@@ -33,7 +33,7 @@ mostly a manifest.
 cd app/backend
 cp .env.example .env          # then set a real JWT_SECRET — the app refuses to boot without one
 docker compose up -d          # Postgres 16
-npx prisma db push
+npx prisma migrate deploy   # schema, from the migration history
 psql "$DIRECT_DATABASE_URL" -f prisma/rls.sql        # policies
 psql "$DIRECT_DATABASE_URL" -f prisma/rls-roles.sql  # the non-bypassing runtime role
 psql "$DIRECT_DATABASE_URL" -f prisma/rls-user.sql   # User policy + the login function

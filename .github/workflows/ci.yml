@@ -99,8 +99,13 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Push schema
-        run: npx prisma db push --skip-generate
+      # `migrate deploy`, not `db push` — CI must exercise the path production
+      # takes. db push diffs the schema and reshapes the database to match,
+      # which is fine against an empty CI database and is drop-and-recreate
+      # against one holding charts. Running it here while production ran
+      # migrations would mean the migration files were never tested by anything.
+      - name: Apply migrations
+        run: npx prisma migrate deploy
 
       # Order matters: policies, then the role, then the User policy + login
       # function, then the partial unique indexes Prisma cannot express.

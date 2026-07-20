@@ -42,7 +42,7 @@ WORKDIR /app
 RUN apk add --no-cache postgresql16-client
 COPY app/backend/prisma/ ./prisma/
 CMD ["sh", "-c", "set -e; \
-  npx prisma db push --skip-generate; \
+  npx prisma migrate deploy; \
   for f in prisma/rls.sql prisma/rls-roles.sql prisma/rls-user.sql prisma/constraints.sql; do \
     echo \"--- $f\"; \
     psql -v ON_ERROR_STOP=1 \"$(node -e \"const u=new URL(process.env.DIRECT_DATABASE_URL);u.searchParams.delete('schema');console.log(u.toString())\")\" -f \"$f\"; \

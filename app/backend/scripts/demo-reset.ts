@@ -73,7 +73,11 @@ const hasPsql = (() => {
   }
 })();
 
-run('npx', ['prisma', 'db', 'push', '--force-reset', '--skip-generate']);
+// `migrate reset`, not `db push --force-reset`: it drops everything and replays
+// the migration history, so a local rebuild exercises the same path CI and
+// production take. If a migration is broken, this is where it should surface —
+// on a disposable database, not on a deploy.
+run('npx', ['prisma', 'migrate', 'reset', '--force', '--skip-seed', '--skip-generate']);
 
 for (const f of SQL) {
   if (hasPsql) {

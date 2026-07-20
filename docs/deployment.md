@@ -14,7 +14,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
 `migrate` is a **separate one-shot job**, not a startup step. Schema changes should be
 something a person decides, not something that happens because a container restarted. It
-runs: `prisma db push` → the four SQL files → seed → `check-rls-live`.
+runs: `prisma migrate deploy` → the four SQL files → seed → `check-rls-live`.
 
 That last step is the gate. Do not route traffic to a database it fails on.
 
@@ -67,7 +67,7 @@ source-drift check, not a deployment check.
 
 Re-apply it after **every** schema application, not only after changes you believe were
 additive. RLS state is a property of the table object: a model rename or `@@map` change
-makes `db push` drop and recreate the table, taking `ENABLE`/`FORCE`/the policy with it —
+makes a migration drop and recreate the table, taking `ENABLE`/`FORCE`/the policy with it —
 while `ALTER DEFAULT PRIVILEGES` silently restores the runtime role's read access. Then
 verify with `check:rls-live`, which is the only check that would notice.
 
@@ -78,8 +78,31 @@ verify with `check:rls-live`, which is the only check that would notice.
 3. **The `healthos_app` password** is a literal in `prisma/rls-roles.sql`. Fine for
    localhost; change it on anything reachable, in both the SQL and `DATABASE_URL`.
 4. **Backup destination and restore drill.** An untested backup is a belief, not a backup.
-5. **Migrations.** There are none — CI and this runbook use `prisma db push`. That is
-   viable while the database is disposable and *not* viable once it holds real charts:
-   `db push` resolves a column rename as drop-and-recreate, and the data goes with it.
-   Adopting `prisma migrate` before real data lands is the recommendation, and it is a
-   decision because it changes how every future schema change is made.
+5. **Nothing here, but read "Changing the schema" below** — migrations are now in place,
+   and how you *author* them is the part that still needs care.
+
+## Changing the schema
+
+The database is under **migration control**. `prisma/migrations/0_init` is the baseline,
+generated from the schema as it stood on 2026-07-21 and marked applied on the existing
+development database rather than re-run against it.
+
+```bash
+npx prisma migrate dev --name what_changed   # authoring, on a dev database
+npx prisma migrate deploy                    # applying, everywhere else
+```
+
+**Never `prisma db push` against a database you care about.** It diffs the schema and
+reshapes the database to match, which resolves a column rename as drop-then-create — the
+column is gone and so is what was in it. It is fine against a disposable database and it is
+how this project ran until migrations landed.
+
+**Review the generated SQL before committing it.** Prisma cannot tell a rename from a drop
+plus an add; you can. That review is the whole safety margin on a database holding charts.
+
+**Then re-apply the RLS files.** They are deliberately *not* part of the migration history,
+because they are not a one-time change — RLS state belongs to the table object, so any
+migration that recreates a table silently takes `ENABLE`/`FORCE`/the policy with it, while
+`ALTER DEFAULT PRIVILEGES` quietly restores the runtime role's read access. All four files
+are idempotent and safe under `-v ON_ERROR_STOP=1`. Verify with `check:rls-live`, which is
+the only check that would notice.
