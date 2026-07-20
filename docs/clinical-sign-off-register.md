@@ -1,258 +1,324 @@
 # Clinical sign-off register
 
-**Status: OPEN — these items block real patient use.**
-
-Every clinical number in Health OS came from one of three places: a published
-standard, a value derived from a standard, or a value chosen by the engineer
-because the code needed one. This document lists every item in the third and
-second categories, because software should not be the author of a clinical
-threshold.
-
-Nothing here is a bug report. The engine behaves as written and is covered by
-automated safety suites. The question in each case is whether *what is written*
-is what a clinician would sign their name to.
-
-**How to use this:** for each item, either (a) confirm the current value, or
-(b) give the correct one. An item marked ⛔ should be settled before the module
-touches a real patient; ⚠️ items are safe to run with but should be reviewed.
-
-**Who should sign:** items 1–5 need a prescribing dermatologist or the
-supervising physician. Items 6–8 need whoever owns the clinic's EPI/vaccination
-practice. Items 9–11 are lab/records governance. Items 12–14 are business policy
-(the practice owner), not clinical.
+**Status: OPEN.** Health OS is not cleared for patient use until the ⛔ items below are
+settled. Values verified against the code on 2026-07-21.
 
 ---
 
-## ⛔ 1. Phototherapy — burn-hold resolution is now PER COURSE
+## What this is, in one paragraph
 
-**What the code does now.** When a patient has a grade-3 (blistering) reaction at
-dose *D*, every one of that patient's active courses is held: the next dose may
-only go down, anchored to *D*. A course is released from the hold only once **that
-course** delivers a session at or below *D*/2.
+Every clinical number in this software came from one of three places: a published
+standard, a value derived from a standard, or a value chosen by the engineer because the
+code needed one. This document lists everything in the second and third categories.
+Software should not be the author of a clinical threshold.
 
-**Why this needs you.** This changed on 2026-07-18. Previously, tolerance shown on
-*any one* course released the hold on *all* of them — which let a second, higher-dose
-course spring back to its pre-burn trajectory and deliver roughly **three times the
-dose that had blistered the patient**. The fix makes each course re-establish
-tolerance individually.
+**Nothing here is a bug.** The engine does what is written and is covered by automated
+safety tests. The question is whether what is written is what you would sign your name to.
 
-**The clinical question.** Is tolerance re-established **per course/body-site**, or
-**per patient**? The code now assumes per-course (defensible: tolerance on one site
-is not proof for another). If you want it strictly patient-wide, that is a different
-— and also implementable — rule, but the current safety property depends on which
-you choose.
+**What we need from you:** for each item, either *confirm the current value* or *give the
+correct one*. A one-line answer is enough. If a value changes, the corresponding automated
+test changes with it, so a wrong number cannot quietly come back.
 
 ---
 
-## ⛔ 2. Phototherapy — the dose ceiling multiple (MED × 6)
+## Route these to the right person
 
-**What the code does now.** Where a patient's Minimal Erythema Dose (MED) has been
-measured, the dose ceiling is `MED × 6`, and this bounds the ceiling — not just the
-starting dose. Where no MED is recorded, the ceiling is the Fitzpatrick skin-type
-table value.
+Nothing needs one person to answer everything. Each block can be returned independently.
 
-**Why this needs you.** The multiple of 6 was chosen by the engineer as a
-conservative bound. It is not taken from a named protocol. It exists because
-without it, a patient with a low measured MED could be walked up to the
-skin-type table maximum — in one traced example, 25× their own measured erythema
-threshold.
+| Sheets | Who should answer | Blocks |
+|---|---|---|
+| **A1–A3** ⛔ | Prescribing dermatologist | Phototherapy — the whole module |
+| **A4–A5** ⚠️ | Prescribing dermatologist | Nothing; scores are advisory |
+| **B1–B3** ⛔⚠️ | Whoever owns vaccination practice | Pediatrics / EPI module |
+| **C1** ⛔ | Lab lead or supervising physician | Lab results reporting |
+| **C2** ⚠️ | Ophthalmologist | Nothing; banding is advisory |
+| **D1–D3** 💼 | Practice owner — business policy, not clinical | Payroll and billing controls |
 
-**The clinical question.** Is 6 the right multiple for your protocol? Should it
-differ by modality (NB-UVB vs PUVA) or by indication?
+⛔ = settle before this module touches a patient  ⚠️ = safe to run, review when convenient
+💼 = business policy
 
----
-
-## ⛔ 3. Phototherapy — restart, gap, and dose-floor semantics
-
-**What the code does now.**
-- A gap of **more than 4 weeks** restarts the protocol at the starting dose.
-- Shorter gaps apply graduated reductions / forbid escalation.
-- A grade-1 reaction permits a **half** increment; grade 2 **holds**; grade 3 **skips
-  treatment** and reduces by 50%.
-- If repeated reductions drive the dose below a minimum therapeutic level, the
-  course is flagged **LAPSED** — the engine does *not* silently raise the dose; it
-  states that a prescriber must restart the course.
-
-**Why this needs you.** The gap thresholds, the half-step for grade 1, and the
-concept of a "minimum therapeutic dose" are all defensible readings of standard
-practice, but the specific numbers are the engineer's.
-
-**The clinical question.** Confirm the gap bands and reductions, the grade-1
-half-step, and the dose floor value.
+**Partial sign-off is useful.** Returning **B** alone clears pediatrics/EPI; returning **A1–A3**
+alone clears phototherapy. The aesthetic, dental, ophthalmology, physiotherapy, billing and
+records modules are not blocked by anything on this list.
 
 ---
 
-## ⚠️ 4. Dermatology — VASI region table
+# A. Dermatology — phototherapy and scoring
 
-**What the code does now.** The Vitiligo Area Scoring Index uses a region/hand-unit
-table derived from the **rule of nines**.
+## ⛔ A1. When is a patient safe to escalate again after a burn?
 
-**Why this needs you.** It has **not** been checked against Hamzavi et al. (2004),
-the source paper for VASI. It is arithmetically self-consistent and the total is
-derived from the table rather than hard-coded, but the regional weights are
-derived, not cited.
+**Situation.** A patient has a grade-3 (blistering) reaction at dose *D*.
 
-**The clinical question.** Replace with the published table, or confirm the
-derivation is acceptable for your use.
+**What the software does today.** Every one of that patient's active courses is held at
+*D* — the next dose may only go down. A course is released from that hold only once **that
+same course** delivers a session at or below *D*/2.
 
----
+**Why we are asking.** Until 2026-07-18 tolerance shown on *any one* course released the
+hold on *all* of them. A second, higher-dose course could spring back to its pre-burn
+trajectory and deliver roughly **three times the dose that had just blistered the patient**.
+The fix makes each course re-establish tolerance on its own. That is a defensible reading —
+tolerance at one body site is not proof for another — but it is a clinical judgement, not a
+technical one.
 
-## ⚠️ 5. Dermatology — severity band thresholds
+**Your decision** — tick one:
 
-**What the code does now.**
-- **PASI**: clear / mild (<5) / moderate (5–10) / severe (>10) — the "rule of tens".
-- **EASI**: signs graded 0–3 (not 0–4), giving the documented 0–72 ceiling. Region
-  weights change for children **aged 7 and under**, derived from the patient's
-  recorded date of birth, never from client input.
-- **MASI / mMASI**: **no severity bands at all** — deliberately. There is no
-  consensus cut-off in the literature, so the software refuses to invent one and
-  reports change over time instead.
-- **GAGS**: standard region factors, 0–4 lesion grade.
+- [ ] Correct as-is: tolerance is re-established **per course / body site**
+- [ ] Change to: tolerance is re-established **per patient** (any course releases all)
+- [ ] Other: ______________________________________________
 
-**The clinical question.** Confirm the PASI bands and the EASI child-age cutoff of
-≤7 years. The MASI decision (no bands) is a deliberate refusal to fabricate — say
-if you would rather have thresholds.
+Signed: ____________________  Date: __________
 
 ---
 
-## ⛔ 6. EPI — IPV second dose at 9 months
+## ⛔ A2. Is the dose ceiling of MED × 6 right for your protocol?
 
-**What the code does now.** The immunization schedule includes an **IPV-2 dose at
-9 months**. The code carries a prominent comment marking it as awaiting sign-off.
+**What the software does today.** Where a patient's Minimal Erythema Dose (MED) has been
+measured, the dose ceiling is **`MED × 6`** (`MED_CEILING_MULTIPLE = 6`), and it bounds the
+ceiling, not merely the starting dose. With no MED recorded, the ceiling is the Fitzpatrick
+skin-type table value.
 
-**Why this needs you.** This was added to align with a schedule change but has not
-been confirmed against the current Pakistan EPI schedule.
+**Why we are asking.** The multiple of 6 was **chosen by the engineer** as a conservative
+bound. It is not taken from a named protocol. Without it, a patient with a low measured MED
+could be walked up to the skin-type maximum — in one traced case, **25× their own measured
+erythema threshold**.
 
-**The clinical question.** Is IPV-2 at M9 correct for Pakistan EPI as you practise
-it today? If the timing or presence is wrong, the schedule will mark children
-as due/overdue incorrectly.
+**Your decision:**
 
----
+- [ ] Confirm **× 6**
+- [ ] Use **× ____** instead
+- [ ] It should differ by modality (NB-UVB vs PUVA) or indication — details: ____________
 
-## ⛔ 7. EPI — the 28-day minimum interval
-
-**What the code does now.** A dose given **fewer than 28 days** after the previous
-dose of the same vaccine is recorded as **`given_invalid`** — it does not count, and
-the card loudly says it must be repeated. This gates the next dose in the series.
-
-**Why this needs you.** 28 days is the general minimum interval, but it is applied
-uniformly across vaccines here.
-
-**The clinical question.** Is a flat 28-day rule correct for every vaccine in your
-schedule, or do specific vaccines need their own minimum interval?
+Signed: ____________________  Date: __________
 
 ---
 
-## ⚠️ 8. EPI — rotavirus age ceiling
+## ⛔ A3. Confirm the gap bands, the grade-1 half-step, and the dose floor
 
-**What the code does now.** Rotavirus doses are refused beyond **224 days** (32
-weeks) of age; the schedule marks the dose `aged_out`.
+**What the software does today** — all values read from the running code:
 
-**The clinical question.** Confirm 224 days matches the product in use — the ceiling
-differs between rotavirus vaccine brands.
+| Time since last treatment | Action |
+|---|---|
+| under 7 days | normal escalation |
+| 7–14 days | **hold** (no increase) |
+| 15–21 days | **−25%** |
+| 22–28 days | **−50%** |
+| over 28 days | **restart** at the protocol starting dose |
 
----
+| Reaction last session | Action |
+|---|---|
+| grade 0 (none) | escalate |
+| grade 1 | **half** the normal increment |
+| grade 2 | **hold** |
+| grade 3 (blistering) | **skip treatment**, −50%, and arm the burn hold in A1 |
 
-## ⛔ 9. Laboratory — no critical / panic values
+**Dose floor.** If repeated reductions drive the dose below **10% of the skin-type starting
+dose**, the course is flagged **LAPSED**. The software does *not* quietly raise the dose back
+up; it states that a prescriber must restart the course.
 
-**What the code does now.** Lab results are flagged **low / normal / high** against
-each test's reference range. There is **no critical (panic) tier**.
+**Why we are asking.** These are defensible readings of standard practice, but the specific
+numbers — the band edges, the half-step, and the 10% floor — are the engineer's.
 
-**Why this needs you.** A potassium of 7.5 mmol/L — a life-threatening result
-requiring immediate callback — is flagged exactly the same "high" as a mildly
-raised 5.5. The catalog carries no critical thresholds, so the software cannot
-distinguish them.
+**Your decision:**
 
-Adding panic thresholds means choosing clinical numbers, which the engineer
-deliberately did **not** fabricate.
+- [ ] All correct as shown
+- [ ] Corrections: ________________________________________________
 
-**The clinical question.** Supply critical low/high values for the tests that have
-them (potassium, sodium, glucose, calcium, haemoglobin, platelets, INR…), and say
-what the software should do when one fires — flag only, block the report, or
-require an acknowledged callback.
-
----
-
-## ⚠️ 10. Ophthalmology — IOP bands and the "urgent" block
-
-**What the code does now.** Intraocular pressure bands: normal 10–21, raised 22–29,
-markedly raised 30–39, **urgent ≥40** (flagged `blocking`), hypotony <10. Values
-outside 1–80 mmHg are refused as implausible.
-
-**The clinical question.** These are standard, but confirm the ≥40 "urgent"
-threshold and what `blocking` should actually prevent in your workflow.
+Signed: ____________________  Date: __________
 
 ---
 
-## ⚠️ 11. Records — MRN uniqueness is not enforced
+## ⚠️ A4. VASI region table is derived, not cited
 
-**What the code does now.** `Patient.mrn` has **no uniqueness constraint**. Two
-patients can share a medical record number. Auto-generated MRNs (from lead
-conversion) are now collision-safe under concurrency, but client-supplied MRNs are
-unconstrained, and the current database already contains duplicates from testing.
+**What the software does today.** The Vitiligo Area Scoring Index uses a region/hand-unit
+table derived from the **rule of nines**. It is arithmetically self-consistent and the total
+is computed from the table rather than hard-coded.
 
-**Why this needs you.** The MRN is the human key to a chart. Enforcing uniqueness
-is a data-cleanup exercise across existing records, not just a code change.
+**Why we are asking.** It has **not** been checked against **Hamzavi et al. (2004)**, the
+source paper for VASI. The regional weights are derived, not quoted.
 
-**The question.** Should MRN be unique per clinic? If yes, we need a rule for
-resolving the existing duplicates before the constraint can be added.
+- [ ] Acceptable as derived
+- [ ] Replace with the published table (please attach or cite)
 
----
-
-## 💼 12. Payroll — leavers and part-months
-
-**What the code does now.** A payroll run pays every employee whose status is
-ACTIVE at the moment the run is computed. If someone is terminated *after* a draft
-run is computed, the draft still contains their payslip — the software **warns
-loudly** but does **not** block finalizing, because a leaver may genuinely be owed
-their final month. There is **no partial-month proration** anywhere.
-
-**The question.** Is a leaver paid for their final part-month, and if so, prorated
-how? Right now the full month is paid unless someone discards the draft.
+Signed: ____________________  Date: __________
 
 ---
 
-## 💼 13. Billing — who may refund, void, and discount
+## ⚠️ A5. Severity bands
 
-**What the code does now.** Any user with a finance/front-desk role can take a
-payment, refund it, and void the invoice — **with no second approval**. A 100%
-line discount is possible and is not separately logged as a write-off.
+**What the software does today.**
 
-**Why this needs you.** This is segregation of duties, and it is a business policy
-decision, not a technical one. The engineer deliberately did not invent an
-approval rule.
+- **PASI** — clear / mild (<5) / moderate (5–10) / severe (>10), the "rule of tens".
+- **EASI** — signs graded 0–3 (not 0–4), giving the documented 0–72 ceiling. Child region
+  weights apply **aged 7 and under**, taken from the patient's recorded date of birth and
+  never from anything the user types.
+- **MASI / mMASI** — **no severity bands at all**, deliberately. There is no consensus
+  cut-off in the literature, so the software refuses to invent one and reports change over
+  time instead.
+- **GAGS** — standard region factors, lesion grade 0–4.
 
-**The question.** Which roles may refund? Which may void? Above what value does a
-refund or discount need a second person? Should a 100% discount be recorded as a
-write-off rather than a price?
+- [ ] Confirm PASI bands and the EASI child cutoff of ≤ 7 years
+- [ ] I would rather MASI **did** have bands — use: ____________________
+- [ ] Corrections: ________________________________________________
 
----
-
-## 💼 14. Billing — is a void reason mandatory?
-
-**What the code does now.** Voiding an invoice records **who** did it and **when**,
-and records a **reason if one is given**. A reason is not currently required.
-
-**The question.** Should a reason be mandatory to cancel a bill?
+Signed: ____________________  Date: __________
 
 ---
 
-## Appendix — what is NOT on this list, and why
+# B. Pediatrics / EPI
 
-These were reviewed and are **not** open questions:
+## ⛔ B1. Is IPV-2 at 9 months correct as you practise it?
 
-- **Visual acuity → logMAR** conversion (6/6 = 0.00, 6/60 = 1.00, CF/HM/PL/NPL
-  mapped monotonically) — standard, verified.
-- **ROM deficit banding** (>25% red, 10–25% amber) and the **modality
-  contraindication table** (electrotherapy vs pacemaker, heat over malignancy) —
-  standard; the interlock demands a senior override with a recorded reason.
-- **Growth (WHO-LMS)**, **weight-based dosing**, **dental DMFT** — implemented from
-  published standards.
-- **Cold chain**: expired stock and VVM stage-3 vials are refused at
-  administration, not merely reported. Pharmacy likewise refuses to dispense
-  expired stock.
+**What the software does today.** The schedule includes a **second IPV dose at 9 months**,
+with a minimum interval of 112 days after IPV-1 at 14 weeks. The code cites Pakistan's
+**National Immunization Policy 2022** (epi.gov.pk), which specifies two IPV doses under one
+year.
+
+**Why we are asking.** The citation has not been confirmed against the schedule your clinic
+actually follows. If the timing or the dose is wrong, children will be marked due or overdue
+incorrectly — on the card the parent is shown.
+
+- [ ] Correct: IPV-2 at 9 months
+- [ ] Wrong — correct timing is: ____________________
+- [ ] IPV-2 should not be in the schedule at all
+
+Signed: ____________________  Date: __________
 
 ---
 
-*Maintained alongside the code. If a value in this register changes, the
-corresponding safety suite in `app/backend/test/safety/` changes with it.*
+## ⛔ B2. Is a flat 28-day minimum interval right for every vaccine?
+
+**What the software does today.** A dose given **fewer than 28 days** after the previous
+dose of the same vaccine is recorded as **invalid** — it does not count toward the series,
+the card says loudly that it must be repeated, and the next dose is gated on it. The 28 days
+is WHO's general principle for primary-series intervals, applied uniformly.
+
+**Why we are asking.** Uniform application is the simplification. Some vaccines may need
+their own minimum.
+
+- [ ] Confirm 28 days for all vaccines
+- [ ] These vaccines need a different minimum: ____________________________
+
+Signed: ____________________  Date: __________
+
+---
+
+## ⚠️ B3. Rotavirus age ceiling of 224 days
+
+**What the software does today.** Rotavirus doses are refused beyond **224 days (32 weeks)**
+of age; the schedule marks the dose *aged out*.
+
+**Why we are asking.** The ceiling differs between rotavirus vaccine brands.
+
+- [ ] Confirm 224 days for the product we use
+- [ ] Our product's ceiling is: ____________  (brand: ____________)
+
+Signed: ____________________  Date: __________
+
+---
+
+# C. Lab and ophthalmology
+
+## ⛔ C1. Lab results have no critical (panic) tier — we need your numbers
+
+**What the software does today.** Results are flagged **low / normal / high** against each
+test's reference range. There is **no critical tier**.
+
+**Why we are asking — this is the most consequential item on the list.** A potassium of
+**7.5 mmol/L**, which needs an immediate phone call, is flagged exactly the same "high" as a
+mildly raised 5.5. The software cannot tell them apart, because the catalog holds no
+critical thresholds. Inventing them was refused deliberately.
+
+**What we need:** critical low/high values for the tests that have them — potassium, sodium,
+glucose, calcium, haemoglobin, platelets, INR, and any others you want covered.
+
+**And what should happen when one fires?**
+
+- [ ] Flag it visually only
+- [ ] Block the report until acknowledged
+- [ ] Require a recorded callback to the ordering clinician
+- [ ] Other: ____________________
+
+Attach the value list, or ask us for a table to fill in.
+
+Signed: ____________________  Date: __________
+
+---
+
+## ⚠️ C2. Intraocular pressure bands
+
+**What the software does today.** Normal 10–21, raised 22–29, markedly raised 30–39,
+**urgent ≥ 40** (flagged as *blocking*), hypotony < 10. Values outside 1–80 mmHg are refused
+as implausible entries.
+
+- [ ] Confirm, including the ≥ 40 "urgent" threshold
+- [ ] What *blocking* should actually prevent in our workflow: ____________________
+
+Signed: ____________________  Date: __________
+
+---
+
+# D. Business policy (practice owner — not clinical)
+
+## 💼 D1. Are leavers paid for a part-month?
+
+**Today.** A payroll run pays everyone ACTIVE when the run is computed. If someone is
+terminated *after* a draft is computed, the draft still contains their payslip — the
+software warns loudly but does **not** block finalizing, because a leaver may genuinely be
+owed their final month. **There is no part-month proration anywhere.**
+
+- [ ] Full month is correct
+- [ ] Prorate by: ____________________ (calendar days / working days / other)
+
+Signed: ____________________  Date: __________
+
+---
+
+## 💼 D2. Who may refund, void, and discount?
+
+**Today.** Any user with a finance or front-desk role can take a payment, refund it, and
+void the invoice, **with no second approval**. A 100% line discount is possible and is not
+separately recorded as a write-off.
+
+- Roles that may **refund**: ____________________
+- Roles that may **void**: ____________________
+- Second approval required above: PKR ____________
+- [ ] A 100% discount should be recorded as a **write-off**, not a price
+
+Signed: ____________________  Date: __________
+
+---
+
+## 💼 D3. Must a void carry a reason?
+
+**Today.** Voiding records **who** and **when**, and the reason **if one is given**. A reason
+is not required.
+
+- [ ] Reason should be **mandatory**
+- [ ] Optional is fine
+
+Signed: ____________________  Date: __________
+
+---
+
+# Appendix — reviewed and NOT open questions
+
+These were examined and need no sign-off:
+
+- **Visual acuity → logMAR** (6/6 = 0.00, 6/60 = 1.00; CF/HM/PL/NPL mapped monotonically) —
+  standard, verified.
+- **ROM deficit banding** (>25% red, 10–25% amber) and the **modality contraindication
+  table** (electrotherapy vs pacemaker, heat over malignancy) — standard; the interlock
+  demands a senior override with a recorded reason.
+- **Growth (WHO-LMS)**, **weight-based dosing**, **dental DMFT** — implemented from published
+  standards.
+- **Cold chain** — expired stock and VVM stage-3 vials are refused at administration, not
+  merely reported. Pharmacy likewise refuses to dispense expired stock.
+- **MRN uniqueness** — *closed 2026-07-20.* Was item 11 on this register. One MRN can now
+  hold only one chart: the constraint is enforced in the database, a duplicate is refused
+  with a clear message, and concurrent registration of the same MRN yields one chart, not
+  several.
+
+---
+
+*Maintained alongside the code. When a value here changes, the matching automated test in
+`app/backend/test/safety/` changes with it — so a superseded number cannot quietly return.*

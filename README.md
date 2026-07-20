@@ -72,11 +72,12 @@ nowhere else. And it does not fake money: an invoice with `paid > 0` gets a matc
 `Payment` row, because `Collected PKR 35,000 / Payments PKR 0` is the shape of a
 reconciliation bug.
 
-That gap is now closed: `(tenantId, mrn)` is unique in the database, a duplicate is a 409
-rather than a second chart, and six concurrent registrations of one MRN return
-`[201, 409, 409, 409, 409, 409]`. Closing it first required fixing the fixtures — every
-suite derived its uniqueness token from `int(time.time()*1000) % 1000000`, a clock that
-**wraps every 16.7 minutes**, so repeated runs were colliding and only the absent constraint
+One MRN now holds exactly one chart. `(tenantId, mrn)` is unique in the database, a
+duplicate registration is refused with a 409 rather than silently opening a second chart,
+and six concurrent registrations of the same MRN return `[201, 409, 409, 409, 409, 409]`.
+Adding that constraint first required fixing the test fixtures: every suite derived its
+uniqueness token from `int(time.time()*1000) % 1000000`, a clock that **wraps every 16.7
+minutes**, so repeated runs had been colliding all along and only the missing constraint
 kept it invisible.
 
 ## Checks
@@ -163,14 +164,20 @@ The lessons are generalisable, and they are the house rules now:
 
 ### Not cleared for clinical use
 
-Reference data here is **starter data**, not a formulary or a national schedule:
+Reference data here is **starter data**, not a formulary or a national schedule. The open
+items are tracked in **[docs/clinical-sign-off-register.md](docs/clinical-sign-off-register.md)**,
+written as sheets a clinician can answer and sign — routed by who should answer them, so
+returning one block clears one module. In short:
 
 - Dosing regimens (`dose-rule.seed.ts`) need validation against a maintained PMDC/DRAP
   formulary.
-- The EPI schedule is missing IPV-2 and needs sign-off against the official FDI schedule.
+- The EPI schedule **carries IPV-2 at 9 months**, cited to Pakistan's National Immunization
+  Policy 2022, and needs confirmation against the schedule the clinic actually follows.
 - The VASI region table is rule-of-nines–derived, **not** checked against Hamzavi (2004).
-- The phototherapy restart semantics, dose floor and MED ceiling multiple are reasoned, not
-  sourced.
+- The phototherapy gap bands, dose floor (10% of the start dose) and MED ceiling multiple
+  (× 6) are reasoned, not sourced.
+- Lab results have **no critical/panic tier** — a potassium of 7.5 flags the same "high" as
+  5.5. That needs a clinician's numbers before lab reporting is used on patients.
 
 Every one of these is flagged in the code at the point it matters, not just here.
 
