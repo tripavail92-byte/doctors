@@ -36,8 +36,52 @@ weaken it.
 import os
 import shutil
 import subprocess
+import urllib.parse
 
 _NOTED = []
+
+# libpq accepts only its own keywords in a connection URI and ERRORS on anything
+# else — it does not ignore unknown parameters. Prisma's URLs routinely carry
+# params that are Prisma's alone (`schema`, connection-pool tuning), so handing
+# DATABASE_URL to psql unmodified fails with:
+#
+#     psql: error: invalid URI query parameter: "schema"
+#
+# which is exactly what broke the first CI run. Whitelist rather than blacklist:
+# a new Prisma-only parameter appearing in a URL must not become a new outage.
+_LIBPQ_PARAMS = {
+    'application_name', 'channel_binding', 'client_encoding', 'connect_timeout',
+    'fallback_application_name', 'gssencmode', 'gsslib', 'krbsrvname', 'options',
+    'passfile', 'requirepeer', 'service', 'sslcert', 'sslcompression', 'sslcrl',
+    'sslcrldir', 'sslkey', 'sslmode', 'sslpassword', 'sslrootcert', 'sslsni',
+    'target_session_attrs', 'tcp_user_timeout',
+}
+
+
+def _psql_url(url):
+    """(libpq-safe URL, extra env) from a Prisma connection string.
+
+    `?schema=X` is Prisma's spelling of a search_path, so it is translated
+    rather than discarded — dropping it silently would point the SQL at
+    whatever search_path the role happens to default to, which is the same
+    class of quiet wrong-target bug this module exists to prevent.
+    """
+    parts = urllib.parse.urlsplit(url)
+    kept, schema = [], None
+    for k, v in urllib.parse.parse_qsl(parts.query, keep_blank_values=True):
+        if k == 'schema':
+            schema = v
+        elif k in _LIBPQ_PARAMS:
+            kept.append((k, v))
+        # anything else is Prisma-only (connection_limit, pool_timeout,
+        # pgbouncer, ...) and would be a hard error to libpq.
+    safe = urllib.parse.urlunsplit(
+        (parts.scheme, parts.netloc, parts.path, urllib.parse.urlencode(kept), parts.fragment))
+    env = None
+    if schema:
+        env = dict(os.environ)
+        env['PGOPTIONS'] = ('%s -c search_path=%s' % (env.get('PGOPTIONS', ''), schema)).strip()
+    return safe, env
 
 
 def _conn():
@@ -51,7 +95,8 @@ def _conn():
     url = os.environ.get('DIRECT_DATABASE_URL') or os.environ.get('DATABASE_URL')
     exe = shutil.which('psql')
     if url and exe:
-        return 'url', [exe, url]
+        safe, env = _psql_url(url)
+        return 'url', [exe, safe], env
     container = os.environ.get('HEALTHOS_DB_CONTAINER', 'healthos-db')
     if shutil.which('docker'):
         if not _NOTED:
@@ -63,7 +108,7 @@ def _conn():
                   'If the API is NOT on that database, these results are meaningless.'
                   % container)
         return 'docker', ['docker', 'exec', '-i', container,
-                          'psql', '-U', 'healthos', '-d', 'healthos']
+                          'psql', '-U', 'healthos', '-d', 'healthos'], None
     raise SystemExit(
         'cannot reach the database: set DIRECT_DATABASE_URL and install a psql '
         'client, or run the dev Postgres container.')
@@ -75,12 +120,12 @@ def psql(sql, quiet_columns=True):
     ON_ERROR_STOP so a bad statement is a non-zero exit rather than a warning
     printed into a stdout nobody reads.
     """
-    kind, prefix = _conn()
+    kind, prefix, env = _conn()
     argv = prefix + ['-v', 'ON_ERROR_STOP=1', '-q']
     if quiet_columns:
         argv += ['-t']
     argv += ['-c', sql]
-    r = subprocess.run(argv, capture_output=True, text=True)
+    r = subprocess.run(argv, capture_output=True, text=True, env=env)
     if r.returncode != 0:
         raise SystemExit(
             'SQL setup failed (%s) — refusing to continue, because a silent no-op '
