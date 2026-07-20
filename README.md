@@ -49,8 +49,8 @@ Two database roles, deliberately: migrations and the seed run as the **owner**
 ## Checks
 
 ```bash
-npm run check:security   # RLS coverage (static) + tenant isolation (live) + boot guards
-npm run check:clinical   # 16 safety suites, ~418 checks — needs the API running
+npm run check:security   # wiring + RLS coverage (static) + tenant isolation (live) + boot guards
+npm run check:clinical   # 18 suites, 449 checks — needs the API running
 ```
 
 Both run on every push and pull request via [`.github/workflows/ci.yml`](.github/workflows/ci.yml),
@@ -65,6 +65,13 @@ other than the machine they were written on:
   regardless, so `check:clinical` would chain straight past a failing suite and finish green.
   Every suite now exits non-zero on any failed check — and on *zero* checks, since a suite
   that asserted nothing has not passed.
+- **Every check is wired in.** `check-growth-dose.ts` and `check-engine.ts` were correct and
+  passing but referenced by nothing — run by hand once when the features were built, so
+  remembered as coverage, and not executed since. The first covers `computeDose`'s daily
+  cap, where a regression is a paediatric overdose. `scripts/check-wiring.ts` now fails the
+  build if a `check-*.ts` has no npm script, or a `check:*` script is never chained. A check
+  that never runs and a check that cannot fail are the same defect seen from two ends, and
+  walking the `check:*` chain only ever finds one of them.
 - **The two dermatology suites reach past the API** to age a delivered session, because there
   is no endpoint for "pretend three weeks passed" and the gap rules are the engine's most
   safety-critical branch. That SQL goes through `test/safety/_db.py`, which resolves the
