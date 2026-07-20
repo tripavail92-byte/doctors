@@ -499,7 +499,27 @@ export class BillingService {
       const { lines, total } = this.buildLines(
         plan.items.map((i) => ({ code: i.code, name: i.name, unitPricePkr: i.unitPricePkr, quantity: i.quantity })),
       );
-      const invoice = await this.materialize(tx, tenantId!, plan.patientId, lines, total, plan.id);
+      // The status check above is the fast path; the invoice_one_per_plan
+      // partial unique index is the guarantee. If a plan was reset to PROPOSED
+      // by some other route and a second invoice attempted, the DB refuses it
+      // here — surface that as a clean 409 rather than a 500.
+      let invoice;
+      try {
+        invoice = await this.materialize(tx, tenantId!, plan.patientId, lines, total, plan.id);
+      } catch (e) {
+        // Only the invoice_one_per_plan index means "already invoiced". Narrow
+        // to it by name — materialize can also raise P2002 on (tenantId, number),
+        // and treating that as a plan conflict would mislabel a numbering
+        // collision as a double-bill.
+        if (
+          e instanceof Prisma.PrismaClientKnownRequestError &&
+          e.code === 'P2002' &&
+          String((e.meta as { target?: unknown } | undefined)?.target ?? '').includes('invoice_one_per_plan')
+        ) {
+          throw new ConflictException(`Treatment plan ${planId} has already been invoiced.`);
+        }
+        throw e;
+      }
       await tx.treatmentPlan.update({ where: { id: plan.id }, data: { status: 'ACCEPTED' } });
       return invoice;
     });
@@ -513,14 +533,23 @@ export class BillingService {
     total: number,
     planId: string | null,
   ) {
-    // Serialize invoice numbering per tenant so count()-based numbers don't collide.
+    // Serialize invoice numbering per tenant so concurrent invoices don't collide.
     await tx.$executeRawUnsafe(
       'SELECT pg_advisory_xact_lock(hashtext($1)::bigint)',
       `invoice-number:${tenantId}`,
     );
     const year = new Date().getFullYear();
-    const count = await tx.invoice.count({ where: { number: { startsWith: `INV-${year}-` } } });
-    const number = `INV-${year}-${String(count + 1).padStart(4, '0')}`;
+    // Derive from the HIGHEST number issued this year, not the row count.
+    // count()+1 assumes the series is dense — but a deleted or voided invoice
+    // leaves a hole, and the next count() then regenerates an EXISTING number,
+    // hitting the (tenantId, number) unique index. Same defect as the old MRN
+    // generator (see crm.service nextMrn). MAX+1 is hole-proof.
+    const rows = await tx.$queryRaw<{ max: number | null }[]>`
+      SELECT MAX(SUBSTRING(number FROM ${'^INV-' + year + '-([0-9]+)$'})::int) AS max
+        FROM "Invoice"
+       WHERE number ~ ${'^INV-' + year + '-[0-9]+$'}`;
+    const next = (rows[0]?.max ?? 0) + 1;
+    const number = `INV-${year}-${String(next).padStart(4, '0')}`;
 
     const invoice = await tx.invoice.create({
       data: {

@@ -83,6 +83,7 @@ export class EmrService {
     const { tenantId, userId } = getTenant();
     return this.prisma.forTenant(tenantId, async (tx) => {
       await ensurePatient(tx, dto.patientId);
+      await ensureEncounterMatchesPatient(tx, dto.encounterId, dto.patientId);
       return tx.intakeSubmission.create({
         data: {
           tenantId: tenantId!,
@@ -108,6 +109,7 @@ export class EmrService {
     const { tenantId, userId } = getTenant();
     return this.prisma.forTenant(tenantId, async (tx) => {
       await ensurePatient(tx, dto.patientId);
+      await ensureEncounterMatchesPatient(tx, dto.encounterId, dto.patientId);
       return tx.noteInstance.create({
         data: {
           tenantId: tenantId!,
@@ -165,6 +167,7 @@ export class EmrService {
 
     return this.prisma.forTenant(tenantId, async (tx) => {
       await ensurePatient(tx, dto.patientId);
+      await ensureEncounterMatchesPatient(tx, dto.encounterId, dto.patientId);
       const plan = await tx.treatmentPlan.create({
         data: {
           tenantId: tenantId!,
@@ -194,12 +197,58 @@ export class EmrService {
 
   async updatePlanStatus(id: string, status: TreatmentPlanStatus) {
     const { tenantId } = getTenant();
-    const plan = await this.prisma.forTenant(tenantId, (tx) =>
-      tx.treatmentPlan.findUnique({ where: { id } }),
-    );
-    if (!plan) throw new NotFoundException(`Treatment plan ${id} not found`);
-    return this.prisma.forTenant(tenantId, (tx) =>
-      tx.treatmentPlan.update({ where: { id }, data: { status } }),
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      // Lock the plan and read+write in ONE transaction. The old code read the
+      // plan in one forTenant tx and updated it in another, and enforced no
+      // transition at all — so any status could move to any other. The break
+      // that mattered: billing invoices a plan only while it is PROPOSED and
+      // flips it to ACCEPTED under a row lock, so a plan bills once. Resetting
+      // ACCEPTED -> PROPOSED here re-armed that guard, and one plan was invoiced
+      // three times (reproduced: 240,000 PKR from an 80,000 plan). A terminal
+      // status must not walk backwards.
+      await tx.$executeRaw`SELECT id FROM "TreatmentPlan" WHERE id = ${id}::uuid FOR UPDATE`;
+      const plan = await tx.treatmentPlan.findUnique({ where: { id } });
+      if (!plan) throw new NotFoundException(`Treatment plan ${id} not found`);
+
+      if (!PLAN_TRANSITIONS[plan.status].includes(status)) {
+        throw new BadRequestException(
+          `A treatment plan cannot move from ${plan.status} to ${status}.`,
+        );
+      }
+      return tx.treatmentPlan.update({ where: { id }, data: { status } });
+    });
+  }
+}
+
+// Allowed treatment-plan status moves. PROPOSED may still be revised or
+// abandoned before it is acted on; ACCEPTED (billing has invoiced it) may only
+// go on to COMPLETED or be CANCELLED; COMPLETED and CANCELLED are terminal.
+// Crucially, nothing returns to PROPOSED — that is the state billing treats as
+// "not yet invoiced", so re-entering it is what let one plan bill repeatedly.
+const PLAN_TRANSITIONS: Record<TreatmentPlanStatus, TreatmentPlanStatus[]> = {
+  PROPOSED: [TreatmentPlanStatus.ACCEPTED, TreatmentPlanStatus.CANCELLED],
+  ACCEPTED: [TreatmentPlanStatus.COMPLETED, TreatmentPlanStatus.CANCELLED],
+  COMPLETED: [],
+  CANCELLED: [],
+};
+
+// An encounter is one patient's visit. A note, intake or plan may name an
+// encounterId, and nothing checked it belonged to the same patient — so a note
+// for patient B carrying patient A's encounterId was accepted, and getEncounter
+// then served it under A. That files B's "penicillin ANAPHYLAXIS" in A's chart
+// and hides it from B's. The FK only proves the encounter exists in-tenant, not
+// that it is THIS patient's. Reproduced live before this guard existed.
+async function ensureEncounterMatchesPatient(
+  tx: Prisma.TransactionClient,
+  encounterId: string | null | undefined,
+  patientId: string,
+): Promise<void> {
+  if (!encounterId) return; // no envelope claimed — nothing to cross-check
+  const enc = await tx.encounter.findUnique({ where: { id: encounterId } });
+  if (!enc) throw new NotFoundException(`Encounter ${encounterId} not found`);
+  if (enc.patientId !== patientId) {
+    throw new BadRequestException(
+      `Encounter ${encounterId} belongs to a different patient — an artifact cannot be filed under another patient's visit.`,
     );
   }
 }
