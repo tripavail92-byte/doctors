@@ -228,8 +228,16 @@ test's reference range. There is **no critical tier**.
 mildly raised 5.5. The software cannot tell them apart, because the catalog holds no
 critical thresholds. Inventing them was refused deliberately.
 
-**What we need:** critical low/high values for the tests that have them — potassium, sodium,
-glucose, calcium, haemoglobin, platelets, INR, and any others you want covered.
+**What we need:** critical low/high values, on the worksheet prepared for this —
+**[lab-critical-values-worksheet.md](lab-critical-values-worksheet.md)**. It lists the 12
+numeric tests the system can order today with their units and current reference ranges
+pre-filled, so only the critical columns need answering.
+
+**One correction, found while preparing that worksheet.** The potassium example above is
+badly chosen: **potassium is not in the test catalogue.** Neither are sodium, calcium or
+INR — the clinic cannot order them at all today, so critical values for them would have
+nothing to attach to. The catalogue is starter data, not a considered menu. The worksheet
+therefore asks which tests you actually run *before* asking for their thresholds.
 
 **And what should happen when one fires?**
 
