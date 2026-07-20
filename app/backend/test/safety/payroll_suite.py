@@ -41,8 +41,28 @@ U = int(time.time() * 1000) % 1000000
 # Run-unique periods. A period is unique per tenant and runs accumulate; sharing
 # '2026-07' across runs of this suite would collide with the previous run's rows
 # and the assertions would be measuring history, not this code.
-P1 = '20%02d-01' % (U % 90)
-P2 = '20%02d-02' % (U % 90)
+# Allocate periods that are VERIFIED unused, rather than hashing the clock and
+# hoping. The previous form ('20%02d-01' % (U % 90)) had only 90 distinct values,
+# so after ~90 runs a period collided with one this suite had already FINALIZED —
+# and a finalized run cannot be discarded, so the collision was unrecoverable and
+# the suite failed against correct code. A period is unique per tenant; the test
+# must therefore claim one nobody holds.
+s, _existing = api('GET', '/hr/payroll/runs', tok)
+_used = {r['period'] for r in (_existing or []) if isinstance(r, dict) and r.get('period')}
+
+
+def fresh_period():
+    for _yr in range(2000, 2900):
+        for _mo in range(1, 13):
+            p = '%04d-%02d' % (_yr, _mo)
+            if p not in _used:
+                _used.add(p)
+                return p
+    raise RuntimeError('no free payroll period left — clean up test runs')
+
+
+P1 = fresh_period()
+P2 = fresh_period()
 
 print('\n== Staff ==')
 s, e1 = api('POST', '/hr/employees', tok, {'name': 'Ayesha Khan %d' % U, 'designation': 'Nurse',
@@ -118,13 +138,13 @@ ck('an employee can actually be terminated through the API', s in (200, 201)
 s, bogus = api('PATCH', '/hr/employees/%s/status' % leaver['id'], tok, {'status': 'RESIGNED'})
 ck('an invalid status is refused', s == 400, s)
 
-P3 = '20%02d-03' % (U % 90)
+P3 = fresh_period()
 s, r3 = api('POST', '/hr/payroll/runs', tok, {'period': P3, 'deductions': []})
 paid = [p['employee']['name'] for p in (r3.get('payslips') or [])]
 ck('a terminated employee is NOT in the next run', ('Rida Aslam %d' % U) not in paid,
    'run pays %d people' % len(paid))
 s, ded = api('POST', '/hr/payroll/runs', tok, {
-    'period': '20%02d-04' % (U % 90),
+    'period': fresh_period(),
     'deductions': [{'employeeId': leaver['id'], 'amountPkr': 100}]})
 ck('and a deduction against them is refused as inactive', s == 400, (ded.get('message') or '')[:70])
 
@@ -132,7 +152,7 @@ ck('and a deduction against them is refused as inactive', s == 400, (ded.get('me
 # carries their payslip. It must SAY so rather than silently pay them -- and must
 # not refuse, because a leaver may genuinely be owed their final month.
 s, back = api('PATCH', '/hr/employees/%s/status' % leaver['id'], tok, {'status': 'ACTIVE'})
-P5 = '20%02d-05' % (U % 90)
+P5 = fresh_period()
 s, r5 = api('POST', '/hr/payroll/runs', tok, {'period': P5, 'deductions': []})
 in5 = ('Rida Aslam %d' % U) in [p['employee']['name'] for p in (r5.get('payslips') or [])]
 ck('a rehired employee is paid again', in5, in5)
