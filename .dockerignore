@@ -1,0 +1,44 @@
+# Docker does NOT read .gitignore. Without this file, `COPY . .` bakes
+# app/backend/.env — which holds a live JWT_SECRET and both database DSNs — into
+# a distributable image layer, where it survives every later RUN rm and is
+# readable by anyone who can pull the image.
+#
+# Worse than the leak: @nestjs/config fills GAPS in process.env and runs before
+# the JWT_SECRET boot guard, so a baked .env turns a FAILED secret injection into
+# a silently-wrong-secret. The app would start happily, signing tokens with a
+# developer's key, and the guard that exists to prevent exactly that would never
+# fire — because from its point of view the secret is present and strong.
+#
+# Verify after any change to this file:
+#   docker run --rm --entrypoint sh IMAGE -c 'ls -la app/backend/.env'   # must fail
+.env
+.env.*
+!.env.example
+
+# Never ship dependencies or build output from the host — they are platform
+# specific (this repo is developed on Windows, the image is Alpine) and the
+# Dockerfile installs its own.
+node_modules
+**/node_modules
+dist
+**/dist
+build
+**/build
+
+# Patient photos live here in the default configuration. They are runtime data on
+# a mounted volume, never image content.
+uploads
+**/uploads
+
+.git
+.github
+.gitignore
+**/.vite
+**/coverage
+*.log
+
+# Client commercial material — the repo is public and these are excluded from git
+# for the same reason they must not enter an image.
+docs/*.pdf
+docs/*.docx
+docs/annexure/

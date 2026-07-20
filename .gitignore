@@ -7,7 +7,10 @@
 # value (see main.ts assertJwtSecret).
 .env
 .env.*
+# ...but the templates must ship: they are the only documentation of
+# which variables exist and which are required. They contain no values.
 !.env.example
+!.env.prod.example
 *.pem
 *.key
 id_rsa*
@@ -73,3 +76,6 @@ docs/admin-dashboard-mockup.html
 # Python bytecode from the safety suites
 __pycache__/
 *.pyc
+
+# Deployment env (real values, never committed)
+.env.prod

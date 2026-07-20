@@ -1,0 +1,111 @@
+# Health OS — deployable stack (demo/staging).
+#
+#   cp .env.prod.example .env.prod && edit it
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm migrate
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+#
+# NOT CLEARED FOR PATIENT USE. 14 clinical sign-off items are open — see
+# docs/clinical-sign-off-register.md. This stack is for demonstration and
+# staging. Nothing here makes the clinical engines safe; it makes the platform
+# runnable.
+#
+# The shape is deliberate in three places:
+#
+#  1. TWO DATABASE ROLES. `migrate` runs as the owner and can alter the schema;
+#     `api` runs as healthos_app, which is NOSUPERUSER NOBYPASSRLS. If the API
+#     ran as the owner, every row-level security policy would be silently inert
+#     and tenants would read each other's patient records with no error and no
+#     log line. See docs/security-rls-bypass-finding.md.
+#
+#  2. MIGRATE IS A SEPARATE ONE-SHOT JOB, not an entrypoint step. Schema changes
+#     must be a decision someone makes, not something that happens because a
+#     container restarted. It also ends by running check-rls-live, so a database
+#     whose policies did not apply is reported before any traffic reaches it.
+#
+#  3. UTC EVERYWHERE. Prisma reads/writes `timestamp WITHOUT TIME ZONE` as UTC
+#     while raw SQL now() uses the session zone; the app refuses to boot if they
+#     could disagree. Display local time at the edge, store UTC.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+      # Belt and braces with the app's own UTC preflight.
+      TZ: UTC
+      PGTZ: UTC
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # No published port. The database is reachable only on the compose network;
+    # exposing 5432 to the host is how a patient database ends up on the
+    # internet behind a password someone chose in a hurry.
+
+  # One-shot: schema -> RLS policies -> runtime role -> constraints -> seed ->
+  # verify isolation is actually enforced. Run it explicitly, never on restart.
+  migrate:
+    build:
+      context: .
+      dockerfile: app/backend/Dockerfile
+      target: migrate
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      TZ: UTC
+      # Owner credentials. Present ONLY in this job.
+      DIRECT_DATABASE_URL: ${DIRECT_DATABASE_URL:?set DIRECT_DATABASE_URL}
+      DATABASE_URL: ${DIRECT_DATABASE_URL}
+    restart: 'no'
+    profiles: ['tools']
+
+  api:
+    build:
+      context: .
+      dockerfile: app/backend/Dockerfile
+      target: runtime
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      TZ: UTC
+      NODE_ENV: production
+      PORT: 3000
+      # Runtime role — NOSUPERUSER NOBYPASSRLS. The app refuses to boot if this
+      # points at a role that can bypass RLS.
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL (the healthos_app role, NOT the owner)}
+      # Deliberately NOT given DIRECT_DATABASE_URL: the serving process has no
+      # business holding credentials that can alter a schema.
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (openssl rand -base64 48)}
+      STORAGE_DIR: /data/uploads
+    volumes:
+      # Clinical photographs. On the container's writable layer these die on
+      # every redeploy while the PhotoAsset rows in Postgres survive, leaving
+      # charts pointing at bytes that no longer exist. Mount this on the FIRST
+      # deploy — retrofitting after photos exist means they are already gone —
+      # and include it in backups alongside the database dump.
+      - uploads:/data/uploads
+    ports:
+      - '${API_BIND:-127.0.0.1:3000}:3000'
+    healthcheck:
+      # /health/ready runs a real query. Plain liveness would route traffic to an
+      # instance that cannot reach Postgres.
+      test:
+        ['CMD', 'node', '-e',
+         "require('http').get('http://127.0.0.1:3000/health/ready',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  db-data:
+  uploads:
