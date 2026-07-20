@@ -130,21 +130,39 @@ if (ownerUrl) {
 // This ships to Pakistan, where setting the database to Asia/Karachi is the
 // obvious thing for an operator to do. So it is exercised here, against a real
 // database, rather than trusted to a code comment.
+// Driven through the database connection, NOT `docker exec`. The first version
+// shelled into a hardcoded `healthos-db` container and printed
+//   SKIP  non-UTC guard (could not reach the db container ...)
+// whenever that container was absent — which is exactly the situation in CI,
+// where Postgres is a service container with no such name. So the guard passed
+// locally, skipped in CI, and CI went green having verified nothing. That is the
+// same defect this repo has now hit several times, written by me hours after
+// putting "a check that skips is a check that is not protecting anything" in the
+// workflow comments.
+//
+// There is also no SKIP branch any more. If the timezone cannot be flipped, the
+// guard cannot be exercised, and an unexercisable guard is a FAILURE to report —
+// not a line of output to scroll past.
 if (ownerUrl) {
-  const setTz = (zone: string) =>
-    spawnSync(
-      'docker',
-      ['exec', '-i', process.env.HEALTHOS_DB_CONTAINER || 'healthos-db',
-       'psql', '-U', 'healthos', '-d', 'healthos', '-c',
-       zone === 'reset'
-         ? 'ALTER DATABASE healthos RESET timezone;'
-         : `ALTER DATABASE healthos SET timezone TO '${zone}';`],
-      { encoding: 'utf8' },
-    );
-
-  const flipped = setTz('Asia/Karachi');
-  if (flipped.status === 0) {
+  const { PrismaClient } = require('@prisma/client');
+  const owner = new PrismaClient({ datasources: { db: { url: ownerUrl } } });
+  const dbName = (() => {
     try {
+      return new URL(ownerUrl).pathname.replace(/^\//, '') || 'healthos';
+    } catch {
+      return 'healthos';
+    }
+  })();
+
+  const setTz = async (sql: string) => owner.$executeRawUnsafe(sql);
+
+  (async () => {
+    let flipped = false;
+    try {
+      // ALTER DATABASE affects NEW sessions, which is precisely what the spawned
+      // app process opens.
+      await setTz(`ALTER DATABASE "${dbName}" SET timezone TO 'Asia/Karachi'`);
+      flipped = true;
       const r = boot({});
       check(
         'refuses to boot against a non-UTC database session',
@@ -155,29 +173,48 @@ if (ownerUrl) {
             ? 'NO ANSWER — timed out twice; this is a slow machine, not a verdict'
             : `exit ${r.code}`,
       );
+    } catch (e) {
+      check('refuses to boot against a non-UTC database session', false,
+            `could not exercise the guard: ${(e as Error).message.slice(0, 120)}`);
     } finally {
-      // Always put it back, even if the check threw — leaving the dev database
-      // on Asia/Karachi would break every subsequent boot.
-      setTz('reset');
+      // Always restore, even on failure — leaving the database on Asia/Karachi
+      // would break every subsequent boot on this machine.
+      if (flipped) await setTz(`ALTER DATABASE "${dbName}" RESET timezone`).catch(() => undefined);
+      await owner.$disconnect().catch(() => undefined);
+      finish();
     }
-  } else {
-    console.log('  SKIP  non-UTC guard (could not reach the db container to flip the timezone)');
-  }
+  })();
+} else {
+  check('refuses to boot against a non-UTC database session', false,
+        'DIRECT_DATABASE_URL not set — the guard could not be exercised');
+  finish();
 }
 
 // --- The happy path must still boot ---------------------------------------
 // Without this, a guard that rejects EVERYTHING would pass the checks above.
+//
+// Runs from finish() rather than at the top level, because the non-UTC guard
+// above is async: at the top level these would execute — and the process would
+// exit — while the database was still flipped to Asia/Karachi, so the happy path
+// would boot against a non-UTC session and fail for the wrong reason.
+function finish(): void {
+  const good = boot({});
+  check('still boots with a correct configuration', good.started, good.started ? '' : `exit ${good.code}`);
+  check(
+    'and logs that RLS is actually enforceable',
+    /RLS enforceable/i.test(good.out),
+    /RLS enforceable/i.test(good.out) ? '' : 'preflight log line missing',
+  );
+  check(
+    'and logs that timestamps are consistent',
+    /Timestamps consistent/i.test(good.out),
+    /Timestamps consistent/i.test(good.out) ? '' : 'UTC preflight log line missing',
+  );
 
-const good = boot({});
-check('still boots with a correct configuration', good.started, good.started ? '' : `exit ${good.code}`);
-check(
-  'and logs that RLS is actually enforceable',
-  /RLS enforceable/i.test(good.out),
-  /RLS enforceable/i.test(good.out) ? '' : 'preflight log line missing',
-);
-
-if (failures) {
-  console.error(`\nFAIL — ${failures} boot guard(s) not working.`);
-  process.exit(1);
+  if (failures) {
+    console.error(`\nFAIL — ${failures} boot guard(s) not working.`);
+    process.exit(1);
+  }
+  console.log('\nPASS — the app refuses to start on a weak secret, a bypassing DB role, or a non-UTC database.');
+  process.exit(0);
 }
-console.log('\nPASS — the app refuses to start on a weak secret or a bypassing DB role.');
