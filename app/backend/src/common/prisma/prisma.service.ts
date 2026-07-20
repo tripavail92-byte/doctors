@@ -35,6 +35,7 @@ export class PrismaService
   async onModuleInit(): Promise<void> {
     await this.$connect();
     await this.assertRlsIsEnforceable();
+    await this.assertUtcSession();
   }
 
   /**
@@ -70,6 +71,55 @@ export class PrismaService
       );
     }
     this.logger.log(`RLS enforceable: connected as non-bypassing role "${me.current_user}".`);
+  }
+
+  /**
+   * Fail fast if the database session is not on UTC.
+   *
+   * Prisma maps `DateTime` to `timestamp(3) WITHOUT TIME ZONE` — 124 columns
+   * here — and always reads and writes those as UTC. Raw SQL does not: `now()`
+   * yields the session's LOCAL time, and dropping that into the same column
+   * stores a different instant. Verified against this database: the identical
+   * statement wrote 14:27 under `SET TIME ZONE 'UTC'` and 19:27 under
+   * `Asia/Karachi` — a five-hour disagreement between two writers of one column.
+   *
+   * That is not hypothetical for this product. It ships to Pakistan, where
+   * setting the database to Asia/Karachi is the obvious thing for an operator to
+   * do, and it would look correct.
+   *
+   * Today only one raw write exists (`burnHoldAt = now()`) and nothing computes
+   * with it, so the damage would be a misleading audit timestamp. The reason to
+   * refuse to boot anyway is the NEXT one: the phototherapy engine bands its
+   * dose reductions by whole days between treatments (hold, -25%, -50%,
+   * restart), so a five-hour shift across a day boundary selects a different
+   * dose. A wrong dose that arrives from a timezone setting would present as a
+   * correct calculation, because every number in the ledger would look right.
+   *
+   * Cheap to satisfy: set the container/server timezone to UTC, or
+   * `ALTER DATABASE <db> SET timezone TO 'UTC'`. Display in local time at the
+   * edge, store UTC.
+   */
+  private async assertUtcSession(): Promise<void> {
+    // `SHOW timezone` names its column "TimeZone", so destructuring `.tz` from
+    // it reads undefined and this guard refused every boot. It failed CLOSED,
+    // which is the right direction for a preflight — but read the value
+    // properly: current_setting lets the column be aliased.
+    const rows = await this.$queryRaw<{ tz: string }[]>`SELECT current_setting('TimeZone') AS tz`;
+    const tz = rows[0]?.tz;
+    if (!tz) {
+      throw new Error('UTC preflight: could not read the database session timezone.');
+    }
+    if (tz.toUpperCase() !== 'UTC') {
+      throw new Error(
+        `UTC preflight FAILED: the database session timezone is "${tz}", not UTC. ` +
+          `Prisma reads and writes timestamp columns as UTC while raw SQL now() uses ` +
+          `the session zone, so the two would disagree by that offset — silently, in ` +
+          `columns the dose engine does day arithmetic on. Fix with ` +
+          `ALTER DATABASE ... SET timezone TO 'UTC' (or set TZ=UTC for the server) ` +
+          `and convert for display at the edge.`,
+      );
+    }
+    this.logger.log('Timestamps consistent: database session is UTC.');
   }
 
   async onModuleDestroy(): Promise<void> {

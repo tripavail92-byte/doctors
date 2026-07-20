@@ -537,7 +537,12 @@ export class DermatologyService {
         await tx.$executeRaw`
           UPDATE "PhototherapyCourse"
              SET "burnHoldDoseMj" = LEAST(COALESCE("burnHoldDoseMj", ${last.doseMj}), ${last.doseMj}),
-                 "burnHoldAt" = now()
+                 -- UTC explicitly. Prisma reads this timestamp column as UTC;
+                 -- bare now() would write the session's local time, and the two
+                 -- disagree by the server's offset. The boot preflight refuses a
+                 -- non-UTC session, but this write should be correct on its own
+                 -- rather than relying on a guard elsewhere staying in place.
+                 "burnHoldAt" = (now() AT TIME ZONE 'UTC')
            WHERE "patientId" = ${course.patientId}::uuid
              AND status IN ('ACTIVE', 'PAUSED')`;
       }

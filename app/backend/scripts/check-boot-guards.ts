@@ -118,6 +118,53 @@ if (ownerUrl) {
   console.log('  SKIP  RLS-bypass guard (DIRECT_DATABASE_URL not set)');
 }
 
+// --- Non-UTC database session ----------------------------------------------
+//
+// Prisma reads/writes `timestamp(3) WITHOUT TIME ZONE` as UTC; raw SQL now()
+// uses the session zone. Demonstrated on this database: the same statement wrote
+// 14:27 under UTC and 19:27 under Asia/Karachi. The phototherapy engine bands
+// dose reductions by whole days between treatments, so a five-hour shift across
+// a day boundary picks a different dose — and every number in the ledger would
+// still look right.
+//
+// This ships to Pakistan, where setting the database to Asia/Karachi is the
+// obvious thing for an operator to do. So it is exercised here, against a real
+// database, rather than trusted to a code comment.
+if (ownerUrl) {
+  const setTz = (zone: string) =>
+    spawnSync(
+      'docker',
+      ['exec', '-i', process.env.HEALTHOS_DB_CONTAINER || 'healthos-db',
+       'psql', '-U', 'healthos', '-d', 'healthos', '-c',
+       zone === 'reset'
+         ? 'ALTER DATABASE healthos RESET timezone;'
+         : `ALTER DATABASE healthos SET timezone TO '${zone}';`],
+      { encoding: 'utf8' },
+    );
+
+  const flipped = setTz('Asia/Karachi');
+  if (flipped.status === 0) {
+    try {
+      const r = boot({});
+      check(
+        'refuses to boot against a non-UTC database session',
+        !r.started && /UTC preflight FAILED/i.test(r.out),
+        r.started
+          ? 'IT STARTED — raw now() and Prisma would disagree by the server offset'
+          : r.timedOut
+            ? 'NO ANSWER — timed out twice; this is a slow machine, not a verdict'
+            : `exit ${r.code}`,
+      );
+    } finally {
+      // Always put it back, even if the check threw — leaving the dev database
+      // on Asia/Karachi would break every subsequent boot.
+      setTz('reset');
+    }
+  } else {
+    console.log('  SKIP  non-UTC guard (could not reach the db container to flip the timezone)');
+  }
+}
+
 // --- The happy path must still boot ---------------------------------------
 // Without this, a guard that rejects EVERYTHING would pass the checks above.
 
