@@ -46,9 +46,9 @@ def ck(label, cond, detail=''):
     res.append(bool(cond))
     print(('  PASS  ' if cond else '  FAIL  ')+label+(('  -> '+str(detail)[:150]) if detail!='' else ''))
 
-def psql(sql):
-    return subprocess.run(['docker','exec','-i','healthos-db','psql','-U','healthos','-d','healthos','-q','-t','-c',sql],
-                          capture_output=True, text=True).stdout.strip()
+# Reaches the database the API is actually on, and raises if the statement did
+# not run — see _db.py for the two silent failure modes this replaced.
+from _db import psql
 
 s,r = call('POST','/auth/login',{'email':'owner@glowderma.pk','password':'Password123!'})
 tok=r['accessToken']; print('LOGIN', s)
@@ -62,13 +62,16 @@ s,pl = call('GET','/patients?take=1',tok=tok); pid=pl[0]['id']
 # patient meant a hold armed in one scenario could silently satisfy or defeat
 # another. A green suite that depends on scenario order proves nothing.
 _seq = [0]
-def fresh_patient(label='Probe'):
+def fresh_patient_row(label='Probe', dob='1990-01-01'):
     _seq[0] += 1
     s, p = call('POST','/patients',{'mrn':'PROBE-%05d'%_seq[0], 'name':'%s %d'%(label,_seq[0]),
-        'phone':'+92 300 %07d'%_seq[0], 'dob':'1990-01-01'}, tok)
+        'phone':'+92 300 %07d'%_seq[0], 'dob':dob}, tok)
     if s not in (200,201):
         raise SystemExit('could not create a probe patient: %s %s' % (s, p))
-    return p['id']
+    return p
+
+def fresh_patient(label='Probe', dob='1990-01-01'):
+    return fresh_patient_row(label, dob)['id']
 
 def new_course(ftype=3, patient=None, **kw):
     body={'patientId': patient or fresh_patient(),'fitzpatrickType':ftype,'indication':'psoriasis'}
@@ -207,23 +210,26 @@ ck('MASI series is not contaminated by mMASI values',
    'masi=%s mmasi=%s'%(m1.get('score'), m2.get('score')))
 
 print('\n== D9. EASI child weights come from DOB, not from the client ==')
-s,pl2 = call('GET','/patients',tok=tok)
-kid = next((p for p in pl2 if p.get('dob') and p['dob'][:4] >= '2020'), None)
-adult = next((p for p in pl2 if p.get('dob') and p['dob'][:4] <= '2000'), None)
+# Create both patients rather than scavenging the tenant for one that happens
+# to have a suitable DOB. Scavenging made this section's very EXISTENCE depend
+# on what else had been seeded: against a fresh database no child was found, so
+# the three real assertions below were replaced by one failing placeholder --
+# and against a well-populated one they ran. A section that appears and
+# disappears with the fixture is not coverage, and the count moving (82 vs 80)
+# was the only visible symptom.
+kid = fresh_patient_row('EasiChild', dob='2021-03-05')
+adult = fresh_patient_row('EasiAdult', dob='1988-06-11')
 easi_ans = {r:{'area':3,'erythema':2,'induration':2,'excoriation':1,'lichenification':1}
             for r in ['head','upper_limbs','trunk','lower_limbs']}
-if kid and adult:
-    # The client cannot even ASK for a weighting: `child` is gone from the DTO,
-    # so the global forbidNonWhitelisted pipe rejects it outright.
-    s,spoof = call('POST','/dermatology/grades',{'patientId':adult['id'],'instrument':'easi','answers':easi_ans,'child':True},tok)
-    ck('a client-supplied child flag is REJECTED, not merely ignored', s==400, str(spoof.get('message'))[:70])
-    s,ke = call('POST','/dermatology/grades',{'patientId':kid['id'],'instrument':'easi','answers':easi_ans},tok)
-    s,ae = call('POST','/dermatology/grades',{'patientId':adult['id'],'instrument':'easi','answers':easi_ans},tok)
-    kh = (ke.get('subscores') or {}).get('head'); ah = (ae.get('subscores') or {}).get('head')
-    ck('child gets child head weight, derived from DOB', kh==3.6, 'child head=%s (dob %s)'%(kh, kid['dob'][:10]))
-    ck('adult gets adult head weight, derived from DOB', ah==1.8, 'adult head=%s (dob %s)'%(ah, adult['dob'][:10]))
-else:
-    ck('found a child and an adult patient to test EASI weighting', False, 'kid=%s adult=%s'%(bool(kid), bool(adult)))
+# The client cannot even ASK for a weighting: `child` is gone from the DTO,
+# so the global forbidNonWhitelisted pipe rejects it outright.
+s,spoof = call('POST','/dermatology/grades',{'patientId':adult['id'],'instrument':'easi','answers':easi_ans,'child':True},tok)
+ck('a client-supplied child flag is REJECTED, not merely ignored', s==400, str(spoof.get('message'))[:70])
+s,ke = call('POST','/dermatology/grades',{'patientId':kid['id'],'instrument':'easi','answers':easi_ans},tok)
+s,ae = call('POST','/dermatology/grades',{'patientId':adult['id'],'instrument':'easi','answers':easi_ans},tok)
+kh = (ke.get('subscores') or {}).get('head'); ah = (ae.get('subscores') or {}).get('head')
+ck('child gets child head weight, derived from DOB', kh==3.6, 'child head=%s (dob %s)'%(kh, kid['dob'][:10]))
+ck('adult gets adult head weight, derived from DOB', ah==1.8, 'adult head=%s (dob %s)'%(ah, adult['dob'][:10]))
 
 print('\n== D10. RECEPTION cannot override the burn interlock ==')
 recep = psql("SELECT count(*) FROM \"User\" WHERE role='RECEPTION';")
@@ -466,3 +472,18 @@ s,cD = call('POST','/dermatology/phototherapy/courses',{'patientId':p_c,'fitzpat
 s,ovr = call('POST','/dermatology/phototherapy/courses/%s/sessions'%cD['id'],{'overrideDoseMj':3000,'overrideReason':'new course, fresh start'},tok)
 ck('full-ceiling override on a NEW course refused while the patient has a burn', s==400, (ovr.get('message') or '')[:100])
 print('\n===== %d/%d safety checks passed ====='%(sum(res), len(res)))
+
+# A suite that prints FAIL must FAIL THE BUILD. Without this, python exits 0
+# whatever `res` contains: every check could fail and `npm run check:clinical`
+# would still chain on to the next suite and finish green. The exit code — not
+# the printed lines — is the only thing CI reads.
+#
+# `all([])` is True, so an empty run must be caught separately: a suite that
+# reached the end having asserted nothing has not passed, it has not run.
+if not res:
+    print('  NO CHECKS RAN - the suite reached the end without asserting anything')
+    raise SystemExit(1)
+_failed = len(res) - sum(res)
+if _failed:
+    print('  %d CHECK(S) FAILED' % _failed)
+raise SystemExit(1 if _failed else 0)

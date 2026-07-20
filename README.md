@@ -50,8 +50,28 @@ Two database roles, deliberately: migrations and the seed run as the **owner**
 
 ```bash
 npm run check:security   # RLS coverage (static) + tenant isolation (live) + boot guards
-npm run check:clinical   # dermatology safety + functional, dental dentition
+npm run check:clinical   # 16 safety suites, ~418 checks — needs the API running
 ```
+
+Both run on every push and pull request via [`.github/workflows/ci.yml`](.github/workflows/ci.yml),
+against a Postgres built from scratch: schema, the four SQL files, seed, then the suites
+over HTTP as a logged-in user — with the app connecting as `healthos_app`, so RLS is
+actually enforced rather than merely present.
+
+Two things about the suites are load-bearing, and both were found by running them somewhere
+other than the machine they were written on:
+
+- **A failed check fails the build.** The suites print `PASS`/`FAIL` and used to exit `0`
+  regardless, so `check:clinical` would chain straight past a failing suite and finish green.
+  Every suite now exits non-zero on any failed check — and on *zero* checks, since a suite
+  that asserted nothing has not passed.
+- **The two dermatology suites reach past the API** to age a delivered session, because there
+  is no endpoint for "pretend three weeks passed" and the gap rules are the engine's most
+  safety-critical branch. That SQL goes through `test/safety/_db.py`, which resolves the
+  connection from `DIRECT_DATABASE_URL` and **raises** if the statement did not run. It
+  previously shelled into a hardcoded `healthos-db` container and swallowed the error — so
+  anywhere that container was absent, the ageing silently no-opped and the gap table passed
+  by describing the on-schedule branch instead.
 
 `check:security` fails the build on a `tenantId` model with no RLS policy, a policy in a
 non-canonical or dangerous form, or a Prisma call outside `forTenant()`. It caught real

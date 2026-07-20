@@ -108,3 +108,18 @@ s, no = api('POST', '/crm/leads/00000000-0000-0000-0000-000000000000/convert', t
 ck('converting an unknown lead is a clean 404', s == 404, s)
 
 print('\n===== %d/%d passed =====' % (sum(res), len(res)))
+
+# A suite that prints FAIL must FAIL THE BUILD. Without this, python exits 0
+# whatever `res` contains: every check could fail and `npm run check:clinical`
+# would still chain on to the next suite and finish green. The exit code — not
+# the printed lines — is the only thing CI reads.
+#
+# `all([])` is True, so an empty run must be caught separately: a suite that
+# reached the end having asserted nothing has not passed, it has not run.
+if not res:
+    print('  NO CHECKS RAN - the suite reached the end without asserting anything')
+    raise SystemExit(1)
+_failed = len(res) - sum(res)
+if _failed:
+    print('  %d CHECK(S) FAILED' % _failed)
+raise SystemExit(1 if _failed else 0)

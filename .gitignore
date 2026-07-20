@@ -69,3 +69,7 @@ docs/admin-dashboard-mockup.html
 # security-rls-bypass-finding.md, dermatology-safety-review.md,
 # specialty-packs-build-specs.md, specialty-packs-plan.md, and the
 # architecture/colour references.
+
+# Python bytecode from the safety suites
+__pycache__/
+*.pyc

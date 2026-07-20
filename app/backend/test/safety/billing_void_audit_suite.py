@@ -143,3 +143,18 @@ ck('every loser is a clean 4xx — NOT a 500', all(c < 500 for c in codes), 'cod
 ck('and the losers name the collision', any(c in (400, 409) for c in codes), 'codes=%s' % codes)
 
 print('\n===== %d/%d passed =====' % (sum(res), len(res)))
+
+# A suite that prints FAIL must FAIL THE BUILD. Without this, python exits 0
+# whatever `res` contains: every check could fail and `npm run check:clinical`
+# would still chain on to the next suite and finish green. The exit code — not
+# the printed lines — is the only thing CI reads.
+#
+# `all([])` is True, so an empty run must be caught separately: a suite that
+# reached the end having asserted nothing has not passed, it has not run.
+if not res:
+    print('  NO CHECKS RAN - the suite reached the end without asserting anything')
+    raise SystemExit(1)
+_failed = len(res) - sum(res)
+if _failed:
+    print('  %d CHECK(S) FAILED' % _failed)
+raise SystemExit(1 if _failed else 0)

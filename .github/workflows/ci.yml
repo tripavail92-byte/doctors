@@ -1,0 +1,190 @@
+# Health OS CI.
+#
+# WHAT THIS IS FOR: the clinical suites are the only thing standing between a
+# change to a dose engine and a wrong number delivered to a patient. Until now
+# every one of them was run by hand. A safety net nobody is obliged to use is
+# not a safety net, so this runs all of them on every push and pull request.
+#
+# The database setup below is NOT boilerplate — it mirrors the README exactly,
+# and the two-role split is the point:
+#
+#   healthos      owner. Runs db push, the SQL files, and the seed.
+#   healthos_app  runtime. NOSUPERUSER NOBYPASSRLS, so RLS policies execute.
+#
+# If CI ran the app as the owner, every tenant_isolation policy would be
+# silently inert and check:isolation would pass while proving nothing — which is
+# precisely the incident documented in docs/security-rls-bypass-finding.md. CI
+# must reproduce the production principal, not a convenient one.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Backend: security checks + all clinical safety suites, against a real
+  # Postgres with real RLS, exercised over HTTP as a logged-in user.
+  # -------------------------------------------------------------------------
+  backend:
+    name: Backend — security + clinical safety
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    defaults:
+      run:
+        working-directory: app/backend
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: healthos
+          POSTGRES_PASSWORD: healthos
+          POSTGRES_DB: healthos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U healthos -d healthos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      # Runtime role — the one the app and the suites actually go through.
+      DATABASE_URL: postgresql://healthos_app:healthos_app_pw@localhost:5432/healthos?schema=public
+      # Owner role — schema, SQL, seed only.
+      DIRECT_DATABASE_URL: postgresql://healthos:healthos@localhost:5432/healthos?schema=public
+      PORT: '3000'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/backend/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends postgresql-client
+
+      - name: Install dependencies
+        run: npm ci
+
+      # check-boot-guards.ts reads .env directly (not just process.env) and
+      # SKIPs the bypass guard when DIRECT_DATABASE_URL is absent from it. A
+      # check that skips is a check that is not protecting anything, so the
+      # file must exist — env vars alone are not enough here.
+      - name: Write .env
+        run: |
+          {
+            echo "DATABASE_URL=\"$DATABASE_URL\""
+            echo "DIRECT_DATABASE_URL=\"$DIRECT_DATABASE_URL\""
+            echo "JWT_SECRET=\"$(openssl rand -base64 48)\""
+            echo "PORT=$PORT"
+          } > .env
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Push schema
+        run: npx prisma db push --skip-generate
+
+      # Order matters: policies, then the role, then the User policy + login
+      # function, then the partial unique indexes Prisma cannot express.
+      # ON_ERROR_STOP is essential — psql exits 0 after a failed statement
+      # without it, which would leave RLS half-applied and CI green.
+      - name: Apply RLS policies, runtime role, and constraints
+        env:
+          PGPASSWORD: healthos
+        run: |
+          for f in prisma/rls.sql prisma/rls-roles.sql prisma/rls-user.sql prisma/constraints.sql; do
+            echo "--- $f"
+            psql -v ON_ERROR_STOP=1 -h localhost -U healthos -d healthos -f "$f"
+          done
+
+      - name: Seed
+        run: npm run db:seed
+
+      - name: Build
+        run: npm run build
+
+      # Static RLS coverage + live tenant isolation as the runtime role + boot
+      # guards. Boot guards spawn the built binary, hence build first.
+      - name: Security checks
+        run: npm run check:security
+
+      - name: Start API
+        run: |
+          npm start > /tmp/api.log 2>&1 &
+          echo $! > /tmp/api.pid
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null -X POST http://localhost:3000/auth/login \
+                 -H 'Content-Type: application/json' \
+                 -d '{"email":"owner@glowderma.pk","password":"Password123!"}'; then
+              echo "API up after ${i}s"; exit 0
+            fi
+            if ! kill -0 "$(cat /tmp/api.pid)" 2>/dev/null; then
+              echo "API process died during startup:"; cat /tmp/api.log; exit 1
+            fi
+            sleep 1
+          done
+          echo "API did not come up within 60s:"; cat /tmp/api.log; exit 1
+
+      # 16 suites, ~418 checks. Each exits non-zero on any failed check, and
+      # `check:clinical` chains them with && — so one FAIL anywhere fails CI.
+      - name: Clinical safety suites
+        run: npm run check:clinical
+
+      # The API log is where a 500 during a suite explains itself. Uploading it
+      # only on failure keeps green runs quiet.
+      - name: Upload API log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-log
+          path: /tmp/api.log
+          if-no-files-found: ignore
+
+  # -------------------------------------------------------------------------
+  # Frontend: `vite build` runs `tsc` first, so this is a real typecheck, not
+  # just a bundle.
+  # -------------------------------------------------------------------------
+  web:
+    name: Web — typecheck + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: app/web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build

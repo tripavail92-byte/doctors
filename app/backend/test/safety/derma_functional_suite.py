@@ -207,7 +207,8 @@ ck('cannot record a session on a COMPLETED course', s==400, (after.get('message'
 
 
 print('\n== 14. Missed-session gap rules (spec AC-6) ==')
-import subprocess, time as _t
+import time as _t
+from _db import psql
 # A FRESH patient. Section 9 records a grade-3 burn, and the burn interlock is
 # PATIENT-scoped (skin does not heal per course), so reusing that patient would
 # correctly suppress every dose here — this section would be testing the burn
@@ -225,8 +226,10 @@ call('POST','/dermatology/phototherapy/courses/%s/sessions'%gid,{},tok)  # sessi
 def age_last_session(days):
     # Age the delivered session so the engine sees a real gap.
     sql = 'UPDATE "PhototherapySession" SET "deliveredAt" = now() - interval \'%d days\' WHERE "courseId"=\'%s\';' % (days, gid)
-    subprocess.run(['docker','exec','-i','healthos-db','psql','-U','healthos','-d','healthos','-q','-c',sql],
-                   capture_output=True)
+    # If this ageing does not happen, every gap expectation below is asserted
+    # against an un-aged course — the table would pass by describing the
+    # on-schedule branch. psql() raises rather than letting that happen.
+    psql(sql, quiet_columns=False)
 
 for days, exp_action, exp_dose, why in [
     (3,  'ESCALATE', 575, 'on schedule -> +15%'),
@@ -255,3 +258,18 @@ age_last_session(21)
 s,gs = call('POST','/dermatology/phototherapy/courses/%s/sessions'%gid,{'lastErythemaGrade':0},tok)
 ck('gapDays persisted on the ledger row', (gs.get('session') or {}).get('gapDays')==21, (gs.get('session') or {}).get('gapDays'))
 print('\n===== %d/%d checks passed ====='%(sum(res), len(res)))
+
+# A suite that prints FAIL must FAIL THE BUILD. Without this, python exits 0
+# whatever `res` contains: every check could fail and `npm run check:clinical`
+# would still chain on to the next suite and finish green. The exit code — not
+# the printed lines — is the only thing CI reads.
+#
+# `all([])` is True, so an empty run must be caught separately: a suite that
+# reached the end having asserted nothing has not passed, it has not run.
+if not res:
+    print('  NO CHECKS RAN - the suite reached the end without asserting anything')
+    raise SystemExit(1)
+_failed = len(res) - sum(res)
+if _failed:
+    print('  %d CHECK(S) FAILED' % _failed)
+raise SystemExit(1 if _failed else 0)
