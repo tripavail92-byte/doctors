@@ -50,14 +50,33 @@ function check(label: string, ok: boolean, detail = '') {
 function boot(env: Record<string, string | undefined>, timeoutMs = 20_000) {
   const clean = { ...process.env, PORT: TEST_PORT, ...env };
   for (const [k, v] of Object.entries(env)) if (v === undefined) delete (clean as Record<string, unknown>)[k];
-  const r = spawnSync(process.execPath, [MAIN], {
-    env: clean as NodeJS.ProcessEnv,
-    cwd: ROOT,
-    timeout: timeoutMs,
-    encoding: 'utf8',
-  });
+
+  // A spawnSync timeout KILLS the child, so status is null and stdout is empty.
+  // The guard assertions read the refusal message out of stdout, so a machine
+  // slow enough to blow the budget reports "the guard is broken" — observed
+  // locally as three simultaneous `exit null` failures under load, passing
+  // cleanly on re-run. Fails closed, which is the right direction, but a guard
+  // that cries wolf gets ignored, and on a shared CI runner load is normal.
+  //
+  // So: a timeout is treated as "no answer", not as "wrong answer", and retried
+  // once with a larger budget. If it times out twice that is reported as its own
+  // distinct outcome rather than being silently blamed on the app.
+  const attempt = (ms: number) => {
+    const r = spawnSync(process.execPath, [MAIN], {
+      env: clean as NodeJS.ProcessEnv,
+      cwd: ROOT,
+      timeout: ms,
+      encoding: 'utf8',
+    });
+    return { r, timedOut: r.error !== undefined && /ETIMEDOUT/i.test(String(r.error)) || (r.status === null && r.signal !== null) };
+  };
+
+  let { r, timedOut } = attempt(timeoutMs);
+  if (timedOut) {
+    ({ r, timedOut } = attempt(timeoutMs * 3));
+  }
   const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
-  return { out, started: /listening on/i.test(out), code: r.status };
+  return { out, started: /listening on/i.test(out), code: r.status, timedOut };
 }
 
 console.log('Boot guards');
@@ -73,7 +92,11 @@ for (const [label, secret, expect] of [
   check(
     `refuses to boot with ${label}`,
     !r.started && r.out.includes(expect),
-    r.started ? 'IT STARTED — the guard is not firing' : `exit ${r.code}`,
+    r.started
+      ? 'IT STARTED — the guard is not firing'
+      : r.timedOut
+        ? 'NO ANSWER — timed out twice; this is a slow machine, not a verdict'
+        : `exit ${r.code}`,
   );
 }
 
@@ -85,7 +108,11 @@ if (ownerUrl) {
   check(
     'refuses to boot as the RLS-bypassing owner role',
     !r.started && /RLS preflight FAILED/i.test(r.out),
-    r.started ? 'IT STARTED — tenant isolation would be inert' : `exit ${r.code}`,
+    r.started
+      ? 'IT STARTED — tenant isolation would be inert'
+      : r.timedOut
+        ? 'NO ANSWER — timed out twice; this is a slow machine, not a verdict'
+        : `exit ${r.code}`,
   );
 } else {
   console.log('  SKIP  RLS-bypass guard (DIRECT_DATABASE_URL not set)');

@@ -71,3 +71,23 @@ ck('both doses read given', g1.status === 'given' && g2.status === 'given', `${g
 ck('nothing flagged for repeat', scheduleSummary(good).mustRepeat.length === 0);
 
 console.log(`\n===== ${pass}/${pass + fail} passed =====`);
+
+// A failed check must FAIL THE BUILD.
+//
+// This file counted `fail` and then read it exactly once — inside the banner
+// above. With no process.exit, Node exits 0 whatever the count, so
+// `check:clinical`'s && chain stepped straight past a red run. Verified by
+// forcing an assertion false: "15/16 passed", exit 0.
+//
+// The python suites were given this footer in an earlier sweep; this is the one
+// link in the chain that is TypeScript, so the sweep missed it. On a dev box a
+// human reads the printed FAIL lines and the missing exit code is invisible —
+// in CI nothing reads stdout and the exit code is the entire merge gate.
+//
+// Zero checks also fails: a run that asserted nothing has not passed.
+if (pass + fail === 0) {
+  console.log('  NO CHECKS RAN - the script reached the end without asserting anything');
+  process.exit(1);
+}
+if (fail) console.log(`  ${fail} CHECK(S) FAILED`);
+process.exit(fail ? 1 : 0);
