@@ -1,0 +1,85 @@
+# Deploying Health OS
+
+> **Demo and staging only.** Fourteen clinical sign-off items are open — see
+> [clinical-sign-off-register.md](clinical-sign-off-register.md). Nothing in this document
+> makes the clinical engines safe for patients; it makes the platform runnable.
+
+## The sequence
+
+```bash
+cp .env.prod.example .env.prod        # then fill it in — see "Decisions" below
+docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm migrate
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+```
+
+`migrate` is a **separate one-shot job**, not a startup step. Schema changes should be
+something a person decides, not something that happens because a container restarted. It
+runs: `prisma db push` → the four SQL files → seed → `check-rls-live`.
+
+That last step is the gate. Do not route traffic to a database it fails on.
+
+## Why two database roles
+
+`migrate` connects as the **owner**; `api` connects as **`healthos_app`**, which is
+`NOSUPERUSER NOBYPASSRLS`.
+
+This is the whole isolation boundary, not a hygiene preference. Postgres skips *every*
+row-level security policy for a role holding `SUPERUSER` or `BYPASSRLS`. Services here
+deliberately omit `tenantId` from their WHERE clauses and rely on the policies, so an API
+connected as the owner returns **every tenant's** patient records — with no error, no log
+line, and a green health check. It only becomes visible once a second clinic exists. See
+[security-rls-bypass-finding.md](security-rls-bypass-finding.md).
+
+The app refuses to boot as a bypassing role, so this fails closed. The runtime image also
+cannot alter a schema even if asked: `prisma` and `ts-node` are devDependencies.
+
+## Verifying a deployment
+
+Run all three. Each answers a question the others do not.
+
+```bash
+npm run check:rls-live    # do the policies EXIST in this database, on all 79 tables?
+npm run check:isolation   # do they ISOLATE, as the runtime role, with a second tenant?
+npm run check:boot        # do the refusals still refuse?
+curl -fsS https://host/health/ready   # can this instance actually serve?
+```
+
+`check:rls` (static) reads `schema.prisma` and `rls.sql` as text. It passes on a database
+where those files were **never applied**, because the files are unchanged. It is a
+source-drift check, not a deployment check.
+
+## What must be true
+
+| Requirement | Why, and what happens if it is not |
+|---|---|
+| `DATABASE_URL` → `healthos_app` | An owner connection makes RLS silently inert. App refuses to boot. |
+| `DIRECT_DATABASE_URL` only in `migrate` | The serving process should not hold schema-altering credentials. |
+| Database session on **UTC** | Prisma reads/writes `timestamp WITHOUT TIME ZONE` as UTC; raw SQL `now()` uses the session zone. Measured five hours apart under `Asia/Karachi` — and the dose engine bands reductions by whole days. App refuses to boot. |
+| `JWT_SECRET` ≥ 32 chars, not a placeholder | A forged token defeats isolation entirely: RLS then faithfully enforces the tenant the *attacker* chose. App refuses to boot. |
+| `STORAGE_DIR` on a mounted volume | Clinical photographs otherwise land on the container's writable layer and die on redeploy, while the `PhotoAsset` rows survive — charts pointing at bytes that no longer exist. **Cannot be retrofitted after photos exist.** |
+| `/api` proxied to the API, prefix stripped | The SPA calls a relative `/api`. The proxy must do what `vite.config.ts` does in dev. |
+| Backups cover the database **and** `STORAGE_DIR` | A `pg_dump` does not capture the photographs. |
+
+## Re-applying the SQL
+
+`prisma/rls.sql` is re-runnable — each `CREATE POLICY` is preceded by
+`DROP POLICY IF EXISTS`, so it is safe under `-v ON_ERROR_STOP=1`.
+
+Re-apply it after **every** schema application, not only after changes you believe were
+additive. RLS state is a property of the table object: a model rename or `@@map` change
+makes `db push` drop and recreate the table, taking `ENABLE`/`FORCE`/the policy with it —
+while `ALTER DEFAULT PRIVILEGES` silently restores the runtime role's read access. Then
+verify with `check:rls-live`, which is the only check that would notice.
+
+## Decisions this document cannot make
+
+1. **Host, domain, TLS.** The API binds loopback by default; put a terminator in front.
+2. **Secret storage.** `.env.prod` on the host is the floor, not the goal.
+3. **The `healthos_app` password** is a literal in `prisma/rls-roles.sql`. Fine for
+   localhost; change it on anything reachable, in both the SQL and `DATABASE_URL`.
+4. **Backup destination and restore drill.** An untested backup is a belief, not a backup.
+5. **Migrations.** There are none — CI and this runbook use `prisma db push`. That is
+   viable while the database is disposable and *not* viable once it holds real charts:
+   `db push` resolves a column rename as drop-and-recreate, and the data goes with it.
+   Adopting `prisma migrate` before real data lands is the recommendation, and it is a
+   decision because it changes how every future schema change is made.

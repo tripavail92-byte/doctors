@@ -114,6 +114,22 @@ other than the machine they were written on:
 non-canonical or dangerous form, or a Prisma call outside `forTenant()`. It caught real
 drift the first time it ran.
 
+## Deploying
+
+There is a deployable stack — `docker-compose.prod.yml`, a multi-stage `Dockerfile`, and
+[docs/deployment.md](docs/deployment.md). Demo/staging only, for the reasons in Safety below.
+
+```bash
+cp .env.prod.example .env.prod   # fill it in
+docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm migrate
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+```
+
+The migrate job is separate from the serving image on purpose: the API connects as
+`healthos_app` and the runtime image cannot alter a schema even if asked, because `prisma`
+and `ts-node` are devDependencies. That job ends by running `check:rls-live` — do not route
+traffic to a database it fails on.
+
 ## Safety
 
 Two findings shaped this codebase more than any feature. Both are written up in full, and
