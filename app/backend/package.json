@@ -11,6 +11,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "db:seed": "ts-node prisma/seed.ts",
+    "demo:seed": "ts-node prisma/demo-seed.ts",
+    "demo:reset": "ts-node scripts/demo-reset.ts",
     "check:rls": "ts-node scripts/check-rls-coverage.ts",
     "check:isolation": "ts-node scripts/check-tenant-isolation.ts",
     "check:boot": "ts-node scripts/check-boot-guards.ts",

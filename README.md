@@ -46,6 +46,36 @@ Two database roles, deliberately: migrations and the seed run as the **owner**
 (`DIRECT_DATABASE_URL`); the app runs as `healthos_app` (`DATABASE_URL`), which is
 `NOSUPERUSER NOBYPASSRLS`. This is not cosmetic — see below.
 
+## Showing it to someone
+
+```bash
+npm run demo:reset -- --yes    # rebuild the database, land on clean demo data
+npm run build && npm start
+```
+
+The safety suites create their own patients — deliberately, so no check depends on what
+ran before it — and they leave them behind. That is ~66 rows per full `check:clinical` run,
+so a working database drifts into a test harness: this one had reached **2,026 patients,
+about 2,022 of them probes** (`Lab Probe 95854`, `VoidAudit spoof 41883`, `PROBE-*`) with
+the four real demo patients buried among them, and `GD-BABY1` present five times over.
+
+`demo:reset` is therefore a step before any demo, not a one-time cleanup. It rebuilds from
+schema and reruns the documented sequence, so it also proves that sequence still works.
+It refuses to run without `--yes`, against a non-local database, or under
+`NODE_ENV=production`. `npm run demo:seed` alone refreshes the demo rows in place and warns
+if test artifacts are still present.
+
+Two things the demo data does **not** do. It does not invent clinical values: the
+phototherapy start dose and ceiling are read from the engine's own protocol table via
+`startDoseFor`/`ceilingFor`, so a demo screen can never show a threshold that exists
+nowhere else. And it does not fake money: an invoice with `paid > 0` gets a matching
+`Payment` row, because `Collected PKR 35,000 / Payments PKR 0` is the shape of a
+reconciliation bug.
+
+> **Known gap:** `Patient` has no unique constraint on `(tenantId, mrn)`, which is how one
+> MRN came to have five charts. Adding it is the right fix, but the dermatology suites reuse
+> `PROBE-00001` across runs, so the constraint needs their fixtures made run-unique first.
+
 ## Checks
 
 ```bash
