@@ -100,8 +100,8 @@ export default function PartogramPage() {
           </Typography>
         </Box>
         <FormControl size="small" sx={{ minWidth: 240 }}>
-          <InputLabel>Patient</InputLabel>
-          <Select label="Patient" value={activeId} onChange={(e: SelectChangeEvent) => setPatientId(e.target.value)}>
+          <InputLabel id="partogram-patient-label">Patient</InputLabel>
+          <Select labelId="partogram-patient-label" id="partogram-patient" label="Patient" value={activeId} onChange={(e: SelectChangeEvent) => setPatientId(e.target.value)}>
             {(patients ?? []).map((p) => (
               <MenuItem key={p.id} value={p.id}>
                 {p.name} · {p.mrn}
@@ -284,8 +284,8 @@ function AddEntry({ partogramId, onSaved }: { partogramId: string; onSaved: () =
             <Fld label="BP dia" v={f.bpDiastolic} on={set('bpDiastolic')} />
             <Grid item xs={6} sm={3}>
               <FormControl size="small" fullWidth>
-                <InputLabel>Amniotic fluid</InputLabel>
-                <Select label="Amniotic fluid" value={f.amnioticFluid ?? ''} onChange={set('amnioticFluid') as (e: SelectChangeEvent) => void}>
+                <InputLabel id="partogram-amniotic-fluid-label">Amniotic fluid</InputLabel>
+                <Select labelId="partogram-amniotic-fluid-label" id="partogram-amniotic-fluid" label="Amniotic fluid" value={f.amnioticFluid ?? ''} onChange={set('amnioticFluid') as (e: SelectChangeEvent) => void}>
                   {['', 'INTACT', 'CLEAR', 'MECONIUM', 'BLOOD_STAINED', 'ABSENT'].map((o) => (
                     <MenuItem key={o} value={o}>{o || '—'}</MenuItem>
                   ))}

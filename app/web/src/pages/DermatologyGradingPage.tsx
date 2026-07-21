@@ -204,8 +204,8 @@ export default function DermatologyGradingPage() {
         </Box>
         <Stack direction="row" spacing={2}>
           <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel>Instrument</InputLabel>
-            <Select label="Instrument" value={instrument} onChange={(e: SelectChangeEvent) => changeInstrument(e.target.value)}>
+            <InputLabel id="derm-instrument-label">Instrument</InputLabel>
+            <Select labelId="derm-instrument-label" id="derm-instrument" label="Instrument" value={instrument} onChange={(e: SelectChangeEvent) => changeInstrument(e.target.value)}>
               {Object.entries(SUPPORTED).map(([k, v]) => (
                 <MenuItem key={k} value={k}>
                   {v.label}
@@ -214,8 +214,10 @@ export default function DermatologyGradingPage() {
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 220 }}>
-            <InputLabel>Patient</InputLabel>
+            <InputLabel id="derm-patient-label">Patient</InputLabel>
             <Select
+              labelId="derm-patient-label"
+              id="derm-patient"
               label="Patient"
               value={active}
               onChange={(e: SelectChangeEvent) => {
@@ -282,6 +284,15 @@ export default function DermatologyGradingPage() {
               {(cfg?.regions ?? []).map((r) => (
                 <TableRow key={r.key}>
                   <TableCell sx={{ fontWeight: 500 }}>{r.label}</TableCell>
+                  {/* These grade dropdowns carry no visible label of their own —
+                      the row header names the body region and the column header
+                      names the sign, and neither is attached to the control. So
+                      each one announced itself as an unnamed "combobox" with a
+                      list of bare numbers, in a grid of up to 24 of them. The
+                      aria-label restates the row and column the cell sits at,
+                      using the FULL sign name: the column header is truncated to
+                      five characters for width, so "Eryth" is all a reader would
+                      otherwise get for erythema. */}
                   {kind === 'gags' ? (
                     <TableCell align="center">
                       <Select
@@ -290,6 +301,7 @@ export default function DermatologyGradingPage() {
                         value={gags[r.key] ?? ''}
                         onChange={(e) => setGags((g) => ({ ...g, [r.key]: Number(e.target.value) }))}
                         sx={{ minWidth: 48 }}
+                        inputProps={{ 'aria-label': `${r.label} — grade` }}
                       >
                         {opts(GAGS_GRADE_MAX).map((n) => (
                           <MenuItem key={n} value={n}>
@@ -307,6 +319,7 @@ export default function DermatologyGradingPage() {
                           value={answers[r.key]?.area ?? ''}
                           onChange={(e) => setRegionSign(r.key, 'area', Number(e.target.value))}
                           sx={{ minWidth: 48 }}
+                          inputProps={{ 'aria-label': `${r.label} — area` }}
                         >
                           {opts(AREA_MAX).map((n) => (
                             <MenuItem key={n} value={n}>
@@ -323,6 +336,7 @@ export default function DermatologyGradingPage() {
                             value={answers[r.key]?.[s] ?? ''}
                             onChange={(e) => setRegionSign(r.key, s, Number(e.target.value))}
                             sx={{ minWidth: 44 }}
+                            inputProps={{ 'aria-label': `${r.label} — ${cap(s)}` }}
                           >
                             {opts(cfg?.signMax ?? 4).map((n) => (
                               <MenuItem key={n} value={n}>

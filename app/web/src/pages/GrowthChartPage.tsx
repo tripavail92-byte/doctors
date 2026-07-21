@@ -72,8 +72,8 @@ export default function GrowthChartPage() {
           </Typography>
         </Box>
         <FormControl size="small" sx={{ minWidth: 240 }}>
-          <InputLabel>Patient</InputLabel>
-          <Select label="Patient" value={activeId} onChange={(e: SelectChangeEvent) => setPatientId(e.target.value)}>
+          <InputLabel id="growth-patient-label">Patient</InputLabel>
+          <Select labelId="growth-patient-label" id="growth-patient" label="Patient" value={activeId} onChange={(e: SelectChangeEvent) => setPatientId(e.target.value)}>
             {(patients ?? []).map((p) => (
               <MenuItem key={p.id} value={p.id}>
                 {p.name} · {p.mrn}

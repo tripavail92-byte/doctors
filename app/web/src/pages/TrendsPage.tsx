@@ -98,14 +98,14 @@ export default function TrendsPage() {
         </Box>
         <Stack direction="row" spacing={2}>
           <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel>Chart</InputLabel>
-            <Select label="Chart" value={activeChart} onChange={(e: SelectChangeEvent) => setChartKey(e.target.value)}>
+            <InputLabel id="trends-chart-label">Chart</InputLabel>
+            <Select labelId="trends-chart-label" id="trends-chart" label="Chart" value={activeChart} onChange={(e: SelectChangeEvent) => setChartKey(e.target.value)}>
               {(defs ?? []).map((d) => (<MenuItem key={d.key} value={d.key}>{d.title}</MenuItem>))}
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel>Patient</InputLabel>
-            <Select label="Patient" value={active} onChange={(e: SelectChangeEvent) => setPatientId(e.target.value)}>
+            <InputLabel id="trends-patient-label">Patient</InputLabel>
+            <Select labelId="trends-patient-label" id="trends-patient" label="Patient" value={active} onChange={(e: SelectChangeEvent) => setPatientId(e.target.value)}>
               {(patients ?? []).map((p) => (<MenuItem key={p.id} value={p.id}>{p.name} · {p.mrn}</MenuItem>))}
             </Select>
           </FormControl>

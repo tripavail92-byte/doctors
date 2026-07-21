@@ -98,6 +98,24 @@ export class PharmacyService {
     });
     const totalPkr = lines.reduce((s, l) => s + l.lineTotalPkr, 0);
 
+    // A controlled drug must leave the counter attached to a named patient.
+    // `controlled` was declared on every formulary row and read by nothing, so
+    // tramadol dispensed exactly like paracetamol: anonymously, with no record
+    // of who received it. That is a traceability failure, not a clinical
+    // judgement — the register has to be able to answer "who did this go to".
+    // Enforced here rather than in the SPA because a rule only the UI applies
+    // is not a rule; any other client, or a replayed request, walks past it.
+    if (!dto.patientId) {
+      const controlled = lines.filter((l) => getDrug(l.formularyCode)?.controlled);
+      if (controlled.length) {
+        throw new BadRequestException(
+          `${controlled.map((l) => l.name).join(', ')} ${controlled.length === 1 ? 'is a controlled drug' : 'are controlled drugs'} ` +
+            'and cannot be dispensed without a patient. Select the patient receiving it, then dispense again — ' +
+            'nothing has been taken off the shelf.',
+        );
+      }
+    }
+
     return this.prisma.forTenant(tenantId, async (tx) => {
       if (dto.patientId) await ensurePatient(tx, dto.patientId);
 

@@ -174,8 +174,8 @@ export default function RehabPage() {
           </Typography>
         </Box>
         <FormControl size="small" sx={{ minWidth: 240 }}>
-          <InputLabel>Patient</InputLabel>
-          <Select label="Patient" value={active} onChange={(e: SelectChangeEvent) => { setPatientId(e.target.value); setOpenId(null); }}>
+          <InputLabel id="rehab-patient-label">Patient</InputLabel>
+          <Select labelId="rehab-patient-label" id="rehab-patient" label="Patient" value={active} onChange={(e: SelectChangeEvent) => { setPatientId(e.target.value); setOpenId(null); }}>
             {(patients ?? []).map((p) => (
               <MenuItem key={p.id} value={p.id}>{p.name} · {p.mrn}</MenuItem>
             ))}
@@ -296,8 +296,8 @@ export default function RehabPage() {
                 {!discharged && (
                   <Stack direction="row" spacing={1} alignItems="center">
                     <FormControl size="small" sx={{ minWidth: 220 }}>
-                      <InputLabel>Joint / movement</InputLabel>
-                      <Select label="Joint / movement" value={romKey} onChange={(e) => setRomKey(e.target.value)}>
+                      <InputLabel id="rehab-joint-movement-label">Joint / movement</InputLabel>
+                      <Select labelId="rehab-joint-movement-label" id="rehab-joint-movement" label="Joint / movement" value={romKey} onChange={(e) => setRomKey(e.target.value)}>
                         {romOptions.map((o) => (<MenuItem key={o.key} value={o.key}>{o.label}</MenuItem>))}
                       </Select>
                     </FormControl>
@@ -338,9 +338,11 @@ export default function RehabPage() {
                 {!discharged && (
                   <Box sx={{ mt: 1.5 }}>
                     <FormControl size="small" fullWidth sx={{ mb: 1 }}>
-                      <InputLabel>Modalities</InputLabel>
+                      <InputLabel id="rehab-modalities-label">Modalities</InputLabel>
                       <Select
                         multiple
+                        labelId="rehab-modalities-label"
+                        id="rehab-modalities"
                         label="Modalities"
                         value={mods}
                         onChange={(e) => setMods(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}

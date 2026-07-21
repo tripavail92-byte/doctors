@@ -61,6 +61,16 @@ export function getFetchErrors(): FetchError[] {
   return snapshot;
 }
 
+/**
+ * Drop every registered failure. Module state outlives a test file's renders,
+ * so without this one test's 403 shows up in the next test's banner and the
+ * suite passes or fails depending on file order.
+ */
+export function resetFetchErrors(): void {
+  active.clear();
+  emit();
+}
+
 export function subscribeFetchErrors(fn: () => void): () => void {
   listeners.add(fn);
   return () => {

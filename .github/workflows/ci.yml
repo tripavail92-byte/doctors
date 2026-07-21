@@ -164,11 +164,17 @@ jobs:
           if-no-files-found: ignore
 
   # -------------------------------------------------------------------------
-  # Frontend: `vite build` runs `tsc` first, so this is a real typecheck, not
-  # just a bundle.
+  # Frontend: typecheck, behaviour tests, build.
+  #
+  # For most of this project the frontend had NO test runner. Every one of the
+  # backend's checks stops at the HTTP boundary, so when a review finally loaded
+  # the pages it found 45 real defects — one of which (a fresh array returned
+  # from a useSyncExternalStore snapshot) blanked every route in the application
+  # while `tsc --noEmit` stayed green throughout. Typecheck cannot see
+  # behaviour. That is what the test step is for.
   # -------------------------------------------------------------------------
   web:
-    name: Web — typecheck + build
+    name: Web — typecheck + tests + build
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -190,6 +196,11 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      # vitest is configured with passWithNoTests: false, so a run that matched
+      # no files fails rather than reporting a green tick over nothing.
+      - name: Tests
+        run: npm test
 
       - name: Build
         run: npm run build

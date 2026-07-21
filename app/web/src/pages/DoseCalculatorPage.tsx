@@ -119,8 +119,8 @@ export default function DoseCalculatorPage() {
             <CardContent>
               <Stack spacing={2}>
                 <FormControl size="small" fullWidth>
-                  <InputLabel>Drug</InputLabel>
-                  <Select label="Drug" value={drugKey} onChange={(e: SelectChangeEvent) => setDrugKey(e.target.value)}>
+                  <InputLabel id="dose-drug-label">Drug</InputLabel>
+                  <Select labelId="dose-drug-label" id="dose-drug" label="Drug" value={drugKey} onChange={(e: SelectChangeEvent) => setDrugKey(e.target.value)}>
                     {(rules ?? []).map((r) => (
                       <MenuItem key={r.key} value={r.key}>
                         {r.name}
@@ -163,8 +163,8 @@ export default function DoseCalculatorPage() {
 
                 {rule?.concentrations?.length ? (
                   <FormControl size="small" fullWidth>
-                    <InputLabel>Concentration</InputLabel>
-                    <Select label="Concentration" value={String(concIdx)} onChange={(e) => setConcIdx(Number(e.target.value))}>
+                    <InputLabel id="dose-concentration-label">Concentration</InputLabel>
+                    <Select labelId="dose-concentration-label" id="dose-concentration" label="Concentration" value={String(concIdx)} onChange={(e) => setConcIdx(Number(e.target.value))}>
                       {rule.concentrations.map((c, i) => (
                         <MenuItem key={c.label} value={String(i)}>
                           {c.label} ({c.mgPerMl} mg/mL)
@@ -181,8 +181,8 @@ export default function DoseCalculatorPage() {
 
                 <Divider />
                 <FormControl size="small" fullWidth>
-                  <InputLabel>Patient (for the record)</InputLabel>
-                  <Select label="Patient (for the record)" value={patientId} onChange={(e: SelectChangeEvent) => setPatientId(e.target.value)}>
+                  <InputLabel id="dose-patient-label">Patient (for the record)</InputLabel>
+                  <Select labelId="dose-patient-label" id="dose-patient" label="Patient (for the record)" value={patientId} onChange={(e: SelectChangeEvent) => setPatientId(e.target.value)}>
                     {(patients ?? []).map((p) => (
                       <MenuItem key={p.id} value={p.id}>
                         {p.name} · {p.mrn}

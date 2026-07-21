@@ -118,8 +118,8 @@ export default function DentalPage() {
           </Typography>
         </Box>
         <FormControl size="small" sx={{ minWidth: 240 }}>
-          <InputLabel>Patient</InputLabel>
-          <Select label="Patient" value={activePatient} onChange={(e: SelectChangeEvent) => setPatientId(e.target.value)}>
+          <InputLabel id="dental-patient-label">Patient</InputLabel>
+          <Select labelId="dental-patient-label" id="dental-patient" label="Patient" value={activePatient} onChange={(e: SelectChangeEvent) => setPatientId(e.target.value)}>
             {(patients ?? []).map((p) => (
               <MenuItem key={p.id} value={p.id}>
                 {p.name} · {p.mrn}

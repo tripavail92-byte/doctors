@@ -152,8 +152,8 @@ export default function IpdPage() {
               </Typography>
               <Stack spacing={2}>
                 <FormControl size="small" fullWidth>
-                  <InputLabel>Patient</InputLabel>
-                  <Select label="Patient" value={patientId} onChange={(e: SelectChangeEvent) => setPatientId(e.target.value)}>
+                  <InputLabel id="ipd-patient-label">Patient</InputLabel>
+                  <Select labelId="ipd-patient-label" id="ipd-patient" label="Patient" value={patientId} onChange={(e: SelectChangeEvent) => setPatientId(e.target.value)}>
                     {(patients ?? []).map((p) => (
                       <MenuItem key={p.id} value={p.id}>
                         {p.name} · {p.mrn}
@@ -162,8 +162,8 @@ export default function IpdPage() {
                   </Select>
                 </FormControl>
                 <FormControl size="small" fullWidth>
-                  <InputLabel>Bed (available only)</InputLabel>
-                  <Select label="Bed (available only)" value={bedId} onChange={(e: SelectChangeEvent) => setBedId(e.target.value)}>
+                  <InputLabel id="ipd-bed-label">Bed (available only)</InputLabel>
+                  <Select labelId="ipd-bed-label" id="ipd-bed" label="Bed (available only)" value={bedId} onChange={(e: SelectChangeEvent) => setBedId(e.target.value)}>
                     {availableBeds.map((b) => (
                       <MenuItem key={b.id} value={b.id}>
                         {b.ward.name} · {b.code}

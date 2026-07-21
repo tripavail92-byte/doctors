@@ -162,8 +162,8 @@ export default function LabPage() {
           </Typography>
         </Box>
         <FormControl size="small" sx={{ minWidth: 240 }}>
-          <InputLabel>Patient</InputLabel>
-          <Select label="Patient" value={active} onChange={(e: SelectChangeEvent) => { setPatientId(e.target.value); setOpenId(null); }}>
+          <InputLabel id="lab-patient-label">Patient</InputLabel>
+          <Select labelId="lab-patient-label" id="lab-patient" label="Patient" value={active} onChange={(e: SelectChangeEvent) => { setPatientId(e.target.value); setOpenId(null); }}>
             {(patients ?? []).map((p) => (
               <MenuItem key={p.id} value={p.id}>
                 {p.name} · {p.mrn}
@@ -227,8 +227,8 @@ export default function LabPage() {
               </Typography>
               <Stack direction="row" spacing={1}>
                 <FormControl size="small" sx={{ flex: 1 }}>
-                  <InputLabel>Test</InputLabel>
-                  <Select label="Test" value={pickCode} onChange={(e: SelectChangeEvent) => setPickCode(e.target.value)}>
+                  <InputLabel id="lab-test-label">Test</InputLabel>
+                  <Select labelId="lab-test-label" id="lab-test" label="Test" value={pickCode} onChange={(e: SelectChangeEvent) => setPickCode(e.target.value)}>
                     {(tests ?? []).map((t) => (
                       <MenuItem key={t.code} value={t.code}>
                         {t.name} · {pkr(t.pricePkr)}

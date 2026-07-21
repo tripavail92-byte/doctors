@@ -154,6 +154,88 @@ ck('every concurrent two-drug sale succeeds', ok == 20, '%d/20 ok, codes=%s' % (
 ck('none returns a 5xx', not fivex, '5xx count=%d' % len(fivex))
 
 
+print('\n== A controlled drug cannot leave the counter unnamed ==')
+# `controlled: true` sat on the tramadol row of the formulary and was read by
+# nothing at all. Tramadol dispensed exactly like paracetamol: anonymously, with
+# no record of who received it, so the register could not answer "who did this go
+# to". A declared flag that no code path consults is not a control.
+#
+# Verified as an INVENTORY user, not the owner — the least-privileged principal
+# who works this counter. A rule the owner obeys and the counter staff bypass is
+# not a rule, and the owner is the one principal least likely to expose that.
+OWNER_TENANT = psql("SELECT \"tenantId\" FROM \"User\" WHERE email='owner@glowderma.pk';").strip()
+PW_HASH = psql("SELECT \"passwordHash\" FROM \"User\" WHERE email='owner@glowderma.pk';").strip()
+INV_EMAIL = 'inventory.probe@glowderma.pk'
+psql("INSERT INTO \"User\" (id,\"tenantId\",email,\"passwordHash\",name,role) "
+     "VALUES (gen_random_uuid(),'%s','%s','%s','Inventory Probe','INVENTORY') "
+     "ON CONFLICT (email) DO NOTHING;" % (OWNER_TENANT, INV_EMAIL, PW_HASH))
+s, itok = api('POST', '/auth/login', None, {'email': INV_EMAIL, 'password': 'Password123!'})
+ck('an INVENTORY user exists and can log in', s == 200 and itok.get('accessToken'), 'HTTP %s' % s)
+it = itok.get('accessToken')
+
+# Stock FIRST, and plenty of it. The previous version of a probe like this read a
+# 400 from "insufficient stock" as proof the validation fired, and reported a
+# real defect as refuted. With stock on the shelf a 400 can only come from the
+# rule under test.
+TB = 'CTRL-%s' % RUN
+s, _ = receive('TRAMADOL50', TB, 200, (_today + _dt.timedelta(days=400)).isoformat())
+ck('controlled stock is on the shelf (so a refusal cannot be "no stock")', s in (200, 201), 'HTTP %s' % s)
+
+# Measure TOTAL tramadol on hand, not this batch's. FEFO picks the earliest
+# expiry across every lot, so a refusal that "left THIS batch alone" while
+# draining an older one would read as a pass. The first draft asserted on TB
+# alone and was satisfied by a sale that never touched TB.
+def tramadol_on_hand():
+    return psql("SELECT COALESCE(SUM(\"quantityOnHand\"),0) FROM \"StockItem\" "
+                "WHERE \"formularyCode\" = 'TRAMADOL50';").strip()
+
+
+before = tramadol_on_hand()
+
+s_no, denied = api('POST', '/pharmacy/dispense', it,
+                   {'items': [{'code': 'TRAMADOL50', 'quantity': 5}], 'paymentMethod': 'CASH'})
+ck('an unnamed controlled dispense is REFUSED', s_no == 400,
+   'HTTP %s %s' % (s_no, str(denied.get('message'))[:90]))
+ck('and the refusal names the drug rather than saying "invalid request"',
+   'Tramadol' in str(denied.get('message', '')), str(denied.get('message'))[:90])
+
+# The refusal must refuse. A 400 that still moved stock is the failure mode this
+# codebase keeps producing: a control that reports failure while doing the thing.
+after = tramadol_on_hand()
+ck('and no tramadol anywhere came off the shelf', after == before, '%s -> %s' % (before, after))
+
+# The positive, so the rule is not simply "controlled drugs never dispense".
+s, pt = api('POST', '/patients', it, {'mrn': mrn('CTRL'), 'name': 'Controlled Probe %s' % RUN,
+                                      'phone': '+92 300 4444444'})
+if s not in (200, 201):
+    s, pt = api('POST', '/patients', tok, {'mrn': mrn('CTRL2'), 'name': 'Controlled Probe %s' % RUN,
+                                           'phone': '+92 300 4444444'})
+pid = pt.get('id')
+ck('a patient exists to dispense to', bool(pid), 'HTTP %s' % s)
+s_ok, sale = api('POST', '/pharmacy/dispense', it,
+                 {'patientId': pid, 'items': [{'code': 'TRAMADOL50', 'quantity': 5}],
+                  'paymentMethod': 'CASH'})
+ck('the SAME sale succeeds once the patient is named', s_ok in (200, 201),
+   'HTTP %s %s' % (s_ok, str(sale.get('message'))[:80]))
+
+# And the point of naming them: the recall path now reaches a person.
+#
+# Ask it of the lot the sale ACTUALLY drew from, read back off the receipt —
+# not of TB. FEFO chooses the earliest expiry across every tramadol lot in the
+# tenant, including ones earlier runs left behind, so a hard-coded batch number
+# asserts against a lot this sale may never have touched. That is precisely how
+# the first draft of this check failed: 0 rows, on a sale that had succeeded.
+drew = [b['batchNo'] for i in (sale.get('items') or []) for b in (i.get('batches') or [])]
+ck('the receipt names the lot(s) the sale drew from', bool(drew), drew)
+named = psql("SELECT count(*) FROM \"DispenseItemBatch\" b "
+             "JOIN \"DispenseItem\" i ON i.id = b.\"dispenseItemId\" "
+             "JOIN \"Dispense\" d ON d.id = i.\"dispenseId\" "
+             "WHERE b.\"batchNo\" IN (%s) AND d.\"patientId\" = '%s';"
+             % (','.join("'%s'" % b for b in drew or ['-']), pid)).strip()
+ck('a recall of that lot resolves to the patient who received it', named not in ('', '0'),
+   '%s row(s) for %s on %s' % (named, pid, drew))
+
+
 print('\n===== %d/%d passed =====' % (sum(res), len(res)))
 if not res:
     print('  NO CHECKS RAN - the suite asserted nothing')

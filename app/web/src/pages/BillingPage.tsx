@@ -188,8 +188,10 @@ export default function BillingPage() {
           </Typography>
         </Box>
         <FormControl size="small" sx={{ minWidth: 260 }}>
-          <InputLabel>Patient</InputLabel>
+          <InputLabel id="billing-patient-label">Patient</InputLabel>
           <Select
+            labelId="billing-patient-label"
+            id="billing-patient"
             label="Patient"
             value={active}
             onChange={(e: SelectChangeEvent) => {
@@ -471,8 +473,8 @@ export default function BillingPage() {
                             sx={{ width: 130 }}
                           />
                           <FormControl size="small" sx={{ minWidth: 130 }}>
-                            <InputLabel>Method</InputLabel>
-                            <Select label="Method" value={payMethod} onChange={(e) => setPayMethod(e.target.value as PaymentMethod)}>
+                            <InputLabel id="billing-method-label">Method</InputLabel>
+                            <Select labelId="billing-method-label" id="billing-method" label="Method" value={payMethod} onChange={(e) => setPayMethod(e.target.value as PaymentMethod)}>
                               {METHODS.map((m) => (
                                 <MenuItem key={m} value={m}>
                                   {m.toLowerCase().replace('_', ' ')}
@@ -511,8 +513,8 @@ export default function BillingPage() {
                             so exercising it here is also the proof it holds. */}
                         <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.5 }}>
                           <FormControl size="small" sx={{ minWidth: 130 }}>
-                            <InputLabel>Gateway</InputLabel>
-                            <Select label="Gateway" value={provider} onChange={(e) => setProvider(e.target.value as (typeof PROVIDERS)[number])}>
+                            <InputLabel id="billing-gateway-label">Gateway</InputLabel>
+                            <Select labelId="billing-gateway-label" id="billing-gateway" label="Gateway" value={provider} onChange={(e) => setProvider(e.target.value as (typeof PROVIDERS)[number])}>
                               {PROVIDERS.map((p) => (
                                 <MenuItem key={p} value={p}>
                                   {p}

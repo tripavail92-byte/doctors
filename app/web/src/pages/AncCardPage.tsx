@@ -98,9 +98,11 @@ export default function AncCardPage() {
             Antenatal visit grid with server-computed alert flags.
           </Typography>
         </Box>
+        {/* labelId/id are what give the combobox its accessible name: without
+            them MUI never links the InputLabel to the input. */}
         <FormControl size="small" sx={{ minWidth: 240 }}>
-          <InputLabel>Patient</InputLabel>
-          <Select label="Patient" value={activeId} onChange={(e: SelectChangeEvent) => setPatientId(e.target.value)}>
+          <InputLabel id="anc-patient-label">Patient</InputLabel>
+          <Select labelId="anc-patient-label" id="anc-patient" label="Patient" value={activeId} onChange={(e: SelectChangeEvent) => setPatientId(e.target.value)}>
             {(patients ?? []).map((p) => (
               <MenuItem key={p.id} value={p.id}>
                 {p.name} · {p.mrn}
@@ -263,8 +265,8 @@ function AddVisit({ episodeId, onSaved }: { episodeId: string; onSaved: () => vo
             <Field label="Hb (g/dL)" onChange={set('hbGdl')} value={f.hbGdl} />
             <Grid item xs={6} sm={3}>
               <FormControl size="small" fullWidth>
-                <InputLabel>Urine albumin</InputLabel>
-                <Select label="Urine albumin" value={f.urineAlbumin ?? ''} onChange={set('urineAlbumin') as (e: SelectChangeEvent) => void}>
+                <InputLabel id="anc-urine-albumin-label">Urine albumin</InputLabel>
+                <Select labelId="anc-urine-albumin-label" id="anc-urine-albumin" label="Urine albumin" value={f.urineAlbumin ?? ''} onChange={set('urineAlbumin') as (e: SelectChangeEvent) => void}>
                   {['', 'NIL', 'TRACE', 'PLUS_1', 'PLUS_2', 'PLUS_3', 'PLUS_4'].map((o) => (
                     <MenuItem key={o} value={o}>{o || '—'}</MenuItem>
                   ))}
@@ -273,8 +275,8 @@ function AddVisit({ episodeId, onSaved }: { episodeId: string; onSaved: () => vo
             </Grid>
             <Grid item xs={6} sm={3}>
               <FormControl size="small" fullWidth>
-                <InputLabel>Presentation</InputLabel>
-                <Select label="Presentation" value={f.presentation ?? ''} onChange={set('presentation') as (e: SelectChangeEvent) => void}>
+                <InputLabel id="anc-presentation-label">Presentation</InputLabel>
+                <Select labelId="anc-presentation-label" id="anc-presentation" label="Presentation" value={f.presentation ?? ''} onChange={set('presentation') as (e: SelectChangeEvent) => void}>
                   {['', 'CEPHALIC', 'BREECH', 'TRANSVERSE', 'OBLIQUE', 'UNSTABLE'].map((o) => (
                     <MenuItem key={o} value={o}>{o || '—'}</MenuItem>
                   ))}

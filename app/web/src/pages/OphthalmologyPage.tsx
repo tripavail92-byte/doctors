@@ -137,8 +137,8 @@ export default function OphthalmologyPage() {
           </Typography>
         </Box>
         <FormControl size="small" sx={{ minWidth: 240 }}>
-          <InputLabel>Patient</InputLabel>
-          <Select label="Patient" value={active} onChange={(e: SelectChangeEvent) => { setPatientId(e.target.value); setOpenId(null); }}>
+          <InputLabel id="ophth-patient-label">Patient</InputLabel>
+          <Select labelId="ophth-patient-label" id="ophth-patient" label="Patient" value={active} onChange={(e: SelectChangeEvent) => { setPatientId(e.target.value); setOpenId(null); }}>
             {(patients ?? []).map((p) => (
               <MenuItem key={p.id} value={p.id}>
                 {p.name} · {p.mrn}
@@ -289,8 +289,8 @@ export default function OphthalmologyPage() {
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                       <Stack direction="row" spacing={1} alignItems="center">
                         <FormControl size="small" sx={{ minWidth: 100 }}>
-                          <InputLabel>Eye</InputLabel>
-                          <Select label="Eye" value={vaEye} onChange={(e) => setVaEye(e.target.value)}>
+                          <InputLabel id="ophth-va-eye-label">Eye</InputLabel>
+                          <Select labelId="ophth-va-eye-label" id="ophth-va-eye" label="Eye" value={vaEye} onChange={(e) => setVaEye(e.target.value)}>
                             {EYES.map((x) => (
                               <MenuItem key={x.v} value={x.v}>{x.v}</MenuItem>
                             ))}
@@ -312,8 +312,8 @@ export default function OphthalmologyPage() {
                       </Stack>
                       <Stack direction="row" spacing={1} alignItems="center">
                         <FormControl size="small" sx={{ minWidth: 100 }}>
-                          <InputLabel>Eye</InputLabel>
-                          <Select label="Eye" value={iopEye} onChange={(e) => setIopEye(e.target.value)}>
+                          <InputLabel id="ophth-iop-eye-label">Eye</InputLabel>
+                          <Select labelId="ophth-iop-eye-label" id="ophth-iop-eye" label="Eye" value={iopEye} onChange={(e) => setIopEye(e.target.value)}>
                             {EYES.map((x) => (
                               <MenuItem key={x.v} value={x.v}>{x.v}</MenuItem>
                             ))}
