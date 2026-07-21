@@ -59,11 +59,24 @@ describe('the snapshot contract useSyncExternalStore depends on', () => {
 
 describe('describeError tells the reader what to DO', () => {
   it('an unreachable API is not "request failed"', () => {
-    // No `response` at all. Saying "request failed" invites a retry that
-    // cannot possibly work.
-    const d = describeError(new Error('Network Error'));
+    // An axios transport failure: isAxiosError, and no `response` at all. Its
+    // own message is the unhelpful "Network Error". Saying "request failed"
+    // invites a retry that cannot possibly work.
+    const d = describeError(Object.assign(new Error('Network Error'), { isAxiosError: true }));
     expect(d.status).toBeUndefined();
     expect(d.message).toMatch(/cannot reach the server/i);
+  });
+
+  it('keeps the sentence from a guard the page threw itself', () => {
+    // A client-side refusal never reaches the network, so it has no
+    // isAxiosError and no response. Reported as "cannot reach the server" it
+    // both hid the real reason and invited a retry: on Billing, typing 0 into
+    // a payment amount was correctly refused and nothing was posted, but the
+    // cashier was told the request had failed and nothing pointed at the
+    // Amount box.
+    const d = describeError(new Error('Enter a payment amount greater than zero.'));
+    expect(d.message).toBe('Enter a payment amount greater than zero.');
+    expect(d.message).not.toMatch(/cannot reach the server/i);
   });
 
   it('a gated feature reads as a plan boundary, not a fault', () => {

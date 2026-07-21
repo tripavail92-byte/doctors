@@ -24,5 +24,22 @@ export default defineConfig({
     // A run that silently matched no files would report success. It must not.
     passWithNoTests: false,
     restoreMocks: true,
+
+    // FLAKINESS IS WORSE THAN NO TESTS, because people learn to ignore red.
+    //
+    // Two Partogram tests passed in isolation and failed in the full run: one
+    // timed out, and one asserted an EMPTY request body — both symptoms of the
+    // same cause. userEvent types character by character and yields between
+    // keystrokes; with 21 jsdom environments competing for 12 cores those
+    // yields were starved, so the click landed before React had the typed
+    // state. Neither test is asserting speed, so the 5s default was measuring
+    // the machine rather than the code.
+    testTimeout: 20_000,
+    hookTimeout: 20_000,
+    // Leave cores for the OS and for whatever else is running. A test run that
+    // saturates the machine produces exactly the starvation above.
+    // minThreads must be set too: it defaults to (cores - 1) and vitest throws
+    // "minThreads and maxThreads must not conflict" if that exceeds the max.
+    poolOptions: { threads: { minThreads: 1, maxThreads: 6 } },
   },
 });

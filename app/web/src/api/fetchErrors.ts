@@ -86,7 +86,28 @@ export function subscribeFetchErrors(fn: () => void): () => void {
  * whoever owns the subscription, not refresh.
  */
 export function describeError(err: unknown): { message: string; status?: number } {
-  const e = err as { response?: { status?: number; data?: { message?: unknown } }; message?: string };
+  const e = err as {
+    isAxiosError?: boolean;
+    response?: { status?: number; data?: { message?: unknown } };
+    message?: string;
+  };
+
+  // A plain Error thrown by the PAGE ITSELF — a client-side guard refusing
+  // something before it ever reaches the network — is not a transport failure.
+  //
+  // Without this branch it fell through to the "no status" case below and was
+  // reported as "Cannot reach the server". Reproduced on Billing: typing 0 into
+  // a payment amount is correctly refused and nothing is posted, but the
+  // cashier was told the request had failed — which reads as a server fault, so
+  // the natural response is to click Record again, and every retry is refused
+  // identically. Nothing ever pointed at the Amount box.
+  //
+  // Axios failures always carry isAxiosError, so a genuine unreachable server
+  // (whose own message is the unhelpful "Network Error") still falls through.
+  if (!e?.isAxiosError && !e?.response && typeof e?.message === 'string' && e.message) {
+    return { message: e.message };
+  }
+
   const status = e?.response?.status;
   const server = e?.response?.data?.message;
   const serverText = Array.isArray(server) ? server.join(', ') : typeof server === 'string' ? server : undefined;

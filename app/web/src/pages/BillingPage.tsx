@@ -43,6 +43,7 @@ import {
 import type { SelectChangeEvent } from '@mui/material';
 import { apiClient } from '../api/client';
 import { useApi, numericInput } from '../api/useApi';
+import { describeError } from '../api/fetchErrors';
 
 interface Patient {
   id: string;
@@ -157,7 +158,12 @@ export default function BillingPage() {
       // Surface the server's sentence verbatim. These messages are the hardened
       // guards speaking — "This payment link is no longer valid", "Cannot pay a
       // void invoice" — and each one names a real refusal worth reading.
-      setErr(e?.response?.data?.message ?? 'Request failed');
+      //
+      // Via describeError, so that a guard thrown by THIS PAGE keeps its own
+      // sentence too. Reading only `response.data.message` dropped it: the
+      // zero-payment refusal below arrived as "Request failed", which reads as
+      // a server fault and invites a retry that is refused identically.
+      setErr(describeError(e).message);
     } finally {
       setBusy(false);
     }
@@ -577,8 +583,24 @@ export default function BillingPage() {
                             disabled={busy || !refundAmt}
                             onClick={() =>
                               call(async () => {
+                                // The same guard the payment box beside this one
+                                // has. `!refundAmt` alone treats the STRING '0'
+                                // as truthy, so Refund was enabled and posted
+                                // amountPkr: 0; numericInput also allows a
+                                // decimal, so '5000.50' posted 5000.5. Both are
+                                // refused server-side (@IsInt, @Min(1)), so no
+                                // wrong money moved — but the cashier got a
+                                // class-validator sentence instead of a plain
+                                // refusal, and money going out deserves the same
+                                // care as money coming in.
+                                const amt = Number(refundAmt);
+                                if (!Number.isInteger(amt) || amt <= 0) {
+                                  throw new Error(
+                                    'Enter the refund amount as a whole number of rupees greater than zero. Nothing has been refunded.',
+                                  );
+                                }
                                 await apiClient.post(`/invoices/${inv.id}/refunds`, {
-                                  amountPkr: Number(refundAmt),
+                                  amountPkr: amt,
                                   method: 'CASH',
                                   reason: refundReason || undefined,
                                 });
