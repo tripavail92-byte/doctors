@@ -5,6 +5,12 @@ interface ApiState<T> {
   data: T | null;
   loading: boolean;
   error: string | null;
+  /**
+   * HTTP status behind `error`, where there was one; undefined for an
+   * unreachable server. A caller needs this to tell a plan boundary (403) from
+   * a fault, because those ask the reader to do different things.
+   */
+  status?: number;
   reload: () => void;
 }
 
@@ -26,6 +32,7 @@ export function useApi<T>(fetcher: () => Promise<T>, deps: unknown[] = []): ApiS
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<number | undefined>(undefined);
   const [tick, setTick] = useState(0);
   // Stable per-hook-instance key, so a call that keeps failing shows once rather
   // than stacking, and clears the moment it succeeds.
@@ -37,6 +44,7 @@ export function useApi<T>(fetcher: () => Promise<T>, deps: unknown[] = []): ApiS
     let active = true;
     setLoading(true);
     setError(null);
+    setStatus(undefined);
     // CLEAR THE PREVIOUS ANSWER before fetching the next one.
     //
     // Without this, `data` held the OLD subject's result while the new request
@@ -60,9 +68,10 @@ export function useApi<T>(fetcher: () => Promise<T>, deps: unknown[] = []): ApiS
       })
       .catch((err) => {
         if (!active) return;
-        const { message, status } = describeError(err);
+        const { message, status: httpStatus } = describeError(err);
         setError(message);
-        reportFetchError({ key, message, status });
+        setStatus(httpStatus);
+        reportFetchError({ key, message, status: httpStatus });
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -76,7 +85,7 @@ export function useApi<T>(fetcher: () => Promise<T>, deps: unknown[] = []): ApiS
   // Leaving the page must not leave its failure on screen.
   useEffect(() => () => clearFetchError(key), [key]);
 
-  return { data, loading, error, reload };
+  return { data, loading, error, status, reload };
 }
 
 /** Format an integer PKR amount as e.g. "PKR 118,840". */

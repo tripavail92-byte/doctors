@@ -14,6 +14,7 @@ import {
   DialogTitle,
   Grid,
   InputAdornment,
+  Link,
   MenuItem,
   Paper,
   Stack,
@@ -27,6 +28,7 @@ import {
   Typography,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
+import { Link as RouterLink } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useApi } from '../api/useApi';
 import { describeError } from '../api/fetchErrors';
@@ -217,7 +219,15 @@ export default function PatientsPage() {
                   {filtered.map((p) => (
                     <TableRow key={p.id} hover>
                       <TableCell sx={{ color: 'text.secondary' }}>{p.mrn}</TableCell>
-                      <TableCell sx={{ fontWeight: 500 }}>{p.name}</TableCell>
+                      {/* The list was a dead end: there was nowhere to open a
+                          patient, so "what has happened to this person" — the
+                          first question anyone asks — had no answer anywhere in
+                          the application. */}
+                      <TableCell sx={{ fontWeight: 500 }}>
+                        <Link component={RouterLink} to={`/patients/${p.id}`} underline="hover" color="inherit">
+                          {p.name}
+                        </Link>
+                      </TableCell>
                       <TableCell>{p.phone}</TableCell>
                       <TableCell>
                         {p.gender ? (

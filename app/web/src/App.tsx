@@ -4,6 +4,7 @@ import { RequireAuth } from './auth/RequireAuth';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import PatientsPage from './pages/PatientsPage';
+import PatientRecordPage from './pages/PatientRecordPage';
 import DentalPage from './pages/DentalPage';
 import GrowthChartPage from './pages/GrowthChartPage';
 import DoseCalculatorPage from './pages/DoseCalculatorPage';
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardPage /> },
       { path: 'patients', element: <PatientsPage /> },
+      { path: 'patients/:id', element: <PatientRecordPage /> },
       { path: 'dental', element: <DentalPage /> },
       { path: 'growth', element: <GrowthChartPage /> },
       { path: 'dose', element: <DoseCalculatorPage /> },
