@@ -29,9 +29,22 @@ export class IpdService {
         data: { tenantId: tenantId!, name: dto.name, floor: dto.floor ?? null },
       });
       if (dto.bedCodes && dto.bedCodes.length) {
-        await tx.bed.createMany({
-          data: dto.bedCodes.map((code) => ({ tenantId: tenantId!, wardId: ward.id, code })),
-        });
+        try {
+          await tx.bed.createMany({
+            data: dto.bedCodes.map((code) => ({ tenantId: tenantId!, wardId: ward.id, code })),
+          });
+        } catch (e) {
+          // @ArrayUnique on the DTO rejects duplicates within one request; this
+          // catches the rest — a code already used by an existing bed. Left
+          // uncaught, the P2002 rolled back the whole transaction and took the
+          // ward with it, surfacing as an opaque 500.
+          if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+            throw new BadRequestException(
+              `A bed code in this ward is already taken — bed codes must be unique within a ward.`,
+            );
+          }
+          throw e;
+        }
       }
       return tx.ward.findUnique({ where: { id: ward.id }, include: { beds: true } });
     });
@@ -48,7 +61,7 @@ export class IpdService {
     const { tenantId } = getTenant();
     return this.prisma.forTenant(tenantId, (tx) =>
       tx.bed.findMany({
-        where: status ? { status: status as BedStatus } : {},
+        where: status ? { status: parseEnum(status, BedStatus, 'bed status') } : {},
         include: { ward: { select: { name: true } } },
         orderBy: [{ wardId: 'asc' }, { code: 'asc' }],
       }),
@@ -145,7 +158,7 @@ export class IpdService {
     const { tenantId } = getTenant();
     return this.prisma.forTenant(tenantId, (tx) =>
       tx.admission.findMany({
-        where: status ? { status: status as AdmissionStatus } : {},
+        where: status ? { status: parseEnum(status, AdmissionStatus, 'admission status') } : {},
         include: ADM_DETAIL,
         orderBy: { admittedAt: 'desc' },
       }),
@@ -156,4 +169,26 @@ export class IpdService {
 async function ensurePatient(tx: Prisma.TransactionClient, patientId: string): Promise<void> {
   const patient = await tx.patient.findUnique({ where: { id: patientId } });
   if (!patient) throw new NotFoundException(`Patient ${patientId} not found`);
+}
+
+/**
+ * Turn a query-string value into an enum member, or 400.
+ *
+ * `status as BedStatus` is a compile-time assertion with no runtime effect, so
+ * `?status=BOGUS` reached Postgres as an invalid enum literal and came back as
+ * an HTTP 500 — a typo in a URL reported as a server fault. A list filter is the
+ * easiest thing in the API to get wrong by hand.
+ */
+function parseEnum<T extends Record<string, string>>(
+  value: string,
+  members: T,
+  label: string,
+): T[keyof T] {
+  const allowed = Object.values(members);
+  if (!allowed.includes(value)) {
+    throw new BadRequestException(
+      `Unknown ${label} "${value}". Expected one of: ${allowed.join(', ')}.`,
+    );
+  }
+  return value as T[keyof T];
 }

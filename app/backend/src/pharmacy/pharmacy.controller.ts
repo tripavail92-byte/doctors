@@ -1,5 +1,7 @@
 import {
+  BadRequestException,
   Body,
+  Req,
   Controller,
   Get,
   Param,
@@ -7,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { EntitlementGuard } from '../auth/guards/entitlement.guard';
@@ -40,7 +43,31 @@ export class PharmacyController {
   }
 
   @Post('dispense')
-  dispense(@Body() dto: DispenseDto) {
+  dispense(@Req() req: Request, @Body() dto: DispenseDto) {
+    // Read quantities from the PRE-TRANSFORM body.
+    //
+    // The global ValidationPipe runs with enableImplicitConversion, so
+    // `"quantity": true` becomes Number(true) === 1 BEFORE @IsInt() ever sees
+    // it. By the time the DTO is validated a coerced boolean is indistinguishable
+    // from an honest 1, and a real drug leaves the shelf against a nonsense
+    // request. Verified: quantity true dispensed 1 tablet, PKR 5, receipt and
+    // stock decrement included.
+    //
+    // Same defect and same remedy as the dermatology erythema grade — see
+    // dermatology.controller.ts. A @Transform on the DTO does NOT work, because
+    // coercion happens first.
+    const rawItems = (req.body as { items?: unknown } | undefined)?.items;
+    if (Array.isArray(rawItems)) {
+      for (const it of rawItems) {
+        const q = (it as { quantity?: unknown } | null)?.quantity;
+        if (typeof q === 'boolean' || (typeof q === 'string' && q.trim() === '')) {
+          throw new BadRequestException(
+            'Each item quantity must be a whole number of units. ' +
+              'A true/false or blank quantity is not a quantity.',
+          );
+        }
+      }
+    }
     return this.pharmacy.dispense(dto);
   }
 

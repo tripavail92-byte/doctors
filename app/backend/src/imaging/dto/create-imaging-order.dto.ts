@@ -1,6 +1,7 @@
 import {
   ArrayMaxSize,
   ArrayMinSize,
+  ArrayUnique,
   IsArray,
   IsOptional,
   IsString,
@@ -16,6 +17,10 @@ export class CreateImagingOrderDto {
   @ArrayMinSize(1)
   @ArrayMaxSize(20)
   @IsString({ each: true })
+  // A repeated code created two order items while reports are capped at one per
+  // study, so `reportCount >= items.length` could never be satisfied and the
+  // order stranded in ACQUIRED forever, unreportable and uncancellable.
+  @ArrayUnique()
   studyCodes!: string[];
 
   @IsOptional()

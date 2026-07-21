@@ -1,5 +1,6 @@
 import {
   ArrayMaxSize,
+  ArrayUnique,
   IsArray,
   IsOptional,
   IsString,
@@ -21,5 +22,9 @@ export class CreateWardDto {
   @IsArray()
   @ArrayMaxSize(200)
   @IsString({ each: true })
+  // Duplicates collided with Bed @@unique([tenantId, wardId, code]) and the
+  // uncaught P2002 rolled back the WHOLE transaction — the ward vanished too,
+  // reported as a 500. Bad input should read as bad input.
+  @ArrayUnique()
   bedCodes?: string[];
 }
