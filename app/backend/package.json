@@ -25,7 +25,7 @@
     "check:harness": "python test/safety/db_helper_suite.py",
     "check:growth-dose": "ts-node scripts/check-growth-dose.ts",
     "check:engine": "ts-node scripts/check-engine.ts",
-    "check:clinical": "npm run check:harness && npm run check:growth-dose && npm run check:engine && npm run check:derma-safety && npm run check:derma-functional && npm run check:derma-dose5 && npm run check:dental && npm run check:epi && npm run check:epi-cold-chain && npm run check:payroll && npm run check:billing-money && npm run check:billing-void && npm run check:patient-identity && npm run check:emr-integrity && npm run check:imaging-integrity && npm run check:pharmacy && npm run check:pharmacy-dispense && npm run check:input-validation && npm run check:lab && npm run check:ipd && npm run check:crm && npm run check:ophthalmology && npm run check:rehab && npm run check:trends",
+    "check:clinical": "npm run check:harness && npm run check:growth-dose && npm run check:engine && npm run check:derma-safety && npm run check:derma-functional && npm run check:derma-dose5 && npm run check:dental && npm run check:epi && npm run check:epi-cold-chain && npm run check:payroll && npm run check:billing-money && npm run check:billing-void && npm run check:patient-identity && npm run check:emr-integrity && npm run check:imaging-integrity && npm run check:imaging-amendment && npm run check:pharmacy && npm run check:pharmacy-dispense && npm run check:input-validation && npm run check:lab && npm run check:ipd && npm run check:crm && npm run check:ophthalmology && npm run check:rehab && npm run check:trends",
     "check:wiring": "ts-node scripts/check-wiring.ts",
     "check:entitlements": "ts-node scripts/check-entitlement-coverage.ts",
     "check:rls-live": "ts-node scripts/check-rls-live.ts",
@@ -44,6 +44,7 @@
     "check:billing-void": "python test/safety/billing_void_audit_suite.py",
     "check:patient-identity": "python test/safety/patient_identity_suite.py",
     "check:emr-integrity": "python test/safety/emr_integrity_suite.py",
+    "check:imaging-amendment": "python test/safety/imaging_amendment_suite.py",
     "check:imaging-integrity": "python test/safety/imaging_integrity_suite.py"
   },
   "prisma": {

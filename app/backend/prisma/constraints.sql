@@ -28,3 +28,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS "admission_one_active_per_patient"
 CREATE UNIQUE INDEX IF NOT EXISTS "invoice_one_per_plan"
   ON "Invoice" ("tenantId", "planId")
   WHERE "planId" IS NOT NULL;
+
+-- Exactly one CURRENT report per study, per tenant.
+--
+-- This replaces the old @@unique([tenantId, orderId, studyCode]), which made a
+-- report permanently unamendable: the only way to change one was to overwrite it
+-- in place, and that is precisely how a finalized "acute intracranial
+-- haemorrhage" became "no acute abnormality" on the same row with the original
+-- timestamp intact.
+--
+-- Amendments are now new rows in a version chain, so several rows share
+-- (tenantId, orderId, studyCode) — but only ONE may be live. Prisma cannot
+-- express a partial unique index, so it lives here. The service catches the
+-- violation and returns a clean 409.
+CREATE UNIQUE INDEX IF NOT EXISTS "imaging_report_one_current_per_study"
+  ON "ImagingReport" ("tenantId", "orderId", "studyCode")
+  WHERE "isCurrent" = true;

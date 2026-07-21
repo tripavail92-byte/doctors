@@ -150,6 +150,7 @@ model Tenant {
   imagingOrders         ImagingOrder[]
   imagingOrderItems     ImagingOrderItem[]
   imagingReports        ImagingReport[]
+  imagingReportComms    ImagingReportCommunication[]
   pregnancyEpisodes     PregnancyEpisode[]
   ancVisits             AncVisit[]
   obstetricUltrasounds  ObstetricUltrasound[]
@@ -910,6 +911,25 @@ model ImagingOrderItem {
   @@index([orderId])
 }
 
+// Status of a report, using HL7 FHIR's DiagnosticReport.status vocabulary verbatim.
+//
+// Adopted rather than invented so it interoperates with any EHR later without a
+// translation layer, and because it keeps three ideas separate that are
+// otherwise argued about endlessly: content ADDED (appended), an error FIXED
+// (corrected), and a general post-final change (amended).
+//
+// ENTERED_IN_ERROR is a withdrawal, not a correction — it is what a report filed
+// against the wrong patient needs, which is a different problem from a wrong
+// interpretation.
+enum ImagingReportStatus {
+  PRELIMINARY
+  FINAL
+  APPENDED
+  CORRECTED
+  AMENDED
+  ENTERED_IN_ERROR
+}
+
 model ImagingReport {
   id           String   @id @default(uuid()) @db.Uuid
   tenantId     String   @db.Uuid
@@ -920,12 +940,60 @@ model ImagingReport {
   reportedById String?  @db.Uuid
   reportedAt   DateTime @default(now())
 
-  tenant Tenant       @relation(fields: [tenantId], references: [id])
-  order  ImagingOrder @relation(fields: [orderId], references: [id])
+  // --- Versioning -----------------------------------------------------------
+  // A finalized report used to be overwritten IN PLACE: "acute intracranial
+  // haemorrhage" became "no acute abnormality" on the same row, keeping the
+  // original timestamp, with nothing recording that it had ever changed.
+  //
+  // An amendment is now a NEW ROW carrying COMPLETE findings and impression —
+  // never a delta. IHE is explicit that an amended result must be sent whole,
+  // and a delta-shaped store would have to be rebuilt before any interface ships.
+  status             ImagingReportStatus @default(FINAL)
+  version            Int                 @default(1)
+  supersedesReportId String?             @db.Uuid
+  // Exactly one live row per study. Enforced by a PARTIAL unique index (Prisma
+  // cannot express `WHERE isCurrent`) — see prisma/constraints.sql.
+  isCurrent          Boolean             @default(true)
+  // Why the report was changed. Required for an amendment; the reader needs it
+  // more than the system does.
+  amendmentReason    String?
 
-  @@unique([tenantId, orderId, studyCode])
+  tenant     Tenant                       @relation(fields: [tenantId], references: [id])
+  order      ImagingOrder                 @relation(fields: [orderId], references: [id])
+  supersedes ImagingReport?               @relation("ReportVersion", fields: [supersedesReportId], references: [id])
+  supersededBy ImagingReport[]            @relation("ReportVersion")
+  communications ImagingReportCommunication[]
+
   @@index([tenantId])
   @@index([orderId])
+  @@index([supersedesReportId])
+}
+
+// Record that a changed interpretation was actually communicated to the referrer.
+//
+// The ACR asks that non-routine communications be documented with the date and
+// time, the method, and the NAME OF THE PERSON it was delivered to — and accepts
+// an electronic route only where receipt and acknowledgement are recorded. Those
+// are three structured fields and an optional fourth, not a free-text note,
+// because a note cannot be queried for "which amendments were never passed on".
+model ImagingReportCommunication {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @db.Uuid
+  reportId       String    @db.Uuid
+  recipientName  String
+  method         String // phone / in person / electronic
+  communicatedAt DateTime  @default(now())
+  // Required for electronic routes: the ACR accepts them only where receipt and
+  // acknowledgement are documented.
+  acknowledgedAt DateTime?
+  recordedById   String?   @db.Uuid
+  note           String?
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id])
+  report ImagingReport @relation(fields: [reportId], references: [id])
+
+  @@index([tenantId])
+  @@index([reportId])
 }
 
 // A refund against an invoice (reduces invoice.paid). Manual finance action.

@@ -18,6 +18,8 @@ import { ImagingService } from './imaging.service';
 import { CreateImagingOrderDto } from './dto/create-imaging-order.dto';
 import { AcquireDto } from './dto/acquire.dto';
 import { AddImagingReportDto } from './dto/add-imaging-report.dto';
+import { AmendImagingReportDto } from './dto/amend-imaging-report.dto';
+import { RecordCommunicationDto } from './dto/record-communication.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard, EntitlementGuard)
 @RequiresEntitlement('imaging.core')
@@ -54,6 +56,19 @@ export class ImagingController {
   @Post('orders/:id/reports')
   addReport(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AddImagingReportDto) {
     return this.imaging.addReport(id, dto);
+  }
+
+  // Amend a finalized report. The original is preserved; this creates a new
+  // version that supersedes it.
+  @Post('reports/:reportId/amend')
+  amend(@Param('reportId') reportId: string, @Body() dto: AmendImagingReportDto) {
+    return this.imaging.amendReport(reportId, dto);
+  }
+
+  // Record that a report was communicated to the referring clinician.
+  @Post('reports/:reportId/communications')
+  recordCommunication(@Param('reportId') reportId: string, @Body() dto: RecordCommunicationDto) {
+    return this.imaging.recordCommunication(reportId, dto);
   }
 
   @Patch('orders/:id/cancel')

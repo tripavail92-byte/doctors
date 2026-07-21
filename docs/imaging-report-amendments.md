@@ -1,8 +1,20 @@
 # Design — amending a finalized imaging report
 
-**Status: proposed, not built.** This answers the question left open on 2026-07-21, when a
-finalized radiology report was made immutable to stop it being silently overwritten. That
-fix was correct but incomplete: **a genuine correction now has no route at all.**
+**Status: BUILT 2026-07-21.** Migration `3_imaging_report_versioning`, service
+`amendReport` / `recordCommunication`, and 31 regression checks in
+`test/safety/imaging_amendment_suite.py`.
+
+This answered the question left open when a finalized radiology report was made immutable to
+stop it being silently overwritten. That fix was correct but incomplete: a genuine correction
+had no route at all.
+
+**Two pieces are deliberately NOT built**, both because they are clinic decisions rather than
+engineering ones — see "What the standards do NOT settle" below:
+- **whether an amendment may be saved before the communication is recorded.** The software
+  records the call; it does not currently block on it.
+- **the read/access log** that the RCR's middle state ("released but not yet read") needs.
+  Without it that state collapses into "read", which is the safe direction — every post-
+  release change is a full amendment.
 
 The design below is grounded in sources that were independently verified. Where the
 standards are silent, this document says so and puts the question to the clinician rather

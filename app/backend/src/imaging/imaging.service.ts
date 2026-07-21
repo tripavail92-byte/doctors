@@ -10,8 +10,21 @@ import { getTenant, getTenantId } from '../common/tenant/tenant-context';
 import { IMAGING_STUDIES, getStudy } from './imaging-catalog';
 import { CreateImagingOrderDto } from './dto/create-imaging-order.dto';
 import { AddImagingReportDto } from './dto/add-imaging-report.dto';
+import { AmendImagingReportDto } from './dto/amend-imaging-report.dto';
+import { RecordCommunicationDto } from './dto/record-communication.dto';
 
-const WITH_DETAIL = { items: true, reports: true } as const;
+// Reports are returned NEWEST-FIRST with their communication records, and
+// superseded versions are included rather than hidden. A reader who acted on
+// version 1 needs to be able to see that version 1 existed and what it said —
+// hiding history is how an amendment becomes indistinguishable from an
+// overwrite, which is the defect this whole model exists to prevent.
+const WITH_DETAIL: Prisma.ImagingOrderInclude = {
+  items: true,
+  reports: {
+    orderBy: [{ studyCode: 'asc' }, { version: 'desc' }],
+    include: { communications: true },
+  },
+};
 
 /**
  * Imaging / RIS: order -> acquire (assign accession) -> radiologist report per
@@ -108,12 +121,16 @@ export class ImagingService {
       if (!items.some((i) => i.studyCode === dto.studyCode)) {
         throw new BadRequestException(`Study "${dto.studyCode}" was not ordered`);
       }
-      const existing = await tx.imagingReport.findUnique({
-        where: { tenantId_orderId_studyCode: { tenantId, orderId: id, studyCode: dto.studyCode } },
+      // findFirst on isCurrent, not findUnique: the (tenantId, orderId, studyCode)
+      // unique was dropped so a version chain can share that key. Only the LIVE
+      // row blocks a first report.
+      const existing = await tx.imagingReport.findFirst({
+        where: { orderId: id, studyCode: dto.studyCode, isCurrent: true },
       });
       if (existing) {
         throw new ConflictException(
-          `Study "${dto.studyCode}" already has a report — a finalized report cannot be overwritten.`,
+          `Study "${dto.studyCode}" already has a report — amend it instead of reporting it again ` +
+            `(POST /imaging/reports/${existing.id}/amend).`,
         );
       }
       await tx.imagingReport.create({
@@ -126,11 +143,120 @@ export class ImagingService {
           reportedById: userId ?? null,
         },
       });
-      const reportCount = await tx.imagingReport.count({ where: { orderId: id } });
+      // Count LIVE reports only. Superseded versions are still rows; counting them
+      // would flip an order to REPORTED on the strength of its own history.
+      const reportCount = await tx.imagingReport.count({ where: { orderId: id, isCurrent: true } });
       if (reportCount >= items.length && order.status === ImagingOrderStatus.ACQUIRED) {
         await tx.imagingOrder.update({ where: { id }, data: { status: ImagingOrderStatus.REPORTED } });
       }
       return reload(tx, id);
+    });
+  }
+
+  /**
+   * Amend a finalized report.
+   *
+   * The original row is NEVER mutated. A new row carrying COMPLETE findings and
+   * impression supersedes it, the old row is marked `isCurrent = false`, and the
+   * chain is walkable in both directions. IHE requires an amended result to be
+   * sent whole rather than as a delta, so it is stored whole.
+   *
+   * `isCurrent` is flipped BEFORE the insert, because the partial unique index
+   * `imaging_report_one_current_per_study` permits exactly one live row per
+   * study — that index, not this ordering, is what actually guarantees it. Two
+   * concurrent amendments cannot both land.
+   */
+  async amendReport(reportId: string, dto: AmendImagingReportDto) {
+    const tenantId = getTenantId();
+    const { userId } = getTenant();
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      // Lock the report being amended so two radiologists cannot fork the chain.
+      await tx.$executeRaw`SELECT id FROM "ImagingReport" WHERE id = ${reportId}::uuid FOR UPDATE`;
+      const current = await tx.imagingReport.findUnique({ where: { id: reportId } });
+      if (!current) throw new NotFoundException(`Imaging report ${reportId} not found`);
+
+      if (!current.isCurrent) {
+        throw new ConflictException(
+          `That report has already been superseded by a later version — amend the current one instead.`,
+        );
+      }
+      if (current.status === 'ENTERED_IN_ERROR') {
+        throw new BadRequestException(
+          'That report was withdrawn as entered-in-error and cannot be amended.',
+        );
+      }
+
+      await tx.imagingReport.update({ where: { id: reportId }, data: { isCurrent: false } });
+
+      let amended;
+      try {
+        amended = await tx.imagingReport.create({
+          data: {
+            tenantId,
+            orderId: current.orderId,
+            studyCode: current.studyCode,
+            findings: dto.findings,
+            impression: dto.impression,
+            status: dto.status,
+            version: current.version + 1,
+            supersedesReportId: current.id,
+            amendmentReason: dto.reason,
+            reportedById: userId ?? null,
+            isCurrent: true,
+          },
+        });
+      } catch (e) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+          throw new ConflictException(
+            'Another amendment to this study landed first — reload and amend the current version.',
+          );
+        }
+        throw e;
+      }
+      return reload(tx, current.orderId, amended.id);
+    });
+  }
+
+  /**
+   * Record that a changed interpretation was passed to the referrer.
+   *
+   * Kept as its own operation rather than a field on the amendment, because the
+   * call usually happens AFTER the report is written, and forcing them into one
+   * step would mean either blocking the amendment or fabricating a time.
+   *
+   * Whether an amendment may exist without one of these is a clinic policy
+   * question (see docs/imaging-report-amendments.md); the software records the
+   * fact and does not currently enforce it.
+   */
+  async recordCommunication(reportId: string, dto: RecordCommunicationDto) {
+    const tenantId = getTenantId();
+    const { userId } = getTenant();
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const report = await tx.imagingReport.findUnique({ where: { id: reportId } });
+      if (!report) throw new NotFoundException(`Imaging report ${reportId} not found`);
+
+      // The ACR accepts an electronic route only where receipt and
+      // acknowledgement are documented, so an electronic record without an
+      // acknowledgement is refused rather than silently accepted as sufficient.
+      if (dto.method === 'electronic' && !dto.acknowledgedAt) {
+        throw new BadRequestException(
+          'An electronic communication must record when it was acknowledged — otherwise there is ' +
+            'no evidence it was received. Use method "phone" or "in person" if it was not.',
+        );
+      }
+      await tx.imagingReportCommunication.create({
+        data: {
+          tenantId,
+          reportId,
+          recipientName: dto.recipientName,
+          method: dto.method,
+          communicatedAt: dto.communicatedAt ? new Date(dto.communicatedAt) : new Date(),
+          acknowledgedAt: dto.acknowledgedAt ? new Date(dto.acknowledgedAt) : null,
+          recordedById: userId ?? null,
+          note: dto.note ?? null,
+        },
+      });
+      return reload(tx, report.orderId);
     });
   }
 
@@ -181,6 +307,6 @@ async function nextNumber(
   return `${like}${String(next).padStart(4, '0')}`;
 }
 
-function reload(tx: Prisma.TransactionClient, id: string) {
+function reload(tx: Prisma.TransactionClient, id: string, _amendedReportId?: string) {
   return tx.imagingOrder.findUnique({ where: { id }, include: WITH_DETAIL });
 }

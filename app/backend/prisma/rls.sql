@@ -569,3 +569,12 @@ ALTER TABLE "DispenseItemBatch" FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON "DispenseItemBatch";
 CREATE POLICY tenant_isolation ON "DispenseItemBatch"
   USING ("tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid);
+
+-- ---------------------------------------------------------------------------
+-- ImagingReportCommunication
+-- ---------------------------------------------------------------------------
+ALTER TABLE "ImagingReportCommunication" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "ImagingReportCommunication" FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON "ImagingReportCommunication";
+CREATE POLICY tenant_isolation ON "ImagingReportCommunication"
+  USING ("tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid);
