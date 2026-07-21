@@ -30,6 +30,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import SpaIcon from "@mui/icons-material/Spa";
 import { navGroups } from "./nav";
 import { useAuth } from "../auth/AuthContext";
+import FetchErrorBanner from '../components/FetchErrorBanner';
 
 // Fixed sidebar width; shared between Drawer and content offset.
 const DRAWER_WIDTH = 248;
@@ -189,6 +190,9 @@ export default function AppShell() {
 
         {/* Routed page content */}
         <Box component="main" sx={{ flexGrow: 1, p: 3, bgcolor: "background.default" }}>
+          {/* Above the page content, so a load failure cannot be mistaken for
+              an empty result no matter what the page below renders. */}
+          <FetchErrorBanner />
           <Outlet />
         </Box>
       </Box>
