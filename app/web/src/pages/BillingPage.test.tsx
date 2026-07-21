@@ -217,7 +217,34 @@ describe('a voided invoice is terminal', () => {
     // number under "outstanding" is how a cancelled bill gets chased.
     const summary = screen.getByText('voided').parentElement!;
     expect(within(summary).getByRole('heading', { level: 5 })).toHaveTextContent('—');
-    expect(within(summary).queryByText('Rs 8,000')).toBeNull();
+    // The only Rs 8,000 in this box is the "Rs 0 of Rs 8,000 paid" caption —
+    // the historical total, which is fine. What must not appear is 8,000
+    // standing on its own as the figure. (An exact-string queryByText for
+    // 'Rs 8,000' here passes for the wrong reason: nothing in this box ever
+    // has that as its whole text, voided or not.)
+    expect(within(summary).getByText('Rs 0 of Rs 8,000 paid')).toBeInTheDocument();
+    expect(within(summary).getByRole('heading', { level: 5 })).not.toHaveTextContent('8,000');
+
+    // The same number is printed in two other places, and a void has to be
+    // honoured in all three or the "no balance" above is decoration.
+    //
+    // 1. The invoice's own row in the list. Its Owed cell is a dash, not the
+    //    Rs 8,000 the Total cell beside it still shows.
+    const listCell = screen
+      .getAllByText('INV-2026-0003')
+      .find((el) => el.closest('tr') !== null)!;
+    const row = listCell.closest('tr') as HTMLTableRowElement;
+    expect(row.cells[2]).toHaveTextContent('Rs 8,000'); // Total: still the bill's face value
+    expect(row.cells[3]).toHaveTextContent('—'); // Owed: nothing
+    expect(row.cells[3]).not.toHaveTextContent('8,000');
+
+    // 2. The page-level tile captioned "outstanding" — the one number an owner
+    //    checks, and the one a collections call is made from. Rs 25,000 is the
+    //    live invoice alone; folding the voided Rs 8,000 back in (Rs 33,000) is
+    //    the clinic chasing a bill it cancelled.
+    const tile = screen.getByText('outstanding').parentElement!;
+    expect(within(tile).getByRole('heading', { level: 6 })).toHaveTextContent('Rs 25,000');
+    expect(tile).not.toHaveTextContent('33,000');
   });
 });
 
@@ -243,7 +270,20 @@ describe('voiding an invoice', () => {
 
   it('voids on confirmation and re-reads the invoice rather than assuming', async () => {
     const user = setup();
-    mockApi(stubs({ 'PATCH /invoices/i-1/void': { body: { ...UNPAID, status: 'VOID' } } }));
+    const VOIDED_I1 = { ...UNPAID, status: 'VOID' };
+    // The server's answer changes the instant the void lands, so these stubs
+    // answer differently either side of the PATCH. Stubs that return the same
+    // invoice forever cannot tell a re-read from a stale render — which is the
+    // entire claim in this test's name.
+    let isVoided = false;
+    mockApi(stubs({
+      'PATCH /invoices/i-1/void': () => {
+        isVoided = true;
+        return { body: VOIDED_I1 };
+      },
+      'GET /invoices/i-1': () => ({ body: isVoided ? VOIDED_I1 : UNPAID }),
+      'GET /patients/p-1/invoices': () => ({ body: isVoided ? [VOIDED_I1, SETTLED, VOIDED] : LIST }),
+    }));
     renderPage(<BillingPage />);
     await openInvoice('INV-2026-0001');
 
@@ -259,6 +299,29 @@ describe('voiding an invoice', () => {
     await waitFor(() =>
       expect(apiCalls.filter((c) => c.url === '/patients/p-1/invoices')).toHaveLength(2),
     );
+
+    // THE INVOICE is re-read, not merely the list beside it. They are two
+    // separate GETs, and only the second one decides what the buttons below are
+    // pointed at.
+    await waitFor(() =>
+      expect(apiCalls.filter((c) => c.method === 'GET' && c.url === '/invoices/i-1')).toHaveLength(2),
+    );
+
+    // And the re-read is what the screen shows. Without it the card goes on
+    // rendering the invoice it loaded BEFORE the void — chip "unpaid",
+    // "outstanding Rs 25,000" — with Record, Void invoice and File with FBR all
+    // live against a bill the server has already cancelled. "Invoice voided."
+    // above a card that still says Rs 25,000 is owed is worse than either
+    // sentence alone: the cashier chases the balance the screen is showing.
+    expect(
+      await screen.findByText(/carries no balance and cannot be paid, refunded, or filed/i),
+    ).toBeInTheDocument();
+    const summary = screen.getByText('voided').parentElement!;
+    expect(within(summary).queryByText('Rs 25,000')).toBeNull();
+    expect(summary).not.toHaveTextContent('outstanding');
+    expect(screen.queryByRole('button', { name: 'Record' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Void invoice' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'File with FBR' })).toBeNull();
   });
 
   it('will not offer a void on an invoice that has money against it', async () => {

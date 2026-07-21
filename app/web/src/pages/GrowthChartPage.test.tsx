@@ -165,17 +165,41 @@ describe('the chip colour is the server’s verdict, not a client rule', () => {
   });
 
   it('shows the classification in the server’s own words', async () => {
+    const user = userEvent.setup();
     mockApi(stubs({
+      'GET /growth/curves?indicator=lhfa&sex=female': { body: curves('lhfa') },
+      // The SAME z-score, two different server verdicts. At z -2.4 weight-for-age
+      // is a weight band and length-for-age is a stature one, and neither string
+      // is what a client rule re-derives from that number. No function of z alone
+      // can print both, so a pass here means the words came off the wire.
       'GET /patients/p-1/growth?indicator=wfa': {
-        body: series('wfa', [point(12, 7.1, -2.4, 1, 'Underweight')]),
+        body: series('wfa', [point(12, 7.1, -2.4, 1, 'Moderately underweight')]),
+      },
+      'GET /patients/p-1/growth?indicator=lhfa': {
+        body: series('lhfa', [point(12, 68.2, -2.4, 1, 'Stunted')]),
       },
     }));
     renderPage(<GrowthChartPage />);
 
+    /** The whole label MUI painted, so a paraphrase or an added word also fails. */
+    const chipText = async (label: string) => {
+      const root = (await screen.findByText(label)).closest('.MuiChip-root');
+      if (!root) throw new Error(`no chip around ${label}`);
+      return root.textContent;
+    };
+
     // Not a paraphrase and not a re-derivation from z: the words on the chip are
-    // the words in the chart note and in the referral.
-    expect(await screen.findByText('Underweight')).toBeInTheDocument();
-    expect(screen.queryByText('Severely underweight')).toBeNull();
+    // the words in the chart note and in the referral, character for character.
+    expect(await chipText('Moderately underweight')).toBe('Moderately underweight');
+    // What a client-side `z <= -2 → underweight` rule prints at this z instead.
+    expect(screen.queryByText('Underweight')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Length/Height-for-age' }));
+
+    // Same z, different indicator, different WHO band. A page that computes the
+    // words from the number cannot tell these two children apart.
+    expect(await chipText('Stunted')).toBe('Stunted');
+    expect(screen.queryByText('Moderately underweight')).toBeNull();
   });
 
   it('keeps the z-score chip colourless so only the classification raises alarm', async () => {

@@ -201,7 +201,22 @@ describe('a dose that did not count is not shown as given', () => {
     await screen.findByText('EPI card');
 
     // The headline, not a footnote in row 3 of a seven-column table.
-    expect(screen.getByText('1 dose(s) do not count and must be repeated')).toBeInTheDocument();
+    const repeatAlert = screen
+      .getByText('1 dose(s) do not count and must be repeated')
+      .closest<HTMLElement>('[role="alert"]');
+    if (!repeatAlert) throw new Error('the repeat headline is not inside an alert');
+
+    // A count with no list is the fridge worklist's defect again: "one dose must
+    // be repeated" sends nobody anywhere. The alert has to name the dose and give
+    // the reason, or the nurse has to go hunting through the table for a row
+    // whose only marking is a chip.
+    expect(within(repeatAlert).getByText('PENTA dose 2').parentElement).toHaveTextContent(
+      INVALID_REASON,
+    );
+
+    // And it leads: above the card, not below seven columns of schedule.
+    const epiCard = screen.getByText('EPI card');
+    expect(repeatAlert.compareDocumentPosition(epiCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     const row = cardRow('Pentavalent (DTP-HepB-Hib)', '2');
     expect(within(row).getByText('INVALID — repeat')).toBeInTheDocument();
@@ -231,9 +246,26 @@ describe('a dose that did not count is not shown as given', () => {
     await screen.findByText('EPI card');
 
     const row = cardRow('Pentavalent (DTP-HepB-Hib)', '3');
+    const cells = within(row).getAllByRole('cell');
+
     // "blocked" with no sentence gets overridden by whoever is holding the
     // syringe. The reason is the whole value of the engine.
     expect(row).toHaveTextContent(BLOCKED_REASON);
+
+    // And the status has to agree with the sentence. This dose was never
+    // administered, so the chip is the one thing a nurse scanning the column
+    // actually reads, and the note two cells over does not rescue it: a row
+    // marked "given" is a row nobody opens. That is the same defect the dose-2
+    // test guards, one row further down — and the guard there is scoped to
+    // dose 2, so without this the blocked row can read green unpunished.
+    expect(cells[4]).toHaveTextContent('blocked');
+    expect(within(row).queryByText('given')).toBeNull();
+
+    // Nothing went into the child, so nothing may be recorded as if it had.
+    // A blocked row carrying a date or a lot number reads as an administration
+    // and gets counted as one at the next visit.
+    expect(cells[5]).toHaveTextContent('—');
+    expect(cells[5]).not.toHaveTextContent('PEN-');
   });
 });
 

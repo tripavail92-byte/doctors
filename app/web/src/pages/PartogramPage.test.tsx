@@ -107,12 +107,26 @@ function stubs(extra: Record<string, unknown> = {}) {
   } as never;
 }
 
-/** The grid row whose first cell carries `label`. */
-function gridRow(label: string): HTMLElement {
-  return screen.getByText(label, { selector: 'td' }).closest('tr') as HTMLElement;
+/**
+ * The chart read the way a midwife reads it: pick the column by the time
+ * printed ABOVE it, then read down. Reading a row's cells positionally only
+ * proves the rows agree with each other — the time headers live in the
+ * TableHead and never appear in a `td`, so a row-based assertion cannot see
+ * them slide.
+ */
+function grid() {
+  const table = screen.getByRole('table');
+  // Column 0 is the "Parameter" stub; the rest are the time headers.
+  const times = Array.from(table.querySelectorAll('thead th')).slice(1).map((c) => c.textContent ?? '');
+  const rows = new Map<string, string[]>(
+    Array.from(table.querySelectorAll('tbody tr')).map((tr) => {
+      const cells = Array.from(tr.querySelectorAll('td')).map((c) => c.textContent ?? '');
+      return [cells[0], cells.slice(1)] as [string, string[]];
+    }),
+  );
+  const valueAt = (time: string, label: string) => rows.get(label)?.[times.indexOf(time)];
+  return { times, valueAt };
 }
-
-const cellText = (row: HTMLElement) => within(row).getAllByRole('cell').map((c) => c.textContent);
 
 async function openForm() {
   const user = userEvent.setup();
@@ -125,6 +139,16 @@ async function fill(fields: Record<string, string>) {
     await user.type(screen.getByRole('spinbutton', { name: new RegExp(label) }), value);
   }
 }
+
+/** Open the liquor picker and click one of its options — including the blank '—'. */
+async function pickLiquor(option: string) {
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('combobox', { name: /Amniotic fluid/ }));
+  const listbox = await screen.findByRole('listbox');
+  await user.click(within(listbox).getByRole('option', { name: option }));
+}
+
+const posts = () => apiCalls.filter((c) => c.method === 'POST' && c.url === '/obgyn/partograms/pg-1/entries');
 
 describe('the chart on screen is the labour happening now', () => {
   it('opens the ACTIVE labour record, not an earlier closed one', async () => {
@@ -155,14 +179,47 @@ describe('the chart on screen is the labour happening now', () => {
 
     // 08:00 first, 12:00 second. Columns that slide turn a falling fetal heart
     // into a normal one recorded four hours ago.
-    expect(cellText(gridRow('Cervical dilation (cm)'))).toEqual(['Cervical dilation (cm)', '5', '6']);
-    expect(cellText(gridRow('FHR (bpm)'))).toEqual(['FHR (bpm)', '140', '95']);
-    expect(cellText(gridRow('Maternal pulse'))).toEqual(['Maternal pulse', '88', '124']);
-    expect(cellText(gridRow('BP (mmHg)'))).toEqual(['BP (mmHg)', '118/76', '90/60']);
-    expect(cellText(gridRow('Amniotic fluid'))).toEqual(['Amniotic fluid', 'MECONIUM', 'CLEAR']);
+    //
+    // Which column is WHICH TIME has to be asserted, not assumed. Checking only
+    // that the rows agree with one another passes just as happily when the whole
+    // header strip is relabelled: every observation then sits under the wrong
+    // clock time while the grid still looks internally consistent. So the two
+    // columns are identified from the header first, against evidence printed
+    // outside the grid, and only then read downwards.
+    const { times, valueAt } = grid();
+
+    // Two observations were charted, so there are two time columns.
+    expect(times).toHaveLength(2);
+    // The record opened at the moment of the first observation, so the leftmost
+    // column must carry the time on the "Started" chip — the only clock reading
+    // this page prints outside the table, and therefore the one anchor a
+    // reordered header cannot drag along with it.
+    const started = screen.getByText(/^Started /).textContent!.replace(/^Started\s*/, '');
+    expect(times[0]).toBe(started);
+    // ...and the second column is the observation taken four hours later, not
+    // the first one relabelled. Compared as a duration so the assertion holds in
+    // any timezone the suite happens to run in.
+    const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+    expect((mins(times[1]) - mins(times[0]) + 1440) % 1440).toBe(240);
+
+    const [eight, twelve] = times;
+    expect(valueAt(eight, 'Cervical dilation (cm)')).toBe('5');
+    expect(valueAt(twelve, 'Cervical dilation (cm)')).toBe('6');
+    // The fetal heart fell from 140 to 95. Under the wrong header that inverts
+    // into a bradycardia four hours ago which has since recovered — the exact
+    // misreading this screen exists to prevent.
+    expect(valueAt(eight, 'FHR (bpm)')).toBe('140');
+    expect(valueAt(twelve, 'FHR (bpm)')).toBe('95');
+    expect(valueAt(eight, 'Maternal pulse')).toBe('88');
+    expect(valueAt(twelve, 'Maternal pulse')).toBe('124');
+    expect(valueAt(eight, 'BP (mmHg)')).toBe('118/76');
+    expect(valueAt(twelve, 'BP (mmHg)')).toBe('90/60');
+    expect(valueAt(eight, 'Amniotic fluid')).toBe('MECONIUM');
+    expect(valueAt(twelve, 'Amniotic fluid')).toBe('CLEAR');
     // Contraction duration was not timed at 12:00. Not-timed must read as
     // not-timed, never as a blank that looks like a normal observation.
-    expect(cellText(gridRow('Duration (s)'))).toEqual(['Duration (s)', '40', '—']);
+    expect(valueAt(eight, 'Duration (s)')).toBe('40');
+    expect(valueAt(twelve, 'Duration (s)')).toBe('—');
   });
 
   it('offers no entry form on a labour record that has been closed', async () => {
@@ -282,18 +339,31 @@ describe('adding an entry', () => {
     await screen.findByText('Labour record');
 
     await openForm();
-    await user.click(screen.getByRole('combobox', { name: /Amniotic fluid/ }));
-    const listbox = await screen.findByRole('listbox');
-    await user.click(within(listbox).getByText('MECONIUM'));
+    await pickLiquor('MECONIUM');
     await user.click(screen.getByRole('button', { name: 'Save entry' }));
 
-    await waitFor(() => {
-      const post = apiCalls.find((c) => c.method === 'POST' && c.url === '/obgyn/partograms/pg-1/entries');
-      // Meconium is one of the two liquor findings the server turns into
-      // LIQUOR_ABNORMAL. A picker that does not send its value silently
-      // downgrades the chart.
-      expect(post!.body).toEqual({ amnioticFluid: 'MECONIUM' });
-    });
+    await waitFor(() => expect(posts()).toHaveLength(1));
+    // Meconium is one of the two liquor findings the server turns into
+    // LIQUOR_ABNORMAL. A picker that does not send its value silently
+    // downgrades the chart.
+    expect(posts()[0].body).toEqual({ amnioticFluid: 'MECONIUM' });
+
+    // Now the other half of the promise. She picks a liquor finding on the
+    // wrong woman's chart, notices, and re-opens the picker to take it back
+    // with the blank '—' option. Un-picked is NOT a finding: it has to leave
+    // the request entirely.
+    await pickLiquor('MECONIUM');
+    await pickLiquor('—');
+    await user.click(screen.getByRole('button', { name: 'Save entry' }));
+
+    await waitFor(() => expect(posts()).toHaveLength(2));
+    // An empty string is not a liquor finding the server knows. It arrives at
+    // an @IsEnum and comes back 400, so an otherwise complete set of labour
+    // observations — dilation, FHR, pulse — is refused over a field she
+    // deliberately left blank. The key must be absent, not blank.
+    const body = posts()[1].body as Record<string, unknown>;
+    expect('amnioticFluid' in body).toBe(false);
+    expect(body).toEqual({});
   });
 
   it('shows the server’s refusal and keeps the observations that were typed', async () => {
@@ -349,10 +419,33 @@ describe('starting the labour record', () => {
   it('starts it on the active episode with that woman’s parity', async () => {
     const user = userEvent.setup();
     mockApi(stubs({
+      // This woman has been pregnant before. The server lists the pregnancy she
+      // finished in 2024 FIRST; the labour happening now is the ACTIVE one,
+      // second. A page that takes whichever episode came back first charts this
+      // labour onto a pregnancy that ended two years ago.
+      'GET /obgyn/patients/p-1/episodes': {
+        body: [
+          { id: 'e-prev', status: 'COMPLETED', eddFinal: '2024-02-01', gaNow: null },
+          { id: 'e-1', status: 'ACTIVE', eddFinal: '2026-07-10', gaNow: null },
+        ],
+      },
+      // Her first pregnancy — para 1, not 2. Parity read off the wrong episode
+      // is a wrong number, not just a wrong record.
+      'GET /obgyn/episodes/e-prev': {
+        body: episode({ id: 'e-prev', status: 'COMPLETED', gravida: 1, para: 1, partograms: [] }),
+      },
       'GET /obgyn/episodes/e-1': { body: episode({ partograms: [] }) },
+      // Stubbed so that "nothing was started here" is the assertion doing the
+      // work, not the harness refusing an unstubbed call.
+      'POST /obgyn/episodes/e-prev/partograms': { status: 201, body: { id: 'pg-wrong' } },
       'POST /obgyn/episodes/e-1/partograms': { status: 201, body: { id: 'pg-1' } },
     }));
     renderPage(<PartogramPage />);
+
+    // The record this page opened is the labour happening now.
+    await waitFor(() => expect(apiCalls.some((c) => c.url.startsWith('/obgyn/episodes/'))).toBe(true));
+    expect(apiCalls.map((c) => c.url)).toContain('/obgyn/episodes/e-1');
+    expect(apiCalls.map((c) => c.url)).not.toContain('/obgyn/episodes/e-prev');
 
     const dil = await screen.findByRole('spinbutton', { name: /Dilation at start/ });
     await user.clear(dil);
@@ -368,7 +461,11 @@ describe('starting the labour record', () => {
       // whole labour.
       expect(post!.body).toEqual({ parity: 2, startDilationCm: 8, membraneStatus: 'INTACT' });
     });
-    // The episode is re-read so the new record is picked up.
+    // Nothing was opened on the finished pregnancy. A labour record hanging off
+    // a closed episode is an hour of observations nobody managing this labour
+    // can see.
+    expect(apiCalls.some((c) => c.url === '/obgyn/episodes/e-prev/partograms')).toBe(false);
+    // The episode is re-read so the new record is picked up — the ACTIVE one.
     await waitFor(() =>
       expect(apiCalls.filter((c) => c.method === 'GET' && c.url === '/obgyn/episodes/e-1')).toHaveLength(2),
     );

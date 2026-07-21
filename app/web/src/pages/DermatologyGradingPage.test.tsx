@@ -243,6 +243,18 @@ describe('a grade is only submitted once it is whole', () => {
     // A patient whose melasma has cleared grades 0 everywhere. If the form
     // treated 0 as "not answered" the one result worth recording — treatment
     // worked — could never be entered.
+    //
+    // First: the 0 the clinician picked has to be VISIBLE in the cell it was
+    // picked into. 0 is the one grade that is falsy, so a `||` fallback on the
+    // Select's value renders every one of them as an empty box — the grid of a
+    // fully graded clear-skin patient then reads as completely unfilled while
+    // the Score button enables for no reason the clinician can see, and the
+    // obvious response is to re-enter all eight cells. A blank cell must mean
+    // "not answered" and nothing else.
+    for (const name of Object.keys(MMASI_ZEROS)) {
+      expect(screen.getByRole('combobox', { name })).toHaveTextContent('0');
+    }
+
     const score = screen.getByRole('button', { name: 'Score mMASI' });
     await waitFor(() => expect(score).toBeEnabled());
     await userEvent.setup().click(score);
@@ -440,7 +452,42 @@ describe('the score on screen is the one the server computed', () => {
     // "Could not score this grade" sends the clinician back to re-enter the
     // same 24 numbers against a form that will refuse them again.
     expect(await screen.findByText(/Record the DOB on the patient first/i)).toBeInTheDocument();
-    // Nothing was saved, so nothing may be shown as a result.
-    expect(screen.queryByText(/mMASI score/i)).toBeNull();
+
+    // The grade that was refused is the grade that was on the form — the
+    // refusal is about THIS submission, not a stale one.
+    const post = apiCalls.find((c) => c.method === 'POST' && c.url === '/dermatology/grades');
+    expect(post!.body).toEqual({
+      patientId: 'p-1',
+      instrument: 'mmasi',
+      answers: {
+        forehead: { area: 0, darkness: 0 },
+        malar_r: { area: 0, darkness: 0 },
+        malar_l: { area: 0, darkness: 0 },
+        chin: { area: 0, darkness: 0 },
+      },
+    });
+
+    // Nothing was saved, so nothing may be shown as a result — and "nothing on
+    // screen" has to be checked against the parts of the result card that a
+    // score ALWAYS brings with it: the number itself, the "/ max" denominator,
+    // and the band chip (a real band, or the explicit "no validated band").
+    // Keying on the card's caption instead would let any card whose caption
+    // read differently sit under the refusal with a score in it.
+    expect(screen.queryByText(/^\/\s*\d/)).toBeNull();
+    // The grid cells legitimately render bare integers, so a score is pinned by
+    // the decimal it is displayed with — no "12.4"-shaped number anywhere.
+    expect(screen.queryByText(/^\d+\.\d+$/)).toBeNull();
+    expect(screen.queryByText('severe')).toBeNull();
+    expect(screen.queryByText(/no validated band/i)).toBeNull();
+
+    // ...and nothing was written, so the history behind the form is not
+    // reloaded and still reads as empty. A refused grade that bumps the
+    // history is a grade the clinician will believe was recorded.
+    expect(
+      apiCalls.filter(
+        (c) => c.method === 'GET' && c.url === '/dermatology/patients/p-1/grades?instrument=mmasi',
+      ).length,
+    ).toBe(1);
+    expect(screen.getByText(/No mMASI grades recorded yet/i)).toBeInTheDocument();
   }, 60000);
 });

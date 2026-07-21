@@ -117,6 +117,18 @@ function summaryBlock(sideLabel: string): HTMLElement {
   return block;
 }
 
+/**
+ * The number a stat card is displaying, read off the caption that names it.
+ *
+ * A caption and the figure above it are two separate nodes, and only the figure
+ * is the reading — so a test that finds the caption has not yet seen the number.
+ */
+function cardValue(caption: HTMLElement): string {
+  const value = caption.previousElementSibling;
+  if (!value) throw new Error(`no value rendered above "${caption.textContent}"`);
+  return value.textContent ?? '';
+}
+
 /** Pick an option from a MUI Select: by ROLE, and the listbox is portalled. */
 async function pickFromSelect(name: RegExp, optionText: RegExp) {
   const user = userEvent.setup();
@@ -203,8 +215,17 @@ describe('each eye is summarised on its own', () => {
     // The server flagged the right eye's 30 against the pack's own bands. If the
     // caption falls back to the unit, a reading outside the band reads exactly
     // like one inside it and the number has to be checked against a chart by eye.
-    expect(within(summaryBlock('Right (OD)')).getByText('latest · high')).toBeInTheDocument();
-    expect(within(summaryBlock('Left (OS)')).getByText('latest · mmHg')).toBeInTheDocument();
+    const rightLatest = within(summaryBlock('Right (OD)')).getByText('latest · high');
+    const leftLatest = within(summaryBlock('Left (OS)')).getByText('latest · mmHg');
+
+    // A caption is only a marking. What a clinician acts on is the figure it sits
+    // under, so the flag has to be attached to the reading it describes: this eye
+    // is at 30 now, not at the 18 it started from and not at the 18 it is being
+    // treated towards. "latest · high" printed over an in-band number is worse
+    // than no flag at all — it reads as a pressure already brought under control,
+    // and a controlled pressure is one nobody re-measures.
+    expect(cardValue(rightLatest)).toBe('30');
+    expect(cardValue(leftLatest)).toBe('15');
   });
 });
 
@@ -218,6 +239,9 @@ describe('the chart on screen is the chart that was asked for', () => {
     );
     renderPage(<TrendsPage />);
     await screen.findByText('Intraocular Pressure (mmHg)');
+    // The eye pressures are genuinely on screen first, so their absence below is
+    // a thing that happened rather than a thing that was never there.
+    expect(within(summaryBlock('Right (OD)')).getByText('max · mmHg').parentElement).toHaveTextContent('30');
 
     await pickFromSelect(/Chart/, /Pain \(NPRS\)/);
 
@@ -226,6 +250,32 @@ describe('the chart on screen is the chart that was asked for', () => {
     expect(await screen.findByText('Pain (NPRS) (score)')).toBeInTheDocument();
     expect(screen.queryByText('Intraocular Pressure (mmHg)')).toBeNull();
     expect(apiCalls.some((c) => c.method === 'GET' && c.url === NPRS_URL)).toBe(true);
+
+    // The title is not the reading. A clinician acts on the stat cards, and
+    // those come from a SECOND request — so the summary has to follow the
+    // definition too. If only the chart swaps, 'Pain (NPRS) (score)' sits
+    // directly above 'latest · high / min 18 / max 30': the eye pressures,
+    // relabelled with the pain unit and read against a 0–10 axis. Every
+    // assertion above still holds in that state, which is why the numbers are
+    // pinned here and not just the heading.
+    await waitFor(() => {
+      // NPRS is one pooled series, so exactly one row of cards may exist. Two
+      // rows means the two-eyed summary outlived the definition that produced it.
+      expect(screen.getAllByText(/^latest · /)).toHaveLength(1);
+      expect(cardValue(screen.getByText('latest · score'))).toBe('6');
+      expect(cardValue(screen.getByText('min · score'))).toBe('6');
+      expect(cardValue(screen.getByText('max · score'))).toBe('6');
+    });
+    // 30 mmHg is the figure that buys a laser. Under a pain chart it is not a
+    // stale pixel, it is a score of 30 on a scale that stops at 10.
+    for (const pressure of ['30', '18', '15', '14']) {
+      expect(screen.queryByText(pressure)).toBeNull();
+    }
+    // The band caption too: 'high' was the server's verdict on an IOP of 30
+    // against the ophthalmology bands, and it says nothing about pain.
+    expect(screen.queryByText('latest · high')).toBeNull();
+    // And the request that produced those cards was the one for THIS chart.
+    expect(apiCalls.some((c) => c.method === 'GET' && c.url === `${NPRS_URL}/summary`)).toBe(true);
   });
 
   it('drops the previous patient’s numbers when the next patient’s chart fails', async () => {

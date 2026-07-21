@@ -345,11 +345,23 @@ describe('a burn hold is reported as a hold', () => {
     }));
     renderPage(<PhototherapyPage />);
     await openCourse(user);
+
+    // A normal visit FIRST, because the wording has to be pinned in both
+    // directions. "Record hold" standing over a queued 575 mJ/cm² is the same
+    // lie as "Record session" standing over a burn, and a button hard-coded to
+    // either word satisfies the /Record (session|hold)/ that the rest of this
+    // file matches on — so the label is asserted here by its exact name.
+    await pickGrade(user, /none/); // grade 0 → ESCALATE, 575 mJ/cm² is about to be given
+    await untilDose('575');
+    expect(screen.getByRole('button', { name: 'Record session' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Record hold' })).toBeNull();
+
     await pickGrade(user, /blistering/); // grade 3
 
     // The button itself must stop saying "Record session": what is about to be
     // written is a refusal to treat, not a treatment.
     await waitFor(() => expect(screen.getByRole('button', { name: 'Record hold' })).toBeEnabled(), SLOW);
+    expect(screen.queryByRole('button', { name: 'Record session' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Record hold' }));
 
     expect(await screen.findByText(/Session HELD and recorded. Notify the prescriber./))
@@ -391,6 +403,17 @@ describe('the ledger', () => {
     expect(screen.queryByText(/grade 0/)).toBeNull();
 
     const rows = screen.getAllByRole('row');
+
+    // Session 1 IS the sentinel: delivered, erythemaGrade 0, nobody assessed it.
+    // Its Erythema cell is the only cell on this screen that renders that
+    // branch, so it is the cell this test exists for. Pin the whole cell, not a
+    // spelling: "grade 0", "none", "0", "nil" and "no erythema" are all the same
+    // lie in different words — each one reports an assessment that never
+    // happened, and each one is what the engine escalates the next dose on.
+    const sentinel = within(rows[1]).getAllByRole('cell')[5];
+    expect(sentinel).toHaveTextContent(/^—$/);
+    expect(sentinel.textContent?.trim()).toBe('—');
+
     expect(within(rows[2]).getByText('grade 2')).toBeInTheDocument();
 
     // The held row: no reaction of its own, no dose, and it must read as a burn

@@ -14,7 +14,7 @@
 // come from va.engine, the 10–21 "normal" and >40 "urgent" bands from iop.engine.
 // Nothing here invents a clinical number.
 import { describe, expect, it } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createTheme, hexToRgb } from '@mui/material';
 import OphthalmologyPage from './OphthalmologyPage';
@@ -148,15 +148,38 @@ describe('a number stays on the eye it was measured on', () => {
   });
 
   it('colours the pressure from the server’s band, red for the urgent eye', async () => {
-    mockApi(stubs(exam({
-      iopMeasurements: [iop('i-1', 'RIGHT', 44, 'urgent'), iop('i-2', 'LEFT', 15, 'normal')],
-    })));
-    renderPage(<OphthalmologyPage />);
-    await openExam();
+    // Every colour below is the band iop.engine sent, never a threshold this
+    // page applied to the number beside it. The two are only distinguishable
+    // where they DISAGREE, so each pair includes a pressure no client guess
+    // reaches: the server's normal band ends at 21.9 and its red band starts at
+    // 30, which makes 24 mmHg `soft` — and amber is a colour no ">21 is red /
+    // else green" rule can produce at all.
+    const show = async (right: ReturnType<typeof iop>, left: ReturnType<typeof iop>) => {
+      mockApi(stubs(exam({ iopMeasurements: [right, left] })));
+      renderPage(<OphthalmologyPage />);
+      await openExam();
+    };
 
+    await show(iop('i-1', 'RIGHT', 44, 'urgent'), iop('i-2', 'LEFT', 24, 'soft'));
     // 44 mmHg is acute angle closure until proven otherwise — sight is lost in
-    // hours. It must not share a colour with the 15 next to it.
+    // hours. It must not share a colour with the eye beside it.
     expect(toneOf(within(eyeCard('Right (OD)')).getByText('urgent'))).toBe('error');
+    // 24 mmHg is above statistical normal and belongs in a glaucoma clinic. A
+    // page guessing ">21 is red" paints it the same as the 44 and the urgent eye
+    // stops standing out; one guessing "under 25 is fine" paints it green and
+    // the patient goes home. The chip must carry the server's own word, in the
+    // server's own amber — the one answer neither guess can give.
+    const os = eyeCard('Left (OS)');
+    expect(toneOf(within(os).getByText('soft'))).toBe('warning');
+    // And it is never relabelled into a band the server did not send.
+    expect(within(os).queryByText(/normal|urgent/)).toBeNull();
+
+    cleanup();
+
+    await show(iop('i-3', 'RIGHT', 34, 'red'), iop('i-4', 'LEFT', 15, 'normal'));
+    // The remaining two bands, so the whole mapping is the server's rather than
+    // a client rule that only happens to agree at the extremes.
+    expect(toneOf(within(eyeCard('Right (OD)')).getByText('red'))).toBe('error');
     expect(toneOf(within(eyeCard('Left (OS)')).getByText('normal'))).toBe('success');
   });
 });
@@ -164,36 +187,80 @@ describe('a number stays on the eye it was measured on', () => {
 describe('recording a measurement', () => {
   it('sends the eye that was selected, not the one the form opened on', async () => {
     const user = userEvent.setup();
-    mockApi(stubs(exam(), { 'POST /ophthalmology/exams/e-1/va': { status: 201, body: { id: 'va-9' } } }));
+    mockApi(stubs(exam(), {
+      'POST /ophthalmology/exams/e-1/va': { status: 201, body: { id: 'va-9' } },
+      'POST /ophthalmology/exams/e-1/iop': { status: 201, body: { id: 'i-9' } },
+    }));
     renderPage(<OphthalmologyPage />);
     const card = await openExam();
 
     // The VA row and the IOP row each have an "Eye" select; scoping to the row
-    // that owns the Add VA button is what keeps this from driving the wrong one.
-    const vaRow = within(card).getByRole('button', { name: 'Add VA' }).closest('.MuiStack-root') as HTMLElement;
-    await user.click(within(vaRow).getByRole('combobox'));
-    const listbox = await screen.findByRole('listbox');
-    await user.click(within(listbox).getByText('OS'));
-    await user.type(within(vaRow).getByRole('textbox', { name: /VA/ }), '6/12');
-    await user.click(within(vaRow).getByRole('button', { name: 'Add VA' }));
+    // that owns the Add button is what keeps this from driving the wrong one.
+    // Both rows are exercised, and they are deliberately set to DIFFERENT eyes:
+    // a row that ignored its own picker — nailed to the OD it opened on, or
+    // quietly reading the other row's eye — would be invisible if only one row
+    // were driven, or if the two rows always agreed.
+    const rowFor = (add: 'Add VA' | 'Add IOP') =>
+      within(card).getByRole('button', { name: add }).closest('.MuiStack-root') as HTMLElement;
+    const pickEye = async (add: 'Add VA' | 'Add IOP', eye: 'OD' | 'OS') => {
+      await user.click(within(rowFor(add)).getByRole('combobox'));
+      await user.click(within(await screen.findByRole('listbox')).getByText(eye));
+      await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
+    };
+    const lastPost = (path: 'va' | 'iop') => {
+      const posts = apiCalls.filter(
+        (c) => c.method === 'POST' && c.url === `/ophthalmology/exams/e-1/${path}`,
+      );
+      return posts[posts.length - 1]?.body;
+    };
 
-    await waitFor(() => {
-      const post = apiCalls.find((c) => c.method === 'POST' && c.url === '/ophthalmology/exams/e-1/va');
-      // The form defaults to OD. An eye field that ignores the picker writes
-      // every left-eye acuity onto the right eye and nobody sees it happen.
-      expect(post!.body).toMatchObject({ eye: 'OS', displayValue: '6/12', condition: 'UNAIDED' });
-    });
+    // Round one — acuity on the LEFT eye while the pressure row still reads the
+    // OD it opened on.
+    await pickEye('Add VA', 'OS');
+    await user.type(within(rowFor('Add VA')).getByRole('textbox', { name: /VA/ }), '6/12');
+    await user.click(within(rowFor('Add VA')).getByRole('button', { name: 'Add VA' }));
+    // The form defaults to OD. An eye field that ignores the picker writes
+    // every left-eye acuity onto the right eye and nobody sees it happen.
+    await waitFor(() =>
+      expect(lastPost('va')).toMatchObject({ eye: 'OS', displayValue: '6/12', condition: 'UNAIDED' }),
+    );
+
+    await user.type(within(rowFor('Add IOP')).getByRole('textbox', { name: /IOP mmHg/ }), '15');
+    await user.click(within(rowFor('Add IOP')).getByRole('button', { name: 'Add IOP' }));
+    // The pressure row was left on OD while the acuity row says OS. A pressure
+    // that borrowed the acuity row's eye would file this 15 on the left.
+    await waitFor(() => expect(lastPost('iop')).toMatchObject({ eye: 'OD', valueMmHg: 15, method: 'GAT' }));
+
+    // Round two — the two rows swap. Neither eye can now be a constant, and
+    // neither row can be reading the other's picker.
+    await pickEye('Add IOP', 'OS');
+    await pickEye('Add VA', 'OD');
+    await user.type(within(rowFor('Add VA')).getByRole('textbox', { name: /VA/ }), '6/6');
+    await user.click(within(rowFor('Add VA')).getByRole('button', { name: 'Add VA' }));
+    await waitFor(() => expect(lastPost('va')).toMatchObject({ eye: 'OD', displayValue: '6/6' }));
+
+    await user.type(within(rowFor('Add IOP')).getByRole('textbox', { name: /IOP mmHg/ }), '44');
+    await user.click(within(rowFor('Add IOP')).getByRole('button', { name: 'Add IOP' }));
+    // 44 mmHg recorded against the eye it was not taken on is the same harm the
+    // panel test names: drops, laser or surgery on the eye that did not need them.
+    await waitFor(() => expect(lastPost('iop')).toMatchObject({ eye: 'OS', valueMmHg: 44, method: 'GAT' }));
   });
 
   it('re-reads the exam so the panel shows what was just added', async () => {
     const user = userEvent.setup();
-    let added = false;
+    // The stored measurement is built FROM the request the page actually made,
+    // so the number the panel reads back can only be the number that was sent.
+    // A stub that returns a fixed 15 mmHg the moment a POST arrives proves only
+    // that a re-read happened: a page that posts a different pressure — or a
+    // constant — still shows a confident green "15 mmHg" on the right eye, and
+    // the response gets read as evidence that the request was right.
+    let stored: ReturnType<typeof iop> | null = null;
     mockApi(stubs(exam(), {
       'GET /ophthalmology/exams/e-1': () => ({
-        body: exam(added ? { iopMeasurements: [iop('i-1', 'RIGHT', 15, 'normal')] } : {}),
+        body: exam(stored ? { iopMeasurements: [stored] } : {}),
       }),
-      'POST /ophthalmology/exams/e-1/iop': () => {
-        added = true;
+      'POST /ophthalmology/exams/e-1/iop': (body: any) => {
+        stored = iop('i-1', body.eye === 'OS' ? 'LEFT' : 'RIGHT', body.valueMmHg, body.valueMmHg > 21 ? 'urgent' : 'normal');
         return { status: 201, body: { id: 'i-1' } };
       },
     }));
@@ -204,9 +271,19 @@ describe('recording a measurement', () => {
     await user.type(within(iopRow).getByRole('textbox', { name: /IOP mmHg/ }), '15');
     await user.click(within(iopRow).getByRole('button', { name: 'Add IOP' }));
 
+    // The pressure that leaves the page is the pressure that was measured. A
+    // tonometer reading that arrives at the server as some other number is a
+    // glaucoma decision made on a value nobody took.
+    await waitFor(() => {
+      const post = apiCalls.find((c) => c.method === 'POST' && c.url === '/ophthalmology/exams/e-1/iop');
+      expect(post!.body).toMatchObject({ valueMmHg: 15, method: 'GAT' });
+    });
     // A panel that still says "—" after a successful save invites the same
     // pressure being taken and saved a second time.
     expect(await within(eyeCard('Right (OD)')).findByText('15 mmHg')).toBeInTheDocument();
+    // And nothing else: what is on the eye is the stored measurement, not a
+    // number the screen kept from the form.
+    expect(within(eyeCard('Right (OD)')).queryByText(/^(?!15 mmHg$).* mmHg$/)).toBeNull();
     // And the field empties, so the next eye does not inherit this eye's number.
     await waitFor(() => expect(within(iopRow).getByRole('textbox', { name: /IOP mmHg/ })).toHaveValue(''));
   });
@@ -267,9 +344,31 @@ describe('switching patient', () => {
     const listbox = await screen.findByRole('listbox');
     await user.click(within(listbox).getByText(/Bilal Ahmed/));
 
+    // The switch has to have HAPPENED before anything below means anything.
+    // Both of the assertions that follow — no 44 mmHg, and the empty-state card
+    // — are satisfied by closing the open exam alone, so a picker that closed
+    // the exam but never changed patient passes them while leaving the page on
+    // Ayesha. The screen looks right for the wrong reason, and the only test
+    // guarding "switching patient" never notices that switching patient is dead.
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: /Patient/ })).toHaveTextContent(/Bilal Ahmed/),
+    );
+    // And the page went and asked the server for HIS exams, so what is on
+    // screen is his record rather than an emptied rendering of hers.
+    await waitFor(() =>
+      expect(
+        apiCalls.filter((c) => c.method === 'GET' && c.url === '/ophthalmology/patients/p-2/exams'),
+      ).not.toHaveLength(0),
+    );
+
     // Ayesha's 44 mmHg still on screen with Bilal selected is how a pressure
     // gets treated on the wrong person.
     await waitFor(() => expect(screen.queryByText('44 mmHg')).toBeNull());
     expect(screen.getByText(/Start or select an exam/i)).toBeInTheDocument();
+    // Her exam leaves the list as well, not just the open panel. A row still
+    // carrying her complaint under his name is one click from re-opening her
+    // record as his.
+    expect(screen.queryByText('blurred vision')).toBeNull();
+    expect(screen.getByText(/No eye exams yet/i)).toBeInTheDocument();
   });
 });

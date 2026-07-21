@@ -78,6 +78,16 @@ async function openSelect(name: RegExp) {
 
 const BED_SELECT = /Bed \(available only\)/;
 
+/**
+ * What a Select actually shows the clerk.
+ *
+ * A MUI Select with no value still renders a zero-width space to hold its
+ * height, so the raw textContent of a cleared one is "​", not "". Stripping
+ * it is what lets an emptied field be asserted POSITIVELY (`toBe('')`) instead
+ * of settling for "does not contain the name that was there before".
+ */
+const shown = (el: HTMLElement) => (el.textContent ?? '').replace(/​/g, '').trim();
+
 describe('only a bed that is actually free can be admitted into', () => {
   it('leaves occupied and maintenance beds out of the picker while still showing them on the board', async () => {
     mockApi(stubs());
@@ -149,6 +159,7 @@ describe('only a bed that is actually free can be admitted into', () => {
 
     await pick(/Patient/, /Ayesha Khan/);
     await pick(BED_SELECT, /General Ward · A-01/);
+    await user.type(screen.getByRole('textbox', { name: /Diagnosis/ }), 'Cellulitis right leg');
     await user.click(screen.getByRole('button', { name: 'Admit' }));
 
     // The bed just filled must leave the picker, and the counts on the wall
@@ -161,9 +172,32 @@ describe('only a bed that is actually free can be admitted into', () => {
     expect(apiCalls.filter((c) => c.url === '/ipd/occupancy')).toHaveLength(2);
     expect(apiCalls.filter((c) => c.url === '/ipd/admissions?status=ADMITTED')).toHaveLength(2);
 
-    // And the form must not still be holding the patient who was just admitted,
-    // ready to admit them a second time on the next click.
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Admit' })).toBeDisabled());
+    // And every field must be empty afterwards — each one checked on its own,
+    // against what the clerk can actually read on the control.
+    //
+    // NOT via the Admit button. `disabled={!patientId || !bedId || busy}` is a
+    // disjunction: it goes grey the moment ANY ONE of the two ids is cleared
+    // and stays grey while the other still carries the admission that was just
+    // filed, and `diagnosis` never enters the expression at all. A greyed-out
+    // button is therefore compatible with a form that is still two-thirds full.
+    await waitFor(() => expect(shown(screen.getByRole('combobox', { name: /Patient/ }))).toBe(''));
+
+    // Ayesha Khan is now an inpatient. Leaving her named in the picker puts a
+    // second active admission for the same patient one click away — the case
+    // the server's partial unique index exists to refuse, arriving here as a
+    // refusal the clerk has to read and undo instead of never being sent.
+    expect(screen.getByRole('combobox', { name: /Patient/ })).not.toHaveTextContent('Ayesha Khan');
+
+    // A-01 has somebody in it now. Leaving it selected is the two-patients-in-
+    // one-bed case above, reached from the other side: not a stale bed LIST,
+    // but a stale bed CHOICE that survived the refetch that emptied the list.
+    expect(shown(screen.getByRole('combobox', { name: BED_SELECT }))).toBe('');
+    expect(screen.getByRole('combobox', { name: BED_SELECT })).not.toHaveTextContent('A-01');
+
+    // And the diagnosis, which the button's disabled state can never speak for:
+    // carried over, it is filed against the NEXT patient admitted, who does not
+    // have it.
+    expect(screen.getByRole('textbox', { name: /Diagnosis/ })).toHaveValue('');
   }, 60000);
 });
 

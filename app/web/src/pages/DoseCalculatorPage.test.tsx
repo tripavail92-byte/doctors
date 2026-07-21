@@ -218,16 +218,40 @@ describe('correcting the weight invalidates everything computed from the old one
   }, 20000);
 
   it('never shows a dose belonging to a weight that is no longer in the box', async () => {
+    const user = userEvent.setup();
     mockApi(stubs());
     await openCalculator();
     await enterWeight('14');
     expect(screen.getByText('210 mg')).toBeInTheDocument();
+    expect(screen.getByText('8.75 mL')).toBeInTheDocument();
+    const calcsAfter14 = apiCalls.filter((c) => c.url === '/dose/calculate').length;
 
-    await enterWeight('28');
+    // Emptying the box is the moment the figures lose the weight they were
+    // computed from, and it is a state a prescriber passes through every time
+    // they correct a weight. The dose must not outlive its input: "Per dose
+    // 210 mg · 8.75 mL" sitting under a blank Weight field is a number that
+    // can be read off, written on a chart and given, with nothing on screen
+    // left to say which child's weight produced it.
+    await user.clear(weightField());
+    expect(weightField()).toHaveValue(null);
+    await waitFor(() => expect(screen.queryByText('210 mg')).toBeNull(), { timeout: 4000 });
+    expect(screen.queryByText('8.75 mL')).toBeNull();
+    expect(screen.queryByText('Per dose')).toBeNull();
+    expect(screen.queryByText('Volume / dose')).toBeNull();
+    expect(screen.queryByText('840 mg')).toBeNull(); // the per-DAY figure goes too
+    // What is left is the prompt for an input, not a leftover result.
+    expect(screen.getByText(/Select a drug and enter a weight/i)).toBeInTheDocument();
+    // And there is nothing to commit: a weightless dose must not be one click
+    // from the medico-legal log.
+    expect(screen.queryByRole('button', { name: /Add to prescription/i })).toBeNull();
+    // A blank weight is refused here, not sent to the engine as NaN.
+    expect(apiCalls.filter((c) => c.url === '/dose/calculate')).toHaveLength(calcsAfter14);
+
+    await user.type(weightField(), '28');
 
     // 210 mg under a weight of 28 kg is half the dose — the exact stale-data
     // failure this app has already had once, on this page.
-    expect(await screen.findByText('420 mg')).toBeInTheDocument();
+    expect(await screen.findByText('420 mg', undefined, { timeout: 4000 })).toBeInTheDocument();
     expect(screen.queryByText('210 mg')).toBeNull();
     const calcs = apiCalls.filter((c) => c.url === '/dose/calculate');
     const last = calcs[calcs.length - 1];
