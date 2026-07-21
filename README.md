@@ -84,7 +84,7 @@ kept it invisible.
 
 ```bash
 npm run check:security   # wiring + RLS coverage (static) + tenant isolation (live) + boot guards
-npm run check:clinical   # 20 suites, 467 checks — needs the API running
+npm run check:clinical   # 25 suites, 559 checks — needs the API running
 ```
 
 Both run on every push and pull request via [`.github/workflows/ci.yml`](.github/workflows/ci.yml),
@@ -117,6 +117,23 @@ other than the machine they were written on:
 `check:security` fails the build on a `tenantId` model with no RLS policy, a policy in a
 non-canonical or dangerous form, or a Prisma call outside `forTenant()`. It caught real
 drift the first time it ran.
+
+### The biggest gap in this safety net
+
+**Every one of those 559 checks is backend.** `app/web` has no test runner at all — not one
+automated check covers the SPA, which is the only part of the system a clinic actually sees
+and the only part a clinician reads a number off.
+
+That is not theoretical. Adding entitlement guards to six controllers made them return 403,
+and because `useApi`'s error was read by 2 of 21 pages, the Billing page rendered
+**"Rs 0 outstanding · 0 invoices"** for a patient holding a paid PKR 15,000 invoice — a 403
+presented as a financial fact. Nothing in CI would have caught it; it was found by loading
+the page.
+
+Failed fetches are now registered centrally (`src/api/fetchErrors.ts`) and surfaced by the
+app shell, so a page cannot silently swallow one. But the fix itself has **no regression
+test**, for want of anywhere to put one. A frontend test harness is the highest-value
+outstanding work on this repo.
 
 ## Deploying
 
