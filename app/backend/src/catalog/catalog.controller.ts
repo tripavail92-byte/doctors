@@ -1,13 +1,16 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { RequiresEntitlement } from '../auth/decorators/requires-entitlement.decorator';
+import { EntitlementGuard } from '../entitlements/entitlement.guard';
 import { CatalogService } from './catalog.service';
 
 /**
  * Tenant-scoped read API over the seeded pack config. All open to any
  * authenticated role; each accepts an optional ?packKey= filter.
  */
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, EntitlementGuard)
+@RequiresEntitlement('catalog.core')
 @Controller()
 export class CatalogController {
   constructor(private readonly catalog: CatalogService) {}

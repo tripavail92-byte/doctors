@@ -9,6 +9,8 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { RequiresEntitlement } from '../auth/decorators/requires-entitlement.decorator';
+import { EntitlementGuard } from '../entitlements/entitlement.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { FINANCE_ROLES } from '../rbac/role-groups';
 import { BillingService } from './billing.service';
@@ -22,8 +24,9 @@ import { VoidInvoiceDto } from './dto/void-invoice.dto';
 /**
  * Billing API — invoices + payments. Gated to finance/front-desk roles.
  */
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, EntitlementGuard)
 @Roles(...FINANCE_ROLES)
+@RequiresEntitlement('billing.core')
 @Controller()
 export class BillingController {
   constructor(private readonly billing: BillingService) {}

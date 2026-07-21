@@ -10,6 +10,8 @@ import {
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { RequiresEntitlement } from '../auth/decorators/requires-entitlement.decorator';
+import { EntitlementGuard } from '../entitlements/entitlement.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ObservationsService } from './observations.service';
 import { RecordObservationDto } from './dto/record-observation.dto';
@@ -19,7 +21,8 @@ import { CreateTrendAnnotationDto } from './dto/create-trend-annotation.dto';
  * Observations + trends API. No controller prefix — routes are namespaced by
  * resource (`/metrics`, `/observations`, `/patients/:id/...`).
  */
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, EntitlementGuard)
+@RequiresEntitlement('observations.core')
 @Controller()
 export class ObservationsController {
   constructor(private readonly obs: ObservationsService) {}

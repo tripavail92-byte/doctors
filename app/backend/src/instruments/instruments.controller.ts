@@ -2,6 +2,8 @@ import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { RequiresEntitlement } from '../auth/decorators/requires-entitlement.decorator';
+import { EntitlementGuard } from '../entitlements/entitlement.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { InstrumentsService } from './instruments.service';
 import { RecordResponseDto } from './dto/record-response.dto';
@@ -12,7 +14,8 @@ import { RecordResponseDto } from './dto/record-response.dto';
  * GET routes list/read the shared library; POST records a scored result for a
  * patient (clinical roles only). Reads are open to any authenticated role.
  */
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, EntitlementGuard)
+@RequiresEntitlement('instruments.core')
 @Controller('instruments')
 export class InstrumentsController {
   constructor(private readonly instruments: InstrumentsService) {}

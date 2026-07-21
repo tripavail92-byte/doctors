@@ -2,6 +2,8 @@ import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { RequiresEntitlement } from '../auth/decorators/requires-entitlement.decorator';
+import { EntitlementGuard } from '../entitlements/entitlement.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { PacksService } from './packs.service';
 import { PublishManifestDto } from './dto/publish-manifest.dto';
@@ -13,7 +15,8 @@ import { PublishManifestDto } from './dto/publish-manifest.dto';
  * - Authoring (publish) is platform-admin only — it writes the GLOBAL catalog.
  * - Activate/deactivate are tenant owner/admin — they seed the tenant.
  */
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, EntitlementGuard)
+@RequiresEntitlement('packs.core')
 @Controller('packs')
 export class PacksController {
   constructor(private readonly packs: PacksService) {}

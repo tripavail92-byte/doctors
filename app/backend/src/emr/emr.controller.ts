@@ -9,6 +9,8 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { RequiresEntitlement } from '../auth/decorators/requires-entitlement.decorator';
+import { EntitlementGuard } from '../entitlements/entitlement.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CLINICAL_ROLES } from '../rbac/role-groups';
 import { EmrService } from './emr.service';
@@ -23,8 +25,9 @@ import { UpdatePlanStatusDto } from './dto/update-plan-status.dto';
  * EMR API — encounters and their filled artifacts. All endpoints are clinical
  * (they read/write PHI), so the whole controller is gated to clinical roles.
  */
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, EntitlementGuard)
 @Roles(...CLINICAL_ROLES)
+@RequiresEntitlement('emr.core')
 @Controller()
 export class EmrController {
   constructor(private readonly emr: EmrService) {}
