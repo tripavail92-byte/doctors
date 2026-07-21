@@ -17,6 +17,7 @@ import { CLINICAL_ROLES } from '../rbac/role-groups';
 import { IpdService } from './ipd.service';
 import { CreateWardDto } from './dto/create-ward.dto';
 import { AdmitDto } from './dto/admit.dto';
+import { SetBedStatusDto } from './dto/set-bed-status.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard, EntitlementGuard)
 @RequiresEntitlement('ipd.core')
@@ -38,6 +39,12 @@ export class IpdController {
   @Get('beds')
   beds(@Query('status') status?: string) {
     return this.ipd.beds(status);
+  }
+
+  // Take a bed out of service (MAINTENANCE) or return it (AVAILABLE).
+  @Patch('beds/:id/status')
+  setBedStatus(@Param('id') id: string, @Body() dto: SetBedStatusDto) {
+    return this.ipd.setBedStatus(id, dto.status);
   }
 
   @Get('occupancy')

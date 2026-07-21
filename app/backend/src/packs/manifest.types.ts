@@ -112,8 +112,17 @@ export interface PackManifest {
   tier: PackTierName;
   version: string; // semver
   description: string;
-  // Entitlement keys the tenant is expected to hold for this pack's features.
-  requiresEntitlements?: string[];
+  // Entitlement keys the tenant must hold to activate this pack.
+  //
+  // REQUIRED, and deliberately not optional. It was optional, and packs.service
+  // read it as `?? []` while hasAll() treats an empty list as satisfied — so a
+  // manifest that simply omitted the field was activatable by any tenant, on any
+  // edition, for free. A commercial gate must fail closed on missing config, and
+  // the strongest place to enforce that is the type: a new manifest cannot
+  // forget the field, because it will not compile. Use an explicit `[]` to mean
+  // "genuinely free to all", so that is a decision someone made rather than one
+  // they omitted.
+  requiresEntitlements: string[];
   intakeGroups: IntakeGroupSpec[];
   noteTemplates: NoteTemplateSpec[];
   serviceCatalog: ServiceItemSpec[];

@@ -149,8 +149,52 @@ export class IpdService {
         where: { id },
         data: { status: AdmissionStatus.DISCHARGED, dischargedAt: new Date() },
       });
-      await tx.bed.update({ where: { id: admission.bedId }, data: { status: BedStatus.AVAILABLE } });
+      // Free the bed only if this admission is what was occupying it. An
+      // unconditional AVAILABLE would return a bed taken OUT OF SERVICE — for
+      // contamination, or a broken rail — straight back to the ward the moment
+      // its previous patient was discharged, with nobody told. MAINTENANCE is a
+      // deliberate decision by a human and only a human clears it.
+      const bed = await tx.bed.findUnique({ where: { id: admission.bedId } });
+      if (bed?.status === BedStatus.OCCUPIED) {
+        await tx.bed.update({ where: { id: admission.bedId }, data: { status: BedStatus.AVAILABLE } });
+      }
       return tx.admission.findUnique({ where: { id }, include: ADM_DETAIL });
+    });
+  }
+
+  /**
+   * Take a bed out of service, or return it.
+   *
+   * BedStatus.MAINTENANCE existed in the enum and was read by the occupancy
+   * counter, but NO route could set it — the only writers were admit (OCCUPIED)
+   * and discharge (AVAILABLE). A contaminated or broken bed could not be taken
+   * off the ward at all, so the workaround is a sticky note on the frame and a
+   * system that keeps offering the bed.
+   *
+   * OCCUPIED is not settable here: a bed becomes occupied by admitting a
+   * patient, and letting it be set directly would desynchronise the bed from the
+   * admission that owns it.
+   */
+  async setBedStatus(id: string, status: BedStatus) {
+    const { tenantId } = getTenant();
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      await tx.$executeRaw`SELECT id FROM "Bed" WHERE id = ${id}::uuid FOR UPDATE`;
+      const bed = await tx.bed.findUnique({ where: { id } });
+      if (!bed) throw new NotFoundException(`Bed ${id} not found`);
+
+      if (status === BedStatus.OCCUPIED) {
+        throw new BadRequestException(
+          'A bed becomes OCCUPIED by admitting a patient, not by setting its status.',
+        );
+      }
+      // Refuse to take an occupied bed out of service, or to mark it available,
+      // while a patient is still in it — the admission is the source of truth.
+      if (bed.status === BedStatus.OCCUPIED) {
+        throw new BadRequestException(
+          'That bed is occupied — discharge the patient before changing its status.',
+        );
+      }
+      return tx.bed.update({ where: { id }, data: { status } });
     });
   }
 

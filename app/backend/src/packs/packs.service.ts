@@ -176,7 +176,17 @@ export class PacksService implements OnModuleInit {
     const tenantId = getTenantId();
     // Enforce the manifest's declared entitlements: a tenant can only activate a
     // pack whose required features its edition grants.
-    const required = manifest.requiresEntitlements ?? [];
+    // Runtime backstop for the type change in manifest.types.ts. Manifests can
+    // also arrive as authored PackVersion rows, which TypeScript never sees, so
+    // a missing field has to be refused here too rather than defaulting to `[]`
+    // — which hasAll() treats as satisfied, making the pack free to everyone.
+    const required = manifest.requiresEntitlements;
+    if (!Array.isArray(required)) {
+      throw new ForbiddenException(
+        `Pack "${key}" does not declare requiresEntitlements. A pack must state which ` +
+          `entitlements it needs (use an empty list to mean free to all).`,
+      );
+    }
     if (!(await this.entitlements.hasAll(tenantId, required))) {
       throw new ForbiddenException(
         `Pack "${key}" requires entitlements not enabled for this tenant: ${required.join(', ')}`,

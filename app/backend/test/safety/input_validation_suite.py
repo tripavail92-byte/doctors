@@ -139,6 +139,43 @@ s, r = api('POST', '/pharmacy/dispense', tok,
 ck('a blank quantity is refused too', 400 <= s < 500, 'HTTP %s' % s)
 
 
+print('\n== A bed can be taken out of service, and stays out ==')
+# BedStatus.MAINTENANCE existed in the enum and was counted by the occupancy
+# report, but NO route could set it: the only writers were admit (OCCUPIED) and
+# discharge (AVAILABLE). A contaminated or broken bed could not be taken off the
+# ward at all.
+s, w = api('POST', '/ipd/wards', tok, {'name': 'Maint %s' % RUN, 'floor': '2', 'bedCodes': ['M1', 'M2']})
+beds = w.get('beds') or []
+ck('a ward with two beds is created', len(beds) == 2, len(beds))
+b1, b2 = beds[0]['id'], beds[1]['id']
+
+s, r = api('PATCH', '/ipd/beds/%s/status' % b1, tok, {'status': 'MAINTENANCE'})
+ck('a bed can be taken out of service', s == 200 and r.get('status') == 'MAINTENANCE', 'HTTP %s' % s)
+
+s, a = api('POST', '/ipd/admissions', tok, {'patientId': PID, 'bedId': b1})
+ck('a bed out of service cannot be admitted to', 400 <= s < 500, 'HTTP %s %s' % (s, str(a.get('message'))[:50]))
+
+# The intersection that matters: discharging the patient in the NEXT bed used to
+# be irrelevant, but discharge set its bed AVAILABLE unconditionally — so if the
+# maintenance bed were ever the discharged one, a contaminated bed silently
+# returned to service. Assert the maintenance bed is untouched by other traffic.
+s, adm = api('POST', '/ipd/admissions', tok, {'patientId': PID, 'bedId': b2})
+if s in (200, 201):
+    api('PATCH', '/ipd/admissions/%s/discharge' % adm['id'], tok, {})
+s, blist = api('GET', '/ipd/beds', tok)
+st = {x['id']: x['status'] for x in (blist or [])}
+ck('the out-of-service bed is STILL out of service after a discharge nearby',
+   st.get(b1) == 'MAINTENANCE', st.get(b1))
+ck('and the discharged bed is free again', st.get(b2) == 'AVAILABLE', st.get(b2))
+
+s, r = api('PATCH', '/ipd/beds/%s/status' % b1, tok, {'status': 'OCCUPIED'})
+ck('OCCUPIED cannot be set directly (admission owns that)', 400 <= s < 500, 'HTTP %s' % s)
+s, r = api('PATCH', '/ipd/beds/%s/status' % b1, tok, {'status': 'BROKEN'})
+ck('an invalid bed status is refused', 400 <= s < 500, 'HTTP %s' % s)
+s, r = api('PATCH', '/ipd/beds/%s/status' % b1, tok, {'status': 'AVAILABLE'})
+ck('and it can be returned to service', s == 200 and r.get('status') == 'AVAILABLE', 'HTTP %s' % s)
+
+
 print('\n===== %d/%d passed =====' % (sum(res), len(res)))
 if not res:
     print('  NO CHECKS RAN - the suite asserted nothing')
