@@ -52,7 +52,7 @@ Nothing needs one person to answer everything. Each block can be returned indepe
 |---|---|---|
 | **A1–A3** ⛔ | Prescribing dermatologist | Phototherapy — the whole module |
 | **A4–A5** ⚠️ | Prescribing dermatologist | Nothing; scores are advisory |
-| **B1–B3** ⛔⚠️ | Whoever owns vaccination practice | Pediatrics / EPI module |
+| **B1, B1b, B2, B3** ⛔⚠️ | Whoever owns vaccination practice | Pediatrics / EPI module |
 | **C1** ⛔ | Lab lead or supervising physician | Lab results reporting |
 | **C2** ⚠️ | Ophthalmologist | Nothing; banding is advisory |
 | **D1–D3** 💼 | Practice owner — business policy, not clinical | Payroll and billing controls |
@@ -74,8 +74,23 @@ values to confirm:
 💼 = business policy
 
 **Partial sign-off is useful.** Returning **B** alone clears pediatrics/EPI; returning **A1–A3**
-alone clears phototherapy. The aesthetic, dental, ophthalmology, physiotherapy, billing and
-records modules are not blocked by anything on this list.
+alone clears phototherapy. Within B, **B1b and B3 are the two we would want back first** —
+both are cases where the software may currently be wrong rather than merely unconfirmed.
+
+The aesthetic, dental, ophthalmology, physiotherapy, billing and records modules are not
+blocked by anything on this list.
+
+### What happens when a sheet comes back
+
+1. The value is changed in the code, and the **matching automated test is changed with it**,
+   so a superseded number cannot quietly return. There are currently 528 such checks running
+   on every change.
+2. The sheet is marked answered here, with the date and who signed it, and the ⛔ is cleared.
+3. If an answer contradicts something this document asserts, **the document is wrong and gets
+   corrected** — the sheets record what the clinic decided, not what we proposed.
+
+A sheet returned with a correction is more useful than one returned with a tick. Partial
+returns are welcome; nothing needs to arrive all at once.
 
 ---
 

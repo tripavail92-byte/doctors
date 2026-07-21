@@ -1,6 +1,6 @@
 # Deploying Health OS
 
-> **Demo and staging only.** Fourteen clinical sign-off items are open — see
+> **Demo and staging only.** Clinical sign-off items are still open — see
 > [clinical-sign-off-register.md](clinical-sign-off-register.md). Nothing in this document
 > makes the clinical engines safe for patients; it makes the platform runnable.
 
