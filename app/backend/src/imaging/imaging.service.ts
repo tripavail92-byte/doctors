@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -67,10 +68,20 @@ export class ImagingService {
         throw new BadRequestException(`Order is ${order.status.toLowerCase()} — cannot acquire`);
       }
       const accession = accessionNumber || (await nextNumber(tx, tenantId, 'IMG', 'accession', 'accessionNumber'));
-      await tx.imagingOrder.update({
-        where: { id },
-        data: { status: ImagingOrderStatus.ACQUIRED, accessionNumber: accession },
-      });
+      try {
+        await tx.imagingOrder.update({
+          where: { id },
+          data: { status: ImagingOrderStatus.ACQUIRED, accessionNumber: accession },
+        });
+      } catch (e) {
+        // The (tenantId, accessionNumber) unique index is the guarantee. A
+        // client-supplied accession that is already in use, or a race, surfaces
+        // as a clean 409 rather than filing two orders under one accession.
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+          throw new ConflictException(`Accession number "${accession}" is already in use.`);
+        }
+        throw e;
+      }
       return reload(tx, id);
     });
   }
@@ -80,21 +91,33 @@ export class ImagingService {
     const { userId } = getTenant();
     return this.prisma.forTenant(tenantId, async (tx) => {
       const order = await lockOrder(tx, id);
-      if (order.status !== ImagingOrderStatus.ACQUIRED && order.status !== ImagingOrderStatus.REPORTED) {
+      // ACQUIRED only. A REPORTED order is finalized — admitting it here let the
+      // upsert below rewrite an existing report in place, so a signed "acute
+      // intracranial haemorrhage" became "no acute abnormality" on the same row,
+      // same reportedAt, with nothing recording that it changed (reproduced).
+      // A report is written once per study; a correction is an amendment, which
+      // is a future feature, not a silent overwrite.
+      if (order.status !== ImagingOrderStatus.ACQUIRED) {
         throw new BadRequestException(
           order.status === ImagingOrderStatus.ORDERED
             ? 'Acquire the study before reporting'
-            : `Order is ${order.status.toLowerCase()} — cannot report`,
+            : `Order is ${order.status.toLowerCase()} — its report is final and cannot be overwritten`,
         );
       }
       const items = await tx.imagingOrderItem.findMany({ where: { orderId: id } });
       if (!items.some((i) => i.studyCode === dto.studyCode)) {
         throw new BadRequestException(`Study "${dto.studyCode}" was not ordered`);
       }
-      await tx.imagingReport.upsert({
+      const existing = await tx.imagingReport.findUnique({
         where: { tenantId_orderId_studyCode: { tenantId, orderId: id, studyCode: dto.studyCode } },
-        update: { findings: dto.findings, impression: dto.impression, reportedById: userId ?? null },
-        create: {
+      });
+      if (existing) {
+        throw new ConflictException(
+          `Study "${dto.studyCode}" already has a report — a finalized report cannot be overwritten.`,
+        );
+      }
+      await tx.imagingReport.create({
+        data: {
           tenantId,
           orderId: id,
           studyCode: dto.studyCode,
@@ -145,11 +168,17 @@ async function nextNumber(
   await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', `imaging-${lockKey}:${tenantId}`);
   const year = new Date().getFullYear();
   const like = `${prefix}-${year}-`;
-  const count =
-    column === 'orderNumber'
-      ? await tx.imagingOrder.count({ where: { orderNumber: { startsWith: like } } })
-      : await tx.imagingOrder.count({ where: { accessionNumber: { startsWith: like } } });
-  return `${like}${String(count + 1).padStart(4, '0')}`;
+  // MAX+1, not count()+1. count() assumes the series is dense; a deleted or
+  // cancelled row leaves a hole and count() then re-issues an existing number,
+  // hitting the unique index and 500ing. Same defect as the MRN and invoice
+  // generators. The advisory lock still serialises concurrent minting.
+  const col = column === 'orderNumber' ? 'orderNumber' : 'accessionNumber';
+  const rows = await tx.$queryRawUnsafe<{ max: number | null }[]>(
+    `SELECT MAX(SUBSTRING("${col}" FROM '^${prefix}-${year}-([0-9]+)$')::int) AS max
+       FROM "ImagingOrder" WHERE "${col}" ~ '^${prefix}-${year}-[0-9]+$'`,
+  );
+  const next = (rows[0]?.max ?? 0) + 1;
+  return `${like}${String(next).padStart(4, '0')}`;
 }
 
 function reload(tx: Prisma.TransactionClient, id: string) {

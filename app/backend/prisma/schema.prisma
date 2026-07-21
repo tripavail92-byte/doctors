@@ -856,6 +856,11 @@ model ImagingOrder {
   reports ImagingReport[]
 
   @@unique([tenantId, orderNumber])
+  // The accession number is the key PACS/modality worklists file images against.
+  // Two orders sharing one meant images filed against the wrong patient. NULL is
+  // distinct-per-row in a Postgres unique index, so pre-acquisition orders (no
+  // accession yet) don't collide.
+  @@unique([tenantId, accessionNumber])
   @@index([tenantId])
   @@index([patientId])
 }
