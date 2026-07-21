@@ -242,9 +242,21 @@ export default function OphthalmologyPage() {
                               va.map((v) => (
                                 <Typography key={v.id} variant="body2">
                                   {v.displayValue}{' '}
-                                  <Typography component="span" variant="caption" color="text.secondary">
-                                    (logMAR {v.logmarValue})
-                                  </Typography>
+                                  {/* A value the server could not convert has a NULL logMAR,
+                                      and this used to render as "(logMAR )" — an empty
+                                      parenthesis that reads like a formatting slip rather
+                                      than "this acuity was not understood". logMAR is what
+                                      the trend is plotted from, so an unconverted entry is
+                                      invisible to every later comparison. Say so. */}
+                                  {v.logmarValue == null ? (
+                                    <Typography component="span" variant="caption" color="warning.main">
+                                      (not converted — excluded from trends)
+                                    </Typography>
+                                  ) : (
+                                    <Typography component="span" variant="caption" color="text.secondary">
+                                      (logMAR {v.logmarValue})
+                                    </Typography>
+                                  )}
                                 </Typography>
                               ))
                             ) : (
