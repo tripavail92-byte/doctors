@@ -204,7 +204,7 @@ export class PharmacyService {
   async get(id: string) {
     const { tenantId } = getTenant();
     const d = await this.prisma.forTenant(tenantId, (tx) =>
-      tx.dispense.findUnique({ where: { id }, include: { items: true } }),
+      tx.dispense.findUnique({ where: { id }, include: { items: { include: { batches: true } } } }),
     );
     if (!d) throw new NotFoundException(`Dispense ${id} not found`);
     return d;
@@ -216,7 +216,10 @@ export class PharmacyService {
       tx.dispense.findMany({
         where: { patientId },
         orderBy: { createdAt: 'desc' },
-        include: { items: true },
+        // Provenance on the READ path too. Without it, the batch split existed
+        // only in the POST response — discard that and a recall is unanswerable
+        // through any UI.
+        include: { items: { include: { batches: true } } },
       }),
     );
   }

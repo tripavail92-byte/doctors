@@ -21,6 +21,7 @@ import {
 import type { SelectChangeEvent } from '@mui/material';
 import { apiClient } from '../api/client';
 import { useApi } from '../api/useApi';
+import { describeError } from '../api/fetchErrors';
 import type {
   DentalReference,
   Odontogram,
@@ -75,6 +76,7 @@ export default function DentalPage() {
   const [anchor, setAnchor] = useState<null | HTMLElement>(null);
   const [menuTooth, setMenuTooth] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [writeErr, setWriteErr] = useState('');
 
   const openMenu = (e: React.MouseEvent<HTMLElement>, fdi: string) => {
     setAnchor(e.currentTarget);
@@ -83,9 +85,15 @@ export default function DentalPage() {
   const pickCondition = async (code: string) => {
     if (!menuTooth || !activePatient) return;
     setBusy(true);
+    setWriteErr('');
     try {
       await apiClient.post('/odontogram/teeth', { patientId: activePatient, toothFdi: menuTooth, condition: code });
       reload();
+    } catch (e) {
+      // This had NO catch: a failed write closed the menu, cleared busy, and
+      // said nothing. The tooth simply kept its old condition and the clinician
+      // had no way to know the chart did not take the change.
+      setWriteErr(describeError(e).message);
     } finally {
       setBusy(false);
       setAnchor(null);
@@ -122,6 +130,11 @@ export default function DentalPage() {
       </Stack>
 
       {error && <Alert severity="error">{error}</Alert>}
+      {writeErr && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setWriteErr('')}>
+          {writeErr}
+        </Alert>
+      )}
 
       <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 3, mb: 3 }}>
         <CardContent>

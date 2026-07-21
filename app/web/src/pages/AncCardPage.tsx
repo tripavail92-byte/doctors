@@ -29,6 +29,7 @@ import {
 import type { SelectChangeEvent } from '@mui/material';
 import { apiClient } from '../api/client';
 import { useApi } from '../api/useApi';
+import { describeError } from '../api/fetchErrors';
 import type { AncVisit, EpisodeSummary, Patient, PregnancyEpisode } from '../api/types';
 
 const SEVERE = new Set(['SEVERE_HTN', 'SEVERE_ANEMIA', 'PRE_ECLAMPSIA_SUSPECT']);
@@ -207,6 +208,7 @@ function AddVisit({ episodeId, onSaved }: { episodeId: string; onSaved: () => vo
   const [f, setF] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ alertFlags: string[]; severe: boolean } | null>(null);
+  const [writeErr, setWriteErr] = useState('');
   const set = (k: string) => (e: { target: { value: string } }) => setF((p) => ({ ...p, [k]: e.target.value }));
 
   const num = (k: string) => (f[k] !== undefined && f[k] !== '' ? Number(f[k]) : undefined);
@@ -228,6 +230,13 @@ function AddVisit({ episodeId, onSaved }: { episodeId: string; onSaved: () => vo
       setResult(data);
       setF({});
       onSaved();
+    } catch (e) {
+      // This had NO catch. A refused antenatal visit cleared nothing, said
+      // nothing, and left the typed values on screen — so a visit carrying a
+      // severe-hypertension BP could look recorded when the server had rejected
+      // it. The form deliberately KEEPS the entered values here so the midwife
+      // can correct and resubmit rather than retype from memory.
+      setWriteErr(describeError(e).message);
     } finally {
       setBusy(false);
     }
@@ -273,6 +282,11 @@ function AddVisit({ episodeId, onSaved }: { episodeId: string; onSaved: () => vo
               </FormControl>
             </Grid>
             <Grid item xs={12}>
+              {writeErr && (
+                <Alert severity="error" sx={{ mb: 2 }} onClose={() => setWriteErr('')}>
+                  {writeErr} — the visit was NOT saved. Your entries are still below.
+                </Alert>
+              )}
               <Button variant="contained" onClick={submit} disabled={busy}>
                 {busy ? 'Saving…' : 'Save visit'}
               </Button>

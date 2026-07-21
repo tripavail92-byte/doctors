@@ -24,6 +24,7 @@ import {
 import type { SelectChangeEvent } from '@mui/material';
 import { apiClient } from '../api/client';
 import { useApi } from '../api/useApi';
+import { describeError } from '../api/fetchErrors';
 import type { DoseResult, DoseRule, Patient } from '../api/types';
 
 export default function DoseCalculatorPage() {
@@ -75,9 +76,11 @@ export default function DoseCalculatorPage() {
 
   const [committing, setCommitting] = useState(false);
   const [committed, setCommitted] = useState<{ id: string; volumeMl: number | null } | null>(null);
+  const [commitErr, setCommitErr] = useState('');
   const commit = async () => {
     if (!result || !patientId) return;
     setCommitting(true);
+    setCommitErr('');
     try {
       const { data } = await apiClient.post<{ log: { id: string; volumeMl: number | null } }>('/dose/commit', {
         patientId,
@@ -87,6 +90,12 @@ export default function DoseCalculatorPage() {
         ...(conc ? { concentrationMgPerMl: conc.mgPerMl } : {}),
       });
       setCommitted({ id: data.log.id, volumeMl: data.log.volumeMl });
+    } catch (e) {
+      // This had NO catch. A refused commit left the screen exactly as it was —
+      // the calculated dose still displayed, no confirmation, no error — so the
+      // only way to tell a paediatric dose had NOT been recorded was to go and
+      // look somewhere else.
+      setCommitErr(describeError(e).message);
     } finally {
       setCommitting(false);
     }
@@ -245,6 +254,9 @@ export default function DoseCalculatorPage() {
                         color="success"
                         label={`Recorded${committed.volumeMl != null ? ` · ${committed.volumeMl} mL` : ''} · log ${committed.id.slice(0, 8)}`}
                       />
+                    )}
+                    {commitErr && (
+                      <Chip color="error" label={`NOT recorded — ${commitErr}`} onDelete={() => setCommitErr('')} />
                     )}
                   </Stack>
                 </>

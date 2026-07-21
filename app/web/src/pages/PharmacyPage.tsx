@@ -67,7 +67,12 @@ interface DispenseItem {
   quantity: number;
   unitPricePkr: number;
   lineTotalPkr: number;
+  /** The FIRST batch consumed only — NOT the provenance record. */
   batchNo: string | null;
+  /** Every batch this line actually drew, with how much. This is what a recall
+   *  is answered from; batchNo alone under-reports and the people missing from
+   *  it are exactly the ones at risk. */
+  batches?: { batchNo: string; quantity: number; expiry: string }[];
 }
 interface Receipt {
   id: string;
@@ -296,7 +301,15 @@ export default function PharmacyPage() {
                       <TableRow key={it.id}>
                         <TableCell sx={{ border: 0, py: 0.25 }}>
                           {it.name} × {it.quantity}
-                          {it.batchNo ? ` · ${it.batchNo}` : ''}
+                          {/* Show EVERY batch drawn, not just the first. FEFO can
+                              satisfy one line from several lots: a receipt reading
+                              "80 × B1" for 50 from B1 and 30 from a recalled B2 is
+                              wrong in the direction that hides the risk. */}
+                          {it.batches?.length
+                            ? ` · ${it.batches.map((b) => `${b.batchNo} ×${b.quantity}`).join(', ')}`
+                            : it.batchNo
+                              ? ` · ${it.batchNo}`
+                              : ''}
                         </TableCell>
                         <TableCell align="right" sx={{ border: 0, py: 0.25 }}>
                           {pkr(it.lineTotalPkr)}
