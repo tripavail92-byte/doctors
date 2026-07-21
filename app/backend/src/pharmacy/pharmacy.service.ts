@@ -102,10 +102,23 @@ export class PharmacyService {
       if (dto.patientId) await ensurePatient(tx, dto.patientId);
 
       const today = startOfToday();
-      const usedBatch: Record<string, string> = {};
-      for (const line of lines) {
-        // Lock this drug's stock rows, then decrement FEFO.
-        await tx.$executeRaw`SELECT id FROM "StockItem" WHERE "tenantId" = ${tenantId}::uuid AND "formularyCode" = ${line.formularyCode} AND "quantityOnHand" > 0 FOR UPDATE`;
+      // What each LINE actually drew, per batch. Keyed by line index, not by
+      // drug: two lines of the same drug draw separately, and a single line can
+      // span batches. Each line's FIRST entry is what the receipt shows.
+      const drawn: { batchNo: string; quantity: number; expiry: Date }[][] = lines.map(() => []);
+
+      // Lock drugs in a DETERMINISTIC order, not the order the client listed
+      // them. Two carts naming the same two drugs in opposite order each held
+      // one lock and waited on the other: 19 of 20 concurrent two-drug sales
+      // returned 500 (reproduced). Sorting by formularyCode means every caller
+      // acquires in the same sequence, so the cycle cannot form. The receipt
+      // still lists lines in the order the user entered them.
+      const lockOrder = lines.map((l, i) => i).sort((a, b) => lines[a].formularyCode.localeCompare(lines[b].formularyCode));
+      for (const idx of lockOrder) {
+        const line = lines[idx];
+        // Lock this drug's stock rows, then decrement FEFO. ORDER BY id so rows
+        // WITHIN a drug are also locked consistently between transactions.
+        await tx.$executeRaw`SELECT id FROM "StockItem" WHERE "tenantId" = ${tenantId}::uuid AND "formularyCode" = ${line.formularyCode} AND "quantityOnHand" > 0 ORDER BY id FOR UPDATE`;
         const allBatches = await tx.stockItem.findMany({
           where: { formularyCode: line.formularyCode, quantityOnHand: { gt: 0 } },
           orderBy: { expiry: 'asc' },
@@ -137,7 +150,10 @@ export class PharmacyService {
             where: { id: b.id },
             data: { quantityOnHand: b.quantityOnHand - take },
           });
-          if (!usedBatch[line.formularyCode]) usedBatch[line.formularyCode] = b.batchNo;
+          // Record EVERY batch this line drew, with how much. Without this a
+          // recall of batch B2 cannot find the patient who received 50 of its
+          // units, because the receipt names only B1.
+          drawn[idx].push({ batchNo: b.batchNo, quantity: take, expiry: b.expiry });
           need -= take;
         }
       }
@@ -153,18 +169,34 @@ export class PharmacyService {
           dispensedById: userId ?? null,
         },
       });
-      await tx.dispenseItem.createMany({
-        data: lines.map((l) => ({
-          tenantId: tenantId!,
-          dispenseId: dispenseRow.id,
-          formularyCode: l.formularyCode,
-          name: l.name,
-          quantity: l.quantity,
-          unitPricePkr: l.unitPricePkr,
-          lineTotalPkr: l.lineTotalPkr,
-          batchNo: usedBatch[l.formularyCode] ?? null,
-        })),
-      });
+      // One create per line rather than createMany, because createMany returns
+      // no ids and each line's batch provenance has to hang off its own row.
+      for (let i = 0; i < lines.length; i++) {
+        const l = lines[i];
+        await tx.dispenseItem.create({
+          data: {
+            tenantId: tenantId!,
+            dispenseId: dispenseRow.id,
+            formularyCode: l.formularyCode,
+            name: l.name,
+            quantity: l.quantity,
+            unitPricePkr: l.unitPricePkr,
+            lineTotalPkr: l.lineTotalPkr,
+            // THIS line's first batch. Previously keyed by drug, so a second
+            // line of the same drug inherited the first line's batch even when
+            // it drew from somewhere else entirely.
+            batchNo: drawn[i][0]?.batchNo ?? null,
+            batches: {
+              create: drawn[i].map((d) => ({
+                tenantId: tenantId!,
+                batchNo: d.batchNo,
+                quantity: d.quantity,
+                expiry: d.expiry,
+              })),
+            },
+          },
+        });
+      }
       return reload(tx, dispenseRow.id);
     });
   }
@@ -216,5 +248,11 @@ async function nextReceipt(tx: Prisma.TransactionClient, tenantId: string): Prom
 }
 
 function reload(tx: Prisma.TransactionClient, id: string) {
-  return tx.dispense.findUnique({ where: { id }, include: { items: true } });
+  // `batches` is included deliberately: it is the only complete record of which
+  // lots a sale drew from, and a recall is answered from it. `item.batchNo` is
+  // the first batch only and is kept for the printed receipt.
+  return tx.dispense.findUnique({
+    where: { id },
+    include: { items: { include: { batches: true } } },
+  });
 }

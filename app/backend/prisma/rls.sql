@@ -560,3 +560,12 @@ ALTER TABLE "Aefi" FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON "Aefi";
 CREATE POLICY tenant_isolation ON "Aefi"
   USING ("tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid);
+
+-- ---------------------------------------------------------------------------
+-- DispenseItemBatch
+-- ---------------------------------------------------------------------------
+ALTER TABLE "DispenseItemBatch" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "DispenseItemBatch" FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON "DispenseItemBatch";
+CREATE POLICY tenant_isolation ON "DispenseItemBatch"
+  USING ("tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid);

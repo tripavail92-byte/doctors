@@ -138,6 +138,7 @@ model Tenant {
   stockItems            StockItem[]
   dispenses             Dispense[]
   dispenseItems         DispenseItem[]
+  dispenseItemBatches   DispenseItemBatch[]
   employees             Employee[]
   payrollRuns           PayrollRun[]
   payslips              Payslip[]
@@ -630,13 +631,41 @@ model DispenseItem {
   quantity      Int
   unitPricePkr  Int
   lineTotalPkr  Int
+  // The FIRST batch consumed, kept for receipts and backwards compatibility.
+  // It is NOT the provenance record — a line drawn across two batches names only
+  // one here. Use `batches` for anything that must be complete, above all a recall.
   batchNo       String?
 
-  tenant   Tenant   @relation(fields: [tenantId], references: [id])
-  dispense Dispense @relation(fields: [dispenseId], references: [id])
+  tenant   Tenant              @relation(fields: [tenantId], references: [id])
+  dispense Dispense            @relation(fields: [dispenseId], references: [id])
+  batches  DispenseItemBatch[]
 
   @@index([tenantId])
   @@index([dispenseId])
+}
+
+// Which batch, and how much of it, each dispensed line actually drew.
+//
+// FEFO can satisfy one line from several batches, but only the first was ever
+// recorded — 80 capsules were attributed to a batch that held 30, and the other
+// 50 appeared on no receipt at all. When a manufacturer recalls a lot, the
+// question is "which patients received it?", and that answer was wrong in a way
+// that under-reports: the people at risk are precisely the ones missing.
+model DispenseItemBatch {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @db.Uuid
+  dispenseItemId String   @db.Uuid
+  batchNo        String
+  quantity       Int
+  expiry         DateTime
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  dispenseItem DispenseItem @relation(fields: [dispenseItemId], references: [id])
+
+  @@index([tenantId])
+  @@index([dispenseItemId])
+  // A recall walks this: every line that touched a given lot.
+  @@index([tenantId, batchNo])
 }
 
 // ---------------------------------------------------------------------------
