@@ -42,7 +42,7 @@ import {
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
 import { apiClient } from '../api/client';
-import { useApi } from '../api/useApi';
+import { useApi, numericInput } from '../api/useApi';
 
 interface Patient {
   id: string;
@@ -302,8 +302,8 @@ export default function BillingPage() {
               </Typography>
               <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
                 <TextField size="small" label="Item" value={liName} onChange={(e) => setLiName(e.target.value)} sx={{ flex: 1 }} />
-                <TextField size="small" label="Price" value={liPrice} onChange={(e) => setLiPrice(e.target.value.replace(/[^0-9]/g, ''))} sx={{ width: 110 }} />
-                <TextField size="small" label="Qty" value={liQty} onChange={(e) => setLiQty(e.target.value.replace(/[^0-9]/g, ''))} sx={{ width: 70 }} />
+                <TextField size="small" label="Price" value={liPrice} onChange={(e) => setLiPrice(numericInput(e.target.value))} sx={{ width: 110 }} />
+                <TextField size="small" label="Qty" value={liQty} onChange={(e) => setLiQty(numericInput(e.target.value))} sx={{ width: 70 }} />
                 <Button
                   size="small"
                   disabled={!liName || !liPrice || !Number(liQty)}
@@ -467,7 +467,7 @@ export default function BillingPage() {
                             label="Amount"
                             placeholder={String(outstanding)}
                             value={payAmt}
-                            onChange={(e) => setPayAmt(e.target.value.replace(/[^0-9]/g, ''))}
+                            onChange={(e) => setPayAmt(numericInput(e.target.value))}
                             sx={{ width: 130 }}
                           />
                           <FormControl size="small" sx={{ minWidth: 130 }}>
@@ -485,8 +485,17 @@ export default function BillingPage() {
                             disabled={busy}
                             onClick={() =>
                               call(async () => {
+                                // `Number('0') || outstanding` is the bug: 0 is falsy, so
+                                // typing 0 recorded the FULL outstanding balance as paid.
+                                // Reproduced: a Rs 25,000 invoice went to PAID, entered
+                                // revenue, and could then only be undone by refunding money
+                                // never received. Never use `||` to default a numeric field.
+                                const amt = payAmt.trim() === '' ? outstanding : Number(payAmt);
+                                if (!Number.isFinite(amt) || amt <= 0) {
+                                  throw new Error('Enter a payment amount greater than zero.');
+                                }
                                 await apiClient.post(`/invoices/${inv.id}/payments`, {
-                                  amountPkr: Number(payAmt) || outstanding,
+                                  amountPkr: amt,
                                   method: payMethod,
                                 });
                                 setPayAmt('');
@@ -556,7 +565,7 @@ export default function BillingPage() {
                             label="Amount"
                             placeholder={String(inv.paid)}
                             value={refundAmt}
-                            onChange={(e) => setRefundAmt(e.target.value.replace(/[^0-9]/g, ''))}
+                            onChange={(e) => setRefundAmt(numericInput(e.target.value))}
                             sx={{ width: 130 }}
                           />
                           <TextField size="small" label="Reason" value={refundReason} onChange={(e) => setRefundReason(e.target.value)} sx={{ flex: 1 }} />

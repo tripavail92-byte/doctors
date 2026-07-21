@@ -32,7 +32,7 @@ import {
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
 import { apiClient } from '../api/client';
-import { useApi } from '../api/useApi';
+import { useApi, numericInput } from '../api/useApi';
 
 interface Patient {
   id: string;
@@ -307,7 +307,7 @@ export default function OphthalmologyPage() {
                             ))}
                           </Select>
                         </FormControl>
-                        <TextField size="small" label="IOP mmHg" value={iopVal} onChange={(e) => setIopVal(e.target.value.replace(/[^0-9]/g, ''))} sx={{ width: 100 }} />
+                        <TextField size="small" label="IOP mmHg" value={iopVal} onChange={(e) => setIopVal(numericInput(e.target.value))} sx={{ width: 100 }} />
                         <Button
                           size="small"
                           disabled={busy || !iopVal}

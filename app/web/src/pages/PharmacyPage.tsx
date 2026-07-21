@@ -35,7 +35,7 @@ import {
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
 import { apiClient } from '../api/client';
-import { useApi } from '../api/useApi';
+import { useApi, numericInput } from '../api/useApi';
 
 interface Drug {
   code: string;
@@ -206,7 +206,7 @@ export default function PharmacyPage() {
                   size="small"
                   label="Qty"
                   value={pickQty}
-                  onChange={(e) => setPickQty(e.target.value.replace(/[^0-9]/g, ''))}
+                  onChange={(e) => setPickQty(numericInput(e.target.value))}
                   sx={{ width: 72 }}
                 />
                 <Button size="small" sx={{ mt: 0.5 }} disabled={!pickCode || !Number(pickQty)} onClick={addToCart}>

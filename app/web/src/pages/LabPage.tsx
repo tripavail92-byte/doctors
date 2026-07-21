@@ -372,7 +372,31 @@ export default function LabPage() {
                                   onClick={() =>
                                     call(async () => {
                                       const raw = (resultVals[it.testCode] ?? '').trim();
-                                      const body = isText || Number.isNaN(Number(raw)) ? { testCode: it.testCode, valueText: raw } : { testCode: it.testCode, value: Number(raw) };
+                                      // A NUMERIC test must never fall back to text.
+                                      //
+                                      // The old condition downgraded on any unparseable
+                                      // character — "7,5" (decimal comma), "9.5 g/dL", "<2".
+                                      // Stored as text, value is null, so flagResult() short-
+                                      // circuits and the reference range is NEVER APPLIED: a
+                                      // haemoglobin of 7,5 rendered a calm neutral chip beside
+                                      // the 12-16 range it breaches, and the order could still
+                                      // be finalized. Reproduced in the browser.
+                                      //
+                                      // Refuse instead of reclassifying. A rejected entry the
+                                      // user retypes is recoverable; an un-flagged critical
+                                      // result is not.
+                                      let body: Record<string, unknown>;
+                                      if (isText) {
+                                        body = { testCode: it.testCode, valueText: raw };
+                                      } else {
+                                        const n = Number(raw);
+                                        if (!Number.isFinite(n)) {
+                                          throw new Error(
+                                            `${it.testName ?? it.testCode}: enter the number only — no units, and use a decimal point (7.5, not 7,5). Nothing was saved.`,
+                                          );
+                                        }
+                                        body = { testCode: it.testCode, value: n };
+                                      }
                                       await apiClient.post(`/lab/orders/${inv.id}/results`, body);
                                       setResultVals((v) => ({ ...v, [it.testCode]: '' }));
                                     })

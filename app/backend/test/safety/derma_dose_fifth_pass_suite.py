@@ -138,6 +138,34 @@ ck('a delivered HIGH session is <= 288, never ~760', (hd.get('session') or {}).g
 _, hiHold2 = sessions(hi)
 ck('HIGH clears only after IT re-establishes tolerance', hiHold2 is None, hiHold2)
 
+print('\n== A reason without an override is a contradictory record ==')
+# The web client sent Number('3OO') -> NaN -> JSON null. @IsOptional() accepted
+# it, the override branch was skipped, and the FULL protocol dose was delivered
+# while overrideReason was still stored. The saved doseDecision then read
+# {override: false, overrideReason: "Reduce for reported tenderness"} — one record
+# asserting both that a reduction was requested and that none occurred.
+# Reproduced at the API before this guard existed: 500 mJ/cm2 delivered where the
+# clinician typed 300.
+_pid, _cid = patient('contradiction', 3)
+s, _r = api('POST', '/dermatology/phototherapy/courses/%s/sessions' % _cid, tok,
+            {'lastErythemaGrade': 0, 'overrideDoseMj': None,
+             'overrideReason': 'Reduce for reported tenderness'})
+ck('a reason with a null override dose is REFUSED', s == 400,
+   'HTTP %s %s' % (s, str(_r.get('message'))[:70]))
+_sess, _ = sessions(_cid)
+ck('and NO session was delivered', len(_sess) == 0, '%d sessions' % len(_sess))
+
+# Control: a genuine override with a reason must still work, or the guard has
+# simply broken overriding altogether.
+s, _ok = api('POST', '/dermatology/phototherapy/courses/%s/sessions' % _cid, tok,
+             {'lastErythemaGrade': 0, 'overrideDoseMj': 300,
+              'overrideReason': 'Reduce for reported tenderness'})
+ck('a REAL override with a reason still succeeds', s in (200, 201), 'HTTP %s' % s)
+ck('and it delivered the overridden dose, not the protocol dose',
+   ((_ok.get('session') or {}).get('doseMj')) == 300,
+   (_ok.get('session') or {}).get('doseMj'))
+
+
 print('\n===== %d/%d passed =====' % (sum(res), len(res)))
 
 # A suite that prints FAIL must FAIL THE BUILD. Without this, python exits 0

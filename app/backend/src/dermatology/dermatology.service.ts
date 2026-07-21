@@ -615,6 +615,27 @@ export class DermatologyService {
         throw new BadRequestException('overrideReason is required to override a burn hold.');
       }
 
+      // A REASON WITHOUT AN OVERRIDE IS A CONTRADICTORY RECORD — refuse it.
+      //
+      // The web client sent `overrideDoseMj: Number('3OO')`, i.e. NaN, which
+      // JSON.stringify writes as null. @IsOptional() accepted it, the override
+      // branch below was skipped, and the full protocol dose was delivered —
+      // 500 mJ/cm2 where the clinician had typed 300 — while overrideReason was
+      // still stored. Reproduced: the saved doseDecision read
+      // {override: false, overrideReason: "Reduce for reported tenderness"}.
+      //
+      // The client has been fixed to refuse an unreadable dose, but the client
+      // is not the guard. Any caller that supplies a reason without an override
+      // is describing something that did not happen, and the ledger is the
+      // record a prescriber is later asked to stand behind.
+      if (dto.overrideReason && dto.overrideDoseMj == null && !dto.overrideBurnHold) {
+        throw new BadRequestException(
+          'overrideReason was supplied without an override. If you meant to change the dose, ' +
+            'send overrideDoseMj as a number; otherwise omit the reason — the record must not ' +
+            'state that a reduction was requested when none was applied.',
+        );
+      }
+
       // THE burn anchor for this request — derived ONCE and used by every
       // decision below. A burn reported NOW is a burn, whether or not a column
       // says so yet, so this reads the CURRENT decision, not just the stored

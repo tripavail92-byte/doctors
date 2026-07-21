@@ -37,6 +37,21 @@ export function useApi<T>(fetcher: () => Promise<T>, deps: unknown[] = []): ApiS
     let active = true;
     setLoading(true);
     setError(null);
+    // CLEAR THE PREVIOUS ANSWER before fetching the next one.
+    //
+    // Without this, `data` held the OLD subject's result while the new request
+    // was in flight — and forever if it failed. Reproduced in the browser:
+    // switching patient on Billing showed "Bilal Ahmed" as the header over Sana
+    // Riaz's Rs 16,000 balance; the dose calculator showed 14 kg's answer
+    // (186.7 mg / 7.5 mL) under a weight of 28 kg, which is half the correct
+    // dose, and kept showing it permanently when the recalculation failed.
+    //
+    // Every page renders `data ?? []`, so stale data is indistinguishable from
+    // current data. A blank panel is recoverable; a confident wrong number that
+    // belongs to a different patient is not. Pages should gate on `loading` —
+    // BillingPage's invoice detail already does — but correctness must not
+    // depend on each page remembering to.
+    setData(null);
     fetcher()
       .then((res) => {
         if (!active) return;
@@ -67,4 +82,29 @@ export function useApi<T>(fetcher: () => Promise<T>, deps: unknown[] = []): ApiS
 /** Format an integer PKR amount as e.g. "PKR 118,840". */
 export function pkr(amount: number): string {
   return `PKR ${amount.toLocaleString('en-PK')}`;
+}
+
+/**
+ * Sanitise a numeric text input WITHOUT changing its magnitude.
+ *
+ * The previous idiom was `value.replace(/[^0-9]/g, '')`, which deletes the
+ * offending characters and concatenates the survivors — so it silently changes
+ * the NUMBER rather than rejecting the input. Reproduced in the browser:
+ *
+ *   IOP  "1.5"      -> "15"      1.5 mmHg is profound hypotony, a same-day
+ *                                emergency; 15 mmHg renders as a green "normal".
+ *   Price "12500.50" -> "1250050"  a 100x overcharge, no warning.
+ *
+ * The server's own plausibility guard cannot save this: IOP 1..80 accepts 15.
+ *
+ * Keeping the decimal point means a mistyped value stays wrong-looking instead
+ * of becoming plausibly wrong. At most one dot, so "1.2.3" cannot form a value
+ * that Number() turns into NaN behind the caller's back. The minus sign is
+ * deliberately still excluded — none of these fields accept a negative.
+ */
+export function numericInput(raw: string): string {
+  const cleaned = raw.replace(/[^0-9.]/g, '');
+  const firstDot = cleaned.indexOf('.');
+  if (firstDot === -1) return cleaned;
+  return cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '');
 }

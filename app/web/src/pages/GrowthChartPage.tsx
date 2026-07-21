@@ -107,12 +107,19 @@ export default function GrowthChartPage() {
             </Typography>
             {latest && (
               <>
-                <Chip
-                  size="small"
-                  color={Math.abs(latest.z ?? 0) <= 2 ? 'success' : 'warning'}
-                  label={`z ${latest.z} · ${latest.percentile}ᵗʰ pct`}
-                />
-                <Chip size="small" variant="outlined" label={latest.classification} />
+                {/* The z-score is shown WITHOUT a colour, and the server's WHO
+                    classification carries the alarm.
+
+                    This chip used to be coloured by a client-side |z| <= 2 rule,
+                    which matches none of the five indicators' real WHO cut-offs.
+                    Reproduced: BMI-for-age z 1.48 rendered a solid GREEN chip
+                    beside the server's "Risk of overweight", and height-for-age
+                    z 2.93 rendered AMBER beside "Normal stature" — the coloured
+                    chip was the salient element and it contradicted the verdict
+                    in both directions. The server already computes the band
+                    (growth-engine classify*); the client must not re-derive it. */}
+                <Chip size="small" variant="outlined" label={`z ${latest.z} · ${latest.percentile}ᵗʰ pct`} />
+                <Chip size="small" color={growthChipColor(latest.classification)} label={latest.classification} />
               </>
             )}
           </Stack>
@@ -268,4 +275,20 @@ function niceStep(raw: number): number {
 }
 function round(x: number): number {
   return Math.round(x * 10) / 10;
+}
+
+/**
+ * Colour a WHO growth classification, from the SERVER's own words.
+ *
+ * Anything that is not explicitly a normal band is treated as needing
+ * attention — an unrecognised string colours as a warning rather than silently
+ * green, because a band this function has not been taught about is exactly the
+ * case where guessing "fine" is worst.
+ */
+function growthChipColor(classification: string | null | undefined): 'success' | 'warning' | 'error' | 'default' {
+  const c = (classification ?? '').toLowerCase();
+  if (!c) return 'default';
+  if (c.includes('severe')) return 'error';
+  if (c.startsWith('normal') || c === 'normal stature' || c.includes('normal')) return 'success';
+  return 'warning';
 }

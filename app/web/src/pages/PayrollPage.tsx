@@ -36,7 +36,7 @@ import {
   Typography,
 } from '@mui/material';
 import { apiClient } from '../api/client';
-import { useApi } from '../api/useApi';
+import { useApi, numericInput } from '../api/useApi';
 
 interface Employee {
   id: string;
@@ -200,7 +200,7 @@ export default function PayrollPage() {
               size="small"
               label="Amount (PKR)"
               value={dedAmt}
-              onChange={(e) => setDedAmt(e.target.value.replace(/[^0-9]/g, ''))}
+              onChange={(e) => setDedAmt(numericInput(e.target.value))}
               sx={{ width: 150 }}
             />
             <Button

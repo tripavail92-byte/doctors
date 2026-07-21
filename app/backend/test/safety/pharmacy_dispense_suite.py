@@ -22,6 +22,7 @@ day something goes wrong.
 
 Run: python test/safety/pharmacy_dispense_suite.py
 """
+import datetime as _dt
 import json
 import os
 import sys
@@ -71,19 +72,36 @@ def receive(code, batch, qty, expiry='2029-06-01'):
 
 
 print('\n== A dispense drawn from two batches records BOTH ==')
-# Two batches, deliberately different expiries so FEFO order is deterministic.
+# Two batches, different expiries so FEFO order between them is deterministic.
+#
+# The expiries are the NEAREST in-date dates available (tomorrow, and the day
+# after), NOT fixed years. FEFO consumes earliest-expiry first, so any stock this
+# suite did not create sorts AFTER these — which is the only way to know the two
+# batches consumed are the two this section is about.
+#
+# Fixed '2027-01-01'/'2028-01-01' failed exactly that way: a batch left behind by
+# another test expired sooner, FEFO took it first, and the assertions measured
+# someone else's stock. A check whose result depends on what else is in the
+# database is not a check.
+_today = _dt.date.today()
+E1 = (_today + _dt.timedelta(days=1)).isoformat()
+E2 = (_today + _dt.timedelta(days=2)).isoformat()
 B1 = 'RCL-%s-A' % RUN
 B2 = 'RCL-%s-B' % RUN
-s, _ = receive('PARA500', B1, 30, '2027-01-01')
+s, _ = receive('PARA500', B1, 30, E1)
 ck('first batch received', s in (200, 201), 'HTTP %s' % s)
-s, _ = receive('PARA500', B2, 50, '2028-01-01')
+s, _ = receive('PARA500', B2, 50, E2)
 ck('second batch received', s in (200, 201), 'HTTP %s' % s)
 
 s, d = api('POST', '/pharmacy/dispense', tok,
            {'items': [{'code': 'PARA500', 'quantity': 80}], 'paymentMethod': 'CASH'})
 ck('a dispense spanning both batches succeeds', s in (200, 201), 'HTTP %s' % s)
 item = (d.get('items') or [{}])[0]
-batches = {b['batchNo']: b['quantity'] for b in (item.get('batches') or [])}
+# Sum per batchNo rather than dict-assign: two stock rows can legitimately share
+# a batchNo, and a plain comprehension silently keeps only the last of them.
+batches: dict = {}
+for _b in (item.get('batches') or []):
+    batches[_b['batchNo']] = batches.get(_b['batchNo'], 0) + _b['quantity']
 
 # The whole point: both lots present, quantities correct, summing to the line.
 ck('the earlier-expiry batch is recorded with its quantity', batches.get(B1) == 30, batches)

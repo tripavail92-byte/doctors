@@ -129,8 +129,31 @@ export default function PhototherapyPage() {
     try {
       const body: Record<string, unknown> = {};
       if (grade !== '') body.lastErythemaGrade = grade;
-      if (overrideDose) body.overrideDoseMj = Number(overrideDose);
-      if (reason) body.overrideReason = reason;
+
+      // A dose the machine cannot read must STOP the submission, never be coerced.
+      //
+      // `Number('3OO')` — 300 typed with capital letter O — is NaN, which
+      // JSON.stringify emits as null, which the DTO's @IsOptional() accepts, so
+      // the service skipped the override branch and delivered the FULL protocol
+      // dose (500 mJ/cm² where 300 was intended) under a green "Delivered"
+      // message. Reproduced in the browser.
+      //
+      // Worse than the dose: the REASON was still sent, so the permanent record
+      // read "a reduction was requested for tenderness" and "no override
+      // occurred" at the same time.
+      const rawOverride = overrideDose.trim();
+      if (rawOverride !== '') {
+        const n = Number(rawOverride);
+        if (!Number.isFinite(n)) {
+          setMsg({ sev: 'error', text: 'Override dose must be a number in mJ/cm². Nothing was recorded.' });
+          setBusy(false);
+          return;
+        }
+        body.overrideDoseMj = n;
+      }
+      // An override reason without an override is a claim about something that
+      // did not happen — do not file it.
+      if (reason && body.overrideDoseMj !== undefined) body.overrideReason = reason;
       const r = await apiClient.post(`/dermatology/phototherapy/courses/${courseId}/sessions`, body);
       setMsg(
         r.data?.held
@@ -285,7 +308,14 @@ export default function PhototherapyPage() {
                     label="Override reason"
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
-                    disabled={!overrideDose || Number(overrideDose) === decision?.suggestedMj}
+                    disabled={
+                      !overrideDose.trim() ||
+                      // Number('3OO') is NaN, and NaN !== suggestedMj is TRUE, so an
+                      // unreadable dose UN-disabled this field and the form looked
+                      // like it had accepted a downward override.
+                      !Number.isFinite(Number(overrideDose)) ||
+                      Number(overrideDose) === decision?.suggestedMj
+                    }
                     sx={{ flex: 1, minWidth: 220 }}
                     helperText="required to depart from the suggestion"
                   />

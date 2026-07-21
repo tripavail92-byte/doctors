@@ -35,7 +35,7 @@ import {
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
 import { apiClient } from '../api/client';
-import { useApi } from '../api/useApi';
+import { useApi, numericInput } from '../api/useApi';
 
 interface Patient {
   id: string;
@@ -301,7 +301,7 @@ export default function RehabPage() {
                         {romOptions.map((o) => (<MenuItem key={o.key} value={o.key}>{o.label}</MenuItem>))}
                       </Select>
                     </FormControl>
-                    <TextField size="small" label="Active °" value={romDeg} onChange={(e) => setRomDeg(e.target.value.replace(/[^0-9]/g, ''))} sx={{ width: 90 }} />
+                    <TextField size="small" label="Active °" value={romDeg} onChange={(e) => setRomDeg(numericInput(e.target.value))} sx={{ width: 90 }} />
                     <Button
                       size="small"
                       disabled={busy || !romKey || !romDeg}
@@ -350,7 +350,7 @@ export default function RehabPage() {
                       </Select>
                     </FormControl>
                     <Stack direction="row" spacing={1} alignItems="center">
-                      <TextField size="small" label="Pain (0-10)" value={painPre} onChange={(e) => setPainPre(e.target.value.replace(/[^0-9]/g, ''))} sx={{ width: 110 }} />
+                      <TextField size="small" label="Pain (0-10)" value={painPre} onChange={(e) => setPainPre(numericInput(e.target.value))} sx={{ width: 110 }} />
                       <Button variant="contained" size="small" disabled={busy || !mods.length} onClick={() => recordSession(false)}>
                         Record session
                       </Button>
