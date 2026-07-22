@@ -9,6 +9,7 @@ export interface AuthUser {
   role: string;
   tenantId: string | null;
   isPlatformAdmin: boolean;
+  entitlements: Set<string>;
 }
 
 interface AuthContextValue {
@@ -22,18 +23,30 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const EMAIL_KEY = 'healthos.email';
 
+const ENTITLEMENTS_KEY = 'healthos.entitlements';
+
 function userFromToken(token: string): AuthUser | null {
   const claims = decodeJwt<JwtClaims>(token);
   if (!claims?.sub) return null;
-  // Expiry guard — treat an expired token as logged out.
   if (claims.exp && claims.exp * 1000 < Date.now()) return null;
+  const cached = localStorage.getItem(ENTITLEMENTS_KEY);
   return {
     userId: claims.sub,
     email: localStorage.getItem(EMAIL_KEY),
     role: claims.role,
     tenantId: claims.tenantId,
     isPlatformAdmin: claims.isPlatformAdmin,
+    entitlements: new Set(cached ? JSON.parse(cached) as string[] : []),
   };
+}
+
+async function fetchEntitlements(): Promise<string[]> {
+  try {
+    const { data } = await apiClient.get<{ features: string[] }>('/entitlements');
+    return data.features;
+  } catch {
+    return [];
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -45,8 +58,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = getToken();
     if (token) {
       const u = userFromToken(token);
-      if (u) setUser(u);
-      else clearToken();
+      if (u) {
+        setUser(u);
+        if (!u.isPlatformAdmin) {
+          fetchEntitlements().then((keys) => {
+            localStorage.setItem(ENTITLEMENTS_KEY, JSON.stringify(keys));
+            setUser((prev) => prev ? { ...prev, entitlements: new Set(keys) } : prev);
+          });
+        }
+      } else {
+        clearToken();
+      }
     }
     setLoading(false);
   }, []);
@@ -61,11 +83,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(EMAIL_KEY, email);
         const u = userFromToken(data.accessToken);
         if (!u) throw new Error('Received an invalid token');
+        if (!u.isPlatformAdmin) {
+          const keys = await fetchEntitlements();
+          localStorage.setItem(ENTITLEMENTS_KEY, JSON.stringify(keys));
+          u.entitlements = new Set(keys);
+        }
         setUser(u);
       },
       logout() {
         clearToken();
         localStorage.removeItem(EMAIL_KEY);
+        localStorage.removeItem(ENTITLEMENTS_KEY);
         setUser(null);
       },
     }),

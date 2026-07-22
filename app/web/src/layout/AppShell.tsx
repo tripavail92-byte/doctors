@@ -2,7 +2,7 @@
 // Permanent MUI Drawer sidebar (brand + grouped nav) on the left,
 // AppBar topbar (real signed-in user + logout menu) on top, and an
 // <Outlet /> for the routed page content.
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Link as RouterLink,
   Outlet,
@@ -28,7 +28,7 @@ import {
 } from "@mui/material";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SpaIcon from "@mui/icons-material/Spa";
-import { navGroups, platformNavGroup } from "./nav";
+import { navGroups, platformNavGroup, filterNav } from "./nav";
 import { useAuth } from "../auth/AuthContext";
 import FetchErrorBanner from '../components/FetchErrorBanner';
 
@@ -51,6 +51,12 @@ export default function AppShell() {
     logout();
     navigate("/login", { replace: true });
   };
+
+  const visibleNav = useMemo(() => {
+    if (user?.isPlatformAdmin) return [platformNavGroup];
+    const ent = user?.entitlements ?? new Set<string>();
+    return filterNav(navGroups, ent);
+  }, [user?.entitlements, user?.isPlatformAdmin]);
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
@@ -88,7 +94,7 @@ export default function AppShell() {
 
         {/* Grouped nav */}
         <Box sx={{ overflowY: "auto", py: 1 }}>
-          {[...navGroups, ...(user?.isPlatformAdmin ? [platformNavGroup] : [])].map((group) => (
+          {visibleNav.map((group) => (
             <List
               key={group.label}
               dense
