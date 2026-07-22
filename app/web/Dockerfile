@@ -31,10 +31,11 @@ ENV TZ=UTC
 # Where to find the API. Overridable so the same image works against a sidecar
 # container, a separate host, or a local run.
 #
-# Substituted into a LITERAL proxy_pass, so nginx resolves it once at startup via
-# /etc/resolv.conf. That is what makes Railway's *.railway.internal names work
-# without an explicit resolver directive — but it also means nginx keeps the
-# address it resolved. If the API service moves, redeploy web.
+# The nginx config uses a variable for proxy_pass (not a literal), which forces
+# re-resolution on every request via the `resolver` directive. The resolver
+# address is extracted from /etc/resolv.conf at container start by the .envsh
+# script below. This means API redeployments (new IP) are picked up within 10s
+# without needing to redeploy web.
 ENV API_ORIGIN=http://api:3000
 
 # The port nginx binds. Railway overrides this at run time.
@@ -42,6 +43,8 @@ ENV PORT=8080
 
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY app/web/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY app/web/10-set-resolver.envsh /docker-entrypoint.d/10-set-resolver.envsh
+RUN chmod +x /docker-entrypoint.d/10-set-resolver.envsh
 
 # nginx:alpine substitutes ${VARS} in /etc/nginx/templates/*.template at startup,
 # so API_ORIGIN is read at RUN time, not baked in at build time. One image, any

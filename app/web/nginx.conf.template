@@ -24,7 +24,13 @@ server {
   # removing it silently turns every request into /api/patients against a server
   # that has no such route.
   location /api/ {
-    proxy_pass ${API_ORIGIN}/;
+    # Re-resolve the API hostname on every request, not just at startup.
+    # Without this, an API redeployment (new IP) leaves nginx pointing at
+    # the old address until the web container restarts too.
+    resolver ${RESOLVER} valid=10s;
+    set $api ${API_ORIGIN};
+    rewrite ^/api/(.*) /$1 break;
+    proxy_pass $api;
     proxy_http_version 1.1;
 
     proxy_set_header Host              $host;

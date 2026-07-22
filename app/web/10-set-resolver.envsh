@@ -1,0 +1,7 @@
+#!/bin/sh
+# Extract the container's DNS resolver for nginx.
+# nginx needs an explicit `resolver` directive when proxy_pass uses a variable
+# (which is what forces re-resolution on every request instead of caching at
+# startup). The resolver address comes from /etc/resolv.conf, which the
+# container runtime populates — on Railway, Docker, K8s, etc.
+export RESOLVER=$(awk '/^nameserver/{print $2; exit}' /etc/resolv.conf)
