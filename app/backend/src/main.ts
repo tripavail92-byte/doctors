@@ -101,8 +101,19 @@ async function bootstrap(): Promise<void> {
 
   const port = config.get<number>('port') ?? 3000;
 
-  await app.listen(port);
-  Logger.log(`Health OS backend listening on http://localhost:${port}`, 'Bootstrap');
+  // Bind :: (all interfaces, IPv6 AND IPv4) rather than Nest's default 0.0.0.0.
+  //
+  // Railway's private network between services is IPv6-ONLY. Bound to 0.0.0.0
+  // this process listens on IPv4 alone, so `api.railway.internal` resolves to an
+  // AAAA record nothing is listening on: nginx in the web service connected,
+  // waited, and returned 504 on every /api call. The API itself was healthy
+  // throughout — its own health check passes over loopback — so the service
+  // showed SUCCESS while being unreachable by the only thing that talks to it.
+  //
+  // Node dual-stacks a :: socket, so this still serves IPv4 and nothing about
+  // local development or the docker-compose stack changes.
+  await app.listen(port, '::');
+  Logger.log(`Health OS backend listening on port ${port} (:: — IPv4 and IPv6)`, 'Bootstrap');
 }
 
 // eslint-disable-next-line @typescript-eslint/no-floating-promises
