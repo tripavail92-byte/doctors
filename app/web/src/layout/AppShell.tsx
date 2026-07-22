@@ -28,7 +28,7 @@ import {
 } from "@mui/material";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SpaIcon from "@mui/icons-material/Spa";
-import { navGroups } from "./nav";
+import { navGroups, platformNavGroup } from "./nav";
 import { useAuth } from "../auth/AuthContext";
 import FetchErrorBanner from '../components/FetchErrorBanner';
 
@@ -88,7 +88,7 @@ export default function AppShell() {
 
         {/* Grouped nav */}
         <Box sx={{ overflowY: "auto", py: 1 }}>
-          {navGroups.map((group) => (
+          {[...navGroups, ...(user?.isPlatformAdmin ? [platformNavGroup] : [])].map((group) => (
             <List
               key={group.label}
               dense

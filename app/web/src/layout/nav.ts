@@ -25,6 +25,7 @@ import PaymentsIcon from "@mui/icons-material/Payments";
 import CampaignIcon from "@mui/icons-material/Campaign";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import LocalPharmacyIcon from "@mui/icons-material/LocalPharmacy";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 
 // A single clickable nav entry.
 export interface NavItem {
@@ -78,3 +79,10 @@ export const navGroups: NavGroup[] = [
     ],
   },
 ];
+
+export const platformNavGroup: NavGroup = {
+  label: "Platform",
+  items: [
+    { label: "Clinics", to: "/admin/tenants", icon: AdminPanelSettingsIcon },
+  ],
+};

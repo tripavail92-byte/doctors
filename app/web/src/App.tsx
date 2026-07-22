@@ -24,6 +24,7 @@ import OphthalmologyPage from './pages/OphthalmologyPage';
 import RehabPage from './pages/RehabPage';
 import TrendsPage from './pages/TrendsPage';
 import ImmunizationPage from './pages/ImmunizationPage';
+import TenantsPage from './pages/TenantsPage';
 
 // Application route tree.
 // /login is public; everything under '/' is wrapped in RequireAuth and rendered
@@ -60,6 +61,7 @@ export const router = createBrowserRouter([
       { path: 'immunization', element: <ImmunizationPage /> },
       { path: 'reports', element: <ReportsPage /> },
       { path: 'integrations', element: <IntegrationsPage /> },
+      { path: 'admin/tenants', element: <TenantsPage /> },
       // Unknown paths fall back to the dashboard.
       { path: '*', element: <Navigate to="/" replace /> },
     ],

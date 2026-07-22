@@ -1,5 +1,6 @@
 // DashboardPage: clinic overview driven by the live /reports/summary endpoint.
 import type { ReactNode } from 'react';
+import { Navigate } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -19,8 +20,11 @@ import ScienceIcon from '@mui/icons-material/Science';
 import { apiClient } from '../api/client';
 import { pkr, useApi } from '../api/useApi';
 import type { ReportSummary } from '../api/types';
+import { useAuth } from '../auth/AuthContext';
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+  if (user?.isPlatformAdmin) return <Navigate to="/admin/tenants" replace />;
   const { data, loading, error } = useApi<ReportSummary>(() =>
     apiClient.get<ReportSummary>('/reports/summary').then((r) => r.data),
   );
