@@ -39,7 +39,15 @@ interface TenantRow {
   createdAt: string;
 }
 
-const EDITIONS = ['SOLO', 'CLINIC', 'SPECIALTY', 'LAB', 'PHARMACY', 'HOSPITAL', 'ENTERPRISE'];
+const EDITIONS: { value: string; label: string; desc: string }[] = [
+  { value: 'SOLO', label: 'Solo Practice', desc: 'Single doctor, core EMR + billing' },
+  { value: 'CLINIC', label: 'Clinic', desc: 'Multi-staff clinic with reporting, CRM, and media' },
+  { value: 'SPECIALTY', label: 'Specialty Clinic', desc: 'All packs — dermatology, dental, OB/GYN, paediatrics, ophthalmology, physio' },
+  { value: 'LAB', label: 'Laboratory', desc: 'Clinic features + LIS and imaging' },
+  { value: 'PHARMACY', label: 'Pharmacy', desc: 'Clinic features + pharmacy POS and stock' },
+  { value: 'HOSPITAL', label: 'Hospital', desc: 'Everything — all specialties, lab, pharmacy, IPD, HR' },
+  { value: 'ENTERPRISE', label: 'Enterprise', desc: 'Full platform — every feature unlocked' },
+];
 
 const EMPTY = {
   name: '',
@@ -149,7 +157,12 @@ export default function TenantsPage() {
                 value={f.edition} onChange={set('edition')}
               >
                 {EDITIONS.map((e) => (
-                  <MenuItem key={e} value={e}>{e}</MenuItem>
+                  <MenuItem key={e.value} value={e.value}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{e.label}</Typography>
+                      <Typography variant="caption" color="text.secondary">{e.desc}</Typography>
+                    </Box>
+                  </MenuItem>
                 ))}
               </TextField>
             </Grid>
@@ -233,7 +246,7 @@ export default function TenantsPage() {
                       <TableCell sx={{ fontWeight: 500 }}>{t.name}</TableCell>
                       <TableCell sx={{ color: 'text.secondary', fontFamily: 'monospace' }}>{t.slug}</TableCell>
                       <TableCell>
-                        <Chip size="small" label={t.edition} variant="outlined" />
+                        <Chip size="small" label={EDITIONS.find((e) => e.value === t.edition)?.label ?? t.edition} variant="outlined" />
                       </TableCell>
                       <TableCell>
                         <Chip
