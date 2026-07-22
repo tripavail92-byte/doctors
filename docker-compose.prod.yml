@@ -93,8 +93,11 @@ services:
       # deploy — retrofitting after photos exist means they are already gone —
       # and include it in backups alongside the database dump.
       - uploads:/data/uploads
-    ports:
-      - '${API_BIND:-127.0.0.1:3000}:3000'
+    # Not published by default. The web container reaches the API over the
+    # compose network; publishing it as well puts an unauthenticated-by-network
+    # route to patient data on the host. Set API_BIND only to debug.
+    expose:
+      - '3000'
     healthcheck:
       # /health/ready runs a real query. Plain liveness would route traffic to an
       # instance that cannot reach Postgres.
@@ -105,6 +108,27 @@ services:
       timeout: 5s
       start_period: 30s
       retries: 3
+
+  # nginx serving the built SPA, and proxying /api to the API with the prefix
+  # stripped — the job vite.config.ts does in development. Without this service
+  # the stack brought up a database and an API and had nowhere to put the
+  # application: the frontend had no deployment path at all.
+  web:
+    build:
+      context: .
+      dockerfile: app/web/Dockerfile
+      target: runtime
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      TZ: UTC
+      API_ORIGIN: http://api:3000
+    # Loopback by default. Put a TLS terminator in front and point it here;
+    # binding 0.0.0.0 serves patient records over plain HTTP to the internet.
+    ports:
+      - '${WEB_BIND:-127.0.0.1:8080}:8080'
 
 volumes:
   db-data:

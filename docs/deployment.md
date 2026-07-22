@@ -18,6 +18,27 @@ runs: `prisma migrate deploy` → the four SQL files → seed → `check-rls-liv
 
 That last step is the gate. Do not route traffic to a database it fails on.
 
+Verified end to end on 2026-07-22 against an empty volume: images build, `migrate`
+reports `81/81 clean`, `api` and `web` both reach healthy, and the SPA serves, logs in,
+and resolves a pasted deep link through nginx.
+
+## The three services
+
+| | |
+|---|---|
+| `db` | Postgres 16. **No published port** — reachable only on the compose network. |
+| `api` | Nest. **No published port** either; `web` reaches it internally. Publishing it puts an unauthenticated-by-network route to patient data on the host. |
+| `web` | nginx: the built SPA, plus `/api` proxied to `api` with the prefix stripped. |
+
+`web` is the only thing you point a TLS terminator at, and it binds `127.0.0.1:8080`
+by default.
+
+The prefix strip is the trailing slash in `proxy_pass ${API_ORIGIN}/`. The backend mounts
+its routes at the root, so removing that slash turns every call into `/api/patients`
+against a server that has no such route — and the SPA reports it as a plain failure.
+This is the same rewrite `vite.config.ts` performs in development; until 2026-07-22
+nothing performed it in production and the frontend had no deployment path at all.
+
 ## Why two database roles
 
 `migrate` connects as the **owner**; `api` connects as **`healthos_app`**, which is
@@ -57,7 +78,9 @@ source-drift check, not a deployment check.
 | Database session on **UTC** | Prisma reads/writes `timestamp WITHOUT TIME ZONE` as UTC; raw SQL `now()` uses the session zone. Measured five hours apart under `Asia/Karachi` — and the dose engine bands reductions by whole days. App refuses to boot. |
 | `JWT_SECRET` ≥ 32 chars, not a placeholder | A forged token defeats isolation entirely: RLS then faithfully enforces the tenant the *attacker* chose. App refuses to boot. |
 | `STORAGE_DIR` on a mounted volume | Clinical photographs otherwise land on the container's writable layer and die on redeploy, while the `PhotoAsset` rows survive — charts pointing at bytes that no longer exist. **Cannot be retrofitted after photos exist.** |
-| `/api` proxied to the API, prefix stripped | The SPA calls a relative `/api`. The proxy must do what `vite.config.ts` does in dev. |
+| `/api` proxied to the API, prefix stripped | The SPA calls a relative `/api`. The `web` service does this; a different front end must too. |
+| No `.env` inside any image | `.dockerignore` patterns are relative to the **context root**, so a bare `.env` never excluded `app/backend/.env`. It was baked into every image at `/app/.env` — a live `JWT_SECRET` and both DSNs — and the documented check looked for `app/backend/.env` *inside* the image, a path the `COPY` makes impossible, so it passed every time. Patterns are now `**/.env`. Verify with `docker run --rm --entrypoint sh IMAGE -c 'ls -la /app/.env'`, which must fail. |
+| OpenSSL in the backend image | Prisma's engines are dynamically linked against it and `node:20-alpine` omits it. The failure surfaces as `Could not parse schema engine response` — Prisma reading the loader's plain-text error as JSON — which names neither OpenSSL nor Alpine. |
 | Backups cover the database **and** `STORAGE_DIR` | A `pg_dump` does not capture the photographs. |
 
 ## Re-applying the SQL

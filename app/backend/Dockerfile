@@ -11,6 +11,12 @@
 # ---------------------------------------------------------------------------
 FROM node:20-alpine AS deps
 WORKDIR /app
+# Prisma's query and schema engines are dynamically linked against OpenSSL, which
+# node:20-alpine does not ship. Without it the engine fails to load and Prisma
+# reports it as a PARSE error — "Could not parse schema engine response:
+# SyntaxError: Unexpected token 'E'" — because it tries to read the loader's
+# plain-text error as JSON. Nothing in that message mentions OpenSSL.
+RUN apk add --no-cache openssl
 COPY app/backend/package*.json ./
 # `npm ci` needs the lockfile and installs devDependencies too; the build needs
 # them (nest, typescript, prisma CLI) and they are dropped in the final stage.
@@ -56,6 +62,12 @@ CMD ["sh", "-c", "set -e; \
 # ---------------------------------------------------------------------------
 FROM node:20-alpine AS runtime
 WORKDIR /app
+
+# Same reason as the deps stage: the Prisma QUERY engine needs OpenSSL at run
+# time, not only at generate time. Omitting it here fails at the first database
+# call rather than at boot, so the container passes its own startup and then
+# 500s on every request.
+RUN apk add --no-cache openssl
 
 # UTC, not merely conventional. Prisma reads/writes `timestamp WITHOUT TIME ZONE`
 # as UTC while raw SQL now() uses the session zone; the app refuses to boot if

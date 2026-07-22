@@ -1,0 +1,81 @@
+# Health OS web — nginx config.
+#
+# ${API_ORIGIN} is substituted at container start by the nginx:alpine entrypoint,
+# so one image works against a sidecar, a separate host, or localhost.
+
+server {
+  listen 8080;
+  server_name _;
+
+  root /usr/share/nginx/html;
+  index index.html;
+
+  # Patient photographs and lab PDFs are the large payloads here. The API sets
+  # its own limits; this only has to be no smaller than they are, or nginx
+  # refuses an upload the application would have accepted and the user sees a
+  # 413 that names nothing.
+  client_max_body_size 25m;
+
+  # The SPA reads a relative /api, exactly as it does through vite's dev proxy.
+  # The backend mounts its routes at the ROOT (no /api prefix), so the prefix is
+  # stripped here — the trailing slash on the proxy_pass URL is what does it, and
+  # removing it silently turns every request into /api/patients against a server
+  # that has no such route.
+  location /api/ {
+    proxy_pass ${API_ORIGIN}/;
+    proxy_http_version 1.1;
+
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    # Report an unreachable API as an error rather than hanging. The SPA
+    # distinguishes "cannot reach the server" from a 4xx and says different
+    # things for each; a request that never returns says nothing at all.
+    proxy_connect_timeout 5s;
+    proxy_read_timeout    60s;
+
+    # Never cache an API response. A cached /patients would show one clinic's
+    # list to the next person through the door.
+    proxy_buffering off;
+    add_header Cache-Control "no-store" always;
+  }
+
+  # Hashed assets are immutable — the filename changes when the content does.
+  location /assets/ {
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+    try_files $uri =404;
+  }
+
+  # index.html must NOT be cached, or a browser keeps loading an old bundle that
+  # references asset filenames the new deploy no longer has, and the app comes up
+  # blank with no error anyone can act on.
+  location = /index.html {
+    add_header Cache-Control "no-store" always;
+  }
+
+  # Client-side routing: /patients/<id> is a route, not a file. Without this a
+  # refresh or a pasted link 404s on every page except the root.
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+
+  # This app holds patient records; these cost nothing and remove whole classes
+  # of trivial attack. A strict CSP is deliberately NOT set here — MUI injects
+  # styles at runtime, so 'unsafe-inline' would be required for styles and a
+  # policy that permits what it is meant to forbid is worse than an honest
+  # absence. Set it at the TLS terminator once the origins are known.
+  add_header X-Content-Type-Options nosniff always;
+  add_header X-Frame-Options DENY always;
+  add_header Referrer-Policy no-referrer always;
+
+  # nginx logs the full URI. Patient identifiers travel in paths
+  # (/api/patients/<uuid>/invoices), so access logging is off by default rather
+  # than quietly accumulating a second copy of who-looked-at-whom in a file
+  # nobody is treating as clinical data. Turn it on deliberately, with a
+  # retention decision attached.
+  access_log off;
+  error_log /var/log/nginx/error.log warn;
+}

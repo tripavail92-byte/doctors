@@ -9,11 +9,24 @@
 # developer's key, and the guard that exists to prevent exactly that would never
 # fire — because from its point of view the secret is present and strong.
 #
-# Verify after any change to this file:
-#   docker run --rm --entrypoint sh IMAGE -c 'ls -la app/backend/.env'   # must fail
-.env
-.env.*
+# THESE PATTERNS MUST BE `**/`-PREFIXED. A bare `.env` matches only a .env at the
+# ROOT of the build context, and the file that matters is at app/backend/.env —
+# so for as long as this file said `.env`, the secret was copied in on every
+# build. Confirmed by inspecting a built image: /app/.env, 700 bytes, holding a
+# live JWT_SECRET and both DSNs.
+#
+# The verification line below was wrong in a way that guaranteed it would never
+# notice. It looked for `app/backend/.env` INSIDE the image, but the Dockerfile
+# copies with `COPY app/backend/ ./`, so the file arrives at `/app/.env`. The
+# check therefore looked at a path that cannot exist and passed every time — a
+# check that succeeds for a reason unrelated to what it tests.
+#
+# Verify after any change to this file, at the path the file actually takes:
+#   docker run --rm --entrypoint sh IMAGE -c 'ls -la /app/.env'   # must say: No such file
+**/.env
+**/.env.*
 !.env.example
+!app/backend/.env.example
 
 # Never ship dependencies or build output from the host — they are platform
 # specific (this repo is developed on Windows, the image is Alpine) and the
