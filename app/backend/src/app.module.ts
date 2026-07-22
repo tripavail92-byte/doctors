@@ -8,6 +8,7 @@ import { PatientsModule } from './modules/patients/patients.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { HealthModule } from './modules/health/health.module';
 import { PacksModule } from './packs/packs.module';
+import { PlatformModule } from './platform/platform.module';
 import { InstrumentsModule } from './instruments/instruments.module';
 import { ObservationsModule } from './observations/observations.module';
 import { GrowthModule } from './growth/growth.module';
@@ -54,6 +55,7 @@ import { TenantMiddleware } from './common/tenant/tenant.middleware';
     AppointmentsModule,
     HealthModule,
     PacksModule,
+    PlatformModule,
     InstrumentsModule,
     ObservationsModule,
     GrowthModule,
