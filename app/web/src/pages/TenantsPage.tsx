@@ -40,12 +40,18 @@ interface TenantRow {
 }
 
 const EDITIONS: { value: string; label: string; desc: string }[] = [
-  { value: 'SOLO', label: 'Solo Practice', desc: 'Single doctor, core EMR + billing' },
-  { value: 'CLINIC', label: 'Clinic', desc: 'Multi-staff clinic with reporting, CRM, and media' },
-  { value: 'SPECIALTY', label: 'Specialty Clinic', desc: 'All packs — dermatology, dental, OB/GYN, paediatrics, ophthalmology, physio' },
+  { value: 'SOLO', label: 'Solo Practice', desc: 'Single doctor — core EMR + billing' },
+  { value: 'CLINIC', label: 'General Clinic', desc: 'Multi-staff — reporting, CRM, media' },
+  { value: 'DERMATOLOGY', label: 'Dermatology Clinic', desc: 'Skin grading, phototherapy, aesthetics' },
+  { value: 'DENTAL', label: 'Dental Clinic', desc: 'Odontogram, DMFT, orthodontics' },
+  { value: 'OBGYN', label: 'OB/GYN Clinic', desc: 'ANC card, partogram, immunization, dosing' },
+  { value: 'PEDIATRICS', label: 'Paediatrics Clinic', desc: 'Growth charts, dosing, immunization (EPI)' },
+  { value: 'OPHTHALMOLOGY', label: 'Eye Clinic', desc: 'Visual acuity, refraction, IOP, segments' },
+  { value: 'PHYSIOTHERAPY', label: 'Physiotherapy Clinic', desc: 'ROM tracking, rehab episodes, exercises' },
   { value: 'LAB', label: 'Laboratory', desc: 'Clinic features + LIS and imaging' },
   { value: 'PHARMACY', label: 'Pharmacy', desc: 'Clinic features + pharmacy POS and stock' },
-  { value: 'HOSPITAL', label: 'Hospital', desc: 'Everything — all specialties, lab, pharmacy, IPD, HR' },
+  { value: 'SPECIALTY', label: 'Multi-Specialty', desc: 'All specialty packs combined' },
+  { value: 'HOSPITAL', label: 'Hospital', desc: 'All specialties + lab, pharmacy, IPD, HR' },
   { value: 'ENTERPRISE', label: 'Enterprise', desc: 'Full platform — every feature unlocked' },
 ];
 

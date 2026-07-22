@@ -74,6 +74,8 @@ const ALL_PACKS = [
   'pack.physiotherapy',
 ];
 
+const SPECIALTY_SHARED = ['integrations.core', 'packs.core'];
+
 const SPECIALTY_CLINICAL = [
   ...ALL_PACKS,
   'growth.core',
@@ -82,11 +84,52 @@ const SPECIALTY_CLINICAL = [
   'integrations.core',
 ];
 
+// Each specialty clinic type gets CLINIC features + its own pack(s) + the
+// clinical features that pack needs. A dermatology clinic does not receive
+// the dental odontogram, and a dental clinic does not get phototherapy.
+const DERMATOLOGY_FEATURES = [
+  ...CLINIC_ADDONS, ...SPECIALTY_SHARED,
+  'pack.aesthetic', 'pack.dermatology',
+];
+
+const DENTAL_FEATURES = [
+  ...CLINIC_ADDONS, ...SPECIALTY_SHARED,
+  'pack.dental',
+];
+
+const OBGYN_FEATURES = [
+  ...CLINIC_ADDONS, ...SPECIALTY_SHARED,
+  'pack.obgyn',
+  'growth.core', 'dosing.core', 'immunization.core',
+];
+
+const PEDIATRICS_FEATURES = [
+  ...CLINIC_ADDONS, ...SPECIALTY_SHARED,
+  'pack.pediatrics',
+  'growth.core', 'dosing.core', 'immunization.core',
+];
+
+const OPHTHALMOLOGY_FEATURES = [
+  ...CLINIC_ADDONS, ...SPECIALTY_SHARED,
+  'pack.ophthalmology',
+];
+
+const PHYSIOTHERAPY_FEATURES = [
+  ...CLINIC_ADDONS, ...SPECIALTY_SHARED,
+  'pack.physiotherapy',
+];
+
 // Edition -> the feature keys it bundles. ENTERPRISE = everything.
 export const EDITION_FEATURES: Record<Edition, string[]> = {
   [Edition.SOLO]: [...CORE],
   [Edition.CLINIC]: [...CORE, ...CLINIC_ADDONS],
   [Edition.SPECIALTY]: [...CORE, ...CLINIC_ADDONS, ...SPECIALTY_CLINICAL],
+  [Edition.DERMATOLOGY]: [...CORE, ...DERMATOLOGY_FEATURES],
+  [Edition.DENTAL]: [...CORE, ...DENTAL_FEATURES],
+  [Edition.OBGYN]: [...CORE, ...OBGYN_FEATURES],
+  [Edition.PEDIATRICS]: [...CORE, ...PEDIATRICS_FEATURES],
+  [Edition.OPHTHALMOLOGY]: [...CORE, ...OPHTHALMOLOGY_FEATURES],
+  [Edition.PHYSIOTHERAPY]: [...CORE, ...PHYSIOTHERAPY_FEATURES],
   [Edition.LAB]: [...CORE, ...CLINIC_ADDONS, 'lab.core', 'imaging.core'],
   [Edition.PHARMACY]: [...CORE, ...CLINIC_ADDONS, 'pharmacy.core'],
   [Edition.HOSPITAL]: [

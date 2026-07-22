@@ -18,7 +18,7 @@ describe('TenantsPage', () => {
     renderPage(<TenantsPage />);
     expect(await screen.findByText('Glow Derma')).toBeInTheDocument();
     expect(screen.getByText('Derma Care')).toBeInTheDocument();
-    expect(screen.getByText('Specialty Clinic')).toBeInTheDocument();
+    expect(screen.getByText('Multi-Specialty')).toBeInTheDocument();
     expect(screen.getAllByText('Clinic').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('337')).toBeInTheDocument();
     expect(screen.getByText('0')).toBeInTheDocument();
