@@ -104,14 +104,37 @@ export class PrismaService
     // it reads undefined and this guard refused every boot. It failed CLOSED,
     // which is the right direction for a preflight — but read the value
     // properly: current_setting lets the column be aliased.
-    const rows = await this.$queryRaw<{ tz: string }[]>`SELECT current_setting('TimeZone') AS tz`;
+    // MEASURE THE OFFSET, DO NOT MATCH THE NAME.
+    //
+    // This compared `tz.toUpperCase() !== 'UTC'` and refused to boot on Railway,
+    // whose Postgres reports "Etc/UTC" — the canonical IANA name for the zone it
+    // was demanding. A correct configuration, rejected on spelling. There are
+    // several more: UCT, Universal, Zulu, Etc/GMT.
+    //
+    // Matching a longer list of names would be the same mistake with more
+    // entries. What actually matters is that the session has NO offset from UTC
+    // and never will, so ask Postgres for the offset instead of the label.
+    //
+    // Two probes six months apart, because one is not enough: Europe/London is
+    // +00:00 every winter and +01:00 every summer. A single reading taken in
+    // January would accept it, and the failure would appear months later as
+    // one-hour errors in exactly the day arithmetic this guard exists to
+    // protect.
+    const rows = await this.$queryRaw<{ tz: string; off_now: number; off_later: number }[]>`
+      SELECT current_setting('TimeZone') AS tz,
+             EXTRACT(TIMEZONE FROM now())::int AS off_now,
+             EXTRACT(TIMEZONE FROM now() + interval '6 months')::int AS off_later`;
     const tz = rows[0]?.tz;
     if (!tz) {
       throw new Error('UTC preflight: could not read the database session timezone.');
     }
-    if (tz.toUpperCase() !== 'UTC') {
+    const offNow = Number(rows[0]?.off_now);
+    const offLater = Number(rows[0]?.off_later);
+    if (offNow !== 0 || offLater !== 0) {
+      const describe = (s: number) => `${s >= 0 ? '+' : '-'}${Math.abs(s) / 3600}h`;
       throw new Error(
-        `UTC preflight FAILED: the database session timezone is "${tz}", not UTC. ` +
+        `UTC preflight FAILED: the database session timezone is "${tz}", which is ` +
+          `${describe(offNow)} from UTC now and ${describe(offLater)} in six months. ` +
           `Prisma reads and writes timestamp columns as UTC while raw SQL now() uses ` +
           `the session zone, so the two would disagree by that offset — silently, in ` +
           `columns the dose engine does day arithmetic on. Fix with ` +
