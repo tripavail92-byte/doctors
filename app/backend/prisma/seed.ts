@@ -25,10 +25,65 @@ import { BUILTIN_DOSE_RULES } from '../src/dosing/dose-rule.seed';
 const seedUrl = process.env.DIRECT_DATABASE_URL ?? process.env.DATABASE_URL;
 const prisma = new PrismaClient({ datasources: { db: { url: seedUrl } } });
 
+/** The development literal. Published in a public repo, so it is a demo aid only. */
+const DEV_SEED_PASSWORD = 'Password123!';
+
+/**
+ * The password given to the seeded accounts.
+ *
+ * This seed creates `owner@glowderma.pk` AND `admin@summitsystems.pk`, and the
+ * second is a PLATFORM_ADMIN — cross-tenant, authors and publishes packs. Both
+ * used to get the literal above, which lives in a public GitHub repository. Any
+ * deployment that ran the seed therefore accepted a published password for its
+ * most privileged account, and nothing in the deploy said so.
+ *
+ * So: outside development the password must be supplied, and there is no
+ * fallback. Failing the seed is recoverable in a way that a silently
+ * world-known platform admin is not.
+ */
+function seedPassword(): string {
+  const supplied = process.env.SEED_PASSWORD;
+  const isProd = process.env.NODE_ENV === 'production';
+
+  if (supplied && supplied.length >= 12) return supplied;
+
+  if (supplied && supplied.length < 12) {
+    throw new Error(
+      `SEED_PASSWORD is ${supplied.length} characters. It protects a PLATFORM_ADMIN ` +
+        'account; use at least 12.',
+    );
+  }
+
+  if (isProd) {
+    throw new Error(
+      'SEED_PASSWORD is required when NODE_ENV=production. This seed creates ' +
+        'admin@summitsystems.pk as a PLATFORM_ADMIN, and the development default is ' +
+        'published in a public repository — seeding with it would hand that account ' +
+        'to anyone who can read the source. Set SEED_PASSWORD and run again; nothing ' +
+        'has been written.',
+    );
+  }
+
+  console.warn(
+    '[seed] SEED_PASSWORD not set — using the development default. ' +
+      'This is published in a public repo. Never use it on a reachable host.',
+  );
+  return DEV_SEED_PASSWORD;
+}
+
 // The canonical feature + editions catalog (editions = entitlement bundles).
 import { FEATURES, EDITION_FEATURES, ALL_FEATURE_KEYS } from '../src/entitlements/editions';
 
 async function main() {
+  // Resolve the password BEFORE the first write.
+  //
+  // This was originally read where the owner user is created, ten upserts in.
+  // Under NODE_ENV=production with no SEED_PASSWORD it therefore created the
+  // tenant and the facility and only then threw, leaving a half-seeded database
+  // that the next run would have to reconcile. A guard that refuses after doing
+  // part of the work has not refused.
+  const passwordHash = await bcrypt.hash(seedPassword(), 10);
+
   // --- Tenant -------------------------------------------------------------
   const tenant = await prisma.tenant.upsert({
     where: { slug: 'glow-derma' },
@@ -53,7 +108,7 @@ async function main() {
     }));
 
   // --- Owner user ---------------------------------------------------------
-  const passwordHash = await bcrypt.hash('Password123!', 10);
+  // passwordHash is resolved at the top of main(), before any write.
   const owner = await prisma.user.upsert({
     where: { email: 'owner@glowderma.pk' },
     update: {},
