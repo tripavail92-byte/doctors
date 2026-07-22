@@ -4,4 +4,12 @@
 # (which is what forces re-resolution on every request instead of caching at
 # startup). The resolver address comes from /etc/resolv.conf, which the
 # container runtime populates — on Railway, Docker, K8s, etc.
-export RESOLVER=$(awk '/^nameserver/{print $2; exit}' /etc/resolv.conf)
+#
+# Railway's private network uses an IPv6 nameserver (fd12::10). nginx requires
+# IPv6 addresses in brackets — without them it reads the colons as a port
+# separator and fails with "invalid port in resolver".
+RAW=$(awk '/^nameserver/{print $2; exit}' /etc/resolv.conf)
+case "$RAW" in
+  *:*) export RESOLVER="[$RAW]" ;;
+  *)   export RESOLVER="$RAW" ;;
+esac
