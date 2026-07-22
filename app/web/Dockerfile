@@ -30,7 +30,15 @@ ENV TZ=UTC
 
 # Where to find the API. Overridable so the same image works against a sidecar
 # container, a separate host, or a local run.
+#
+# Substituted into a LITERAL proxy_pass, so nginx resolves it once at startup via
+# /etc/resolv.conf. That is what makes Railway's *.railway.internal names work
+# without an explicit resolver directive — but it also means nginx keeps the
+# address it resolved. If the API service moves, redeploy web.
 ENV API_ORIGIN=http://api:3000
+
+# The port nginx binds. Railway overrides this at run time.
+ENV PORT=8080
 
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY app/web/nginx.conf.template /etc/nginx/templates/default.conf.template
@@ -42,4 +50,4 @@ COPY app/web/nginx.conf.template /etc/nginx/templates/default.conf.template
 EXPOSE 8080
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=5s --retries=3 \
-  CMD wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1
+  CMD wget -q -O /dev/null "http://127.0.0.1:${PORT}/" || exit 1

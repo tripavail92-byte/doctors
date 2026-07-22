@@ -63,6 +63,10 @@ services:
       # Owner credentials. Present ONLY in this job.
       DIRECT_DATABASE_URL: ${DIRECT_DATABASE_URL:?set DIRECT_DATABASE_URL}
       DATABASE_URL: ${DIRECT_DATABASE_URL}
+      # Password given to the healthos_app runtime role. Optional: omitted, the
+      # SQL falls back to its development literal. It must match the password in
+      # DATABASE_URL, or the api container cannot log in.
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-}
     restart: 'no'
     profiles: ['tools']
 

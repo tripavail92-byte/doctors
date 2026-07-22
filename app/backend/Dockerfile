@@ -49,9 +49,14 @@ RUN apk add --no-cache postgresql16-client
 COPY app/backend/prisma/ ./prisma/
 CMD ["sh", "-c", "set -e; \
   npx prisma migrate deploy; \
+  PSQL_URL=\"$(node -e \"const u=new URL(process.env.DIRECT_DATABASE_URL);u.searchParams.delete('schema');console.log(u.toString())\")\"; \
   for f in prisma/rls.sql prisma/rls-roles.sql prisma/rls-user.sql prisma/constraints.sql; do \
     echo \"--- $f\"; \
-    psql -v ON_ERROR_STOP=1 \"$(node -e \"const u=new URL(process.env.DIRECT_DATABASE_URL);u.searchParams.delete('schema');console.log(u.toString())\")\" -f \"$f\"; \
+    if [ \"$f\" = 'prisma/rls-roles.sql' ] && [ -n \"$APP_DB_PASSWORD\" ]; then \
+      psql -v ON_ERROR_STOP=1 -v app_password=\"$APP_DB_PASSWORD\" \"$PSQL_URL\" -f \"$f\"; \
+    else \
+      psql -v ON_ERROR_STOP=1 \"$PSQL_URL\" -f \"$f\"; \
+    fi; \
   done; \
   npx ts-node prisma/seed.ts; \
   echo '--- verifying tenant isolation is actually enforced'; \

@@ -4,7 +4,9 @@
 # so one image works against a sidecar, a separate host, or localhost.
 
 server {
-  listen 8080;
+  # Railway (and most PaaS) assign the port and expect the container to bind it.
+  # Defaulted in the Dockerfile so compose and a local run need not set it.
+  listen ${PORT};
   server_name _;
 
   root /usr/share/nginx/html;
