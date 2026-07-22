@@ -26,8 +26,11 @@ export default function LoginPage() {
   const location = useLocation();
   const from = (location.state as LocationState | null)?.from?.pathname ?? '/';
 
-  const [email, setEmail] = useState('owner@glowderma.pk');
-  const [password, setPassword] = useState('Password123!');
+  // Prefilled ONLY in development. import.meta.env.DEV is false in `vite build`,
+  // so the deployed bundle ships an empty form — a login screen that fills in a
+  // password for you is a login screen that tells everyone the password.
+  const [email, setEmail] = useState(import.meta.env.DEV ? 'owner@glowderma.pk' : '');
+  const [password, setPassword] = useState(import.meta.env.DEV ? 'Password123!' : '');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -102,13 +105,21 @@ export default function LoginPage() {
             </Stack>
           </form>
 
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: 'block', mt: 2, textAlign: 'center', bgcolor: (t) => alpha(t.palette.text.primary, 0.03), py: 1, borderRadius: 1 }}
-          >
-            Demo: owner@glowderma.pk · Password123!
-          </Typography>
+          {/* Development only. This printed "Demo: owner@glowderma.pk ·
+              Password123!" on every login screen INCLUDING the deployed one —
+              publishing working credentials for a clinic system to anyone who
+              loaded the page, and staying on screen after the seed password was
+              changed, so it was also simply wrong. A convenience for local work
+              is not a thing to ship. */}
+          {import.meta.env.DEV && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: 'block', mt: 2, textAlign: 'center', bgcolor: (t) => alpha(t.palette.text.primary, 0.03), py: 1, borderRadius: 1 }}
+            >
+              Dev only: owner@glowderma.pk · Password123!
+            </Typography>
+          )}
         </CardContent>
       </Card>
     </Box>
