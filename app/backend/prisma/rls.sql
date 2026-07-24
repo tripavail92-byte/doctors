@@ -619,6 +619,23 @@ CREATE POLICY tenant_isolation ON "Organization"
       WHERE oc."organizationId" = "Organization"."id"
         AND oc."tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid
     )
+  )
+  WITH CHECK (
+    (
+      "ownerUserId" IS NOT NULL
+      AND EXISTS (
+        SELECT 1
+        FROM "User" u
+        WHERE u."id" = "Organization"."ownerUserId"
+          AND u."tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid
+      )
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM "OrganizationClinic" oc
+      WHERE oc."organizationId" = "Organization"."id"
+        AND oc."tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid
+    )
   );
 
 -- UserContextPreference has no tenantId column; scope through the owning user.

@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
 import { PrismaService, TenantTransaction } from '../common/prisma/prisma.service';
 import { getTenant, getTenantId } from '../common/tenant/tenant-context';
 import { CreateBranchDto } from './dto/hierarchy/create-branch.dto';
@@ -177,26 +178,44 @@ export class OrgHierarchyService {
       organization = await tx.organization.findUnique({ where: { id: clinic.organizationId } });
       if (!organization) throw new NotFoundException('Organization not found for clinic');
     } else {
-      const base = `org-${tenant.slug}`.replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || `org-${tenant.id.slice(0, 8)}`;
-      let code = base;
-      let n = 1;
-      while (await tx.organization.findUnique({ where: { code } })) {
-        n += 1;
-        code = `${base}-${n}`;
+      const ownerId =
+        actorUserId ??
+        (
+          await tx.user.findFirst({
+            where: { tenantId, role: UserRole.OWNER, status: 'active' },
+            select: { id: true },
+          })
+        )?.id;
+      if (!ownerId) {
+        throw new BadRequestException('Cannot bootstrap organization without an owner user');
       }
 
-      organization = await tx.organization.create({
-        data: {
-          code,
-          name: `${tenant.name} Organization`,
-          ownerUserId: actorUserId,
-          status: 'ACTIVE',
-        },
-      });
+      const code =
+        `org-${tenant.slug}-${tenant.id.slice(0, 8)}`
+          .replace(/[^a-z0-9-]/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '')
+          .slice(0, 40) || `org-${tenant.id.slice(0, 8)}`;
+      const organizationId = randomUUID();
+
+      await tx.$executeRaw`
+        INSERT INTO "Organization" ("id", "code", "name", "ownerUserId", "status", "createdAt", "updatedAt")
+        VALUES (
+          ${organizationId}::uuid,
+          ${code},
+          ${`${tenant.name} Organization`},
+          ${ownerId}::uuid,
+          'ACTIVE'::"OrganizationStatus",
+          now(),
+          now()
+        )
+      `;
+
+      organization = { id: organizationId };
 
       clinic = await tx.organizationClinic.create({
         data: {
-          organizationId: organization.id,
+          organizationId,
           tenantId,
           displayName: tenant.name,
           isPrimary: true,

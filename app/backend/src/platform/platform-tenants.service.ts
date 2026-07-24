@@ -1,5 +1,6 @@
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { Edition, Prisma, SubscriptionStatus, TenantStatus, UserRole } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { featuresForEdition } from '../entitlements/editions';
@@ -197,24 +198,30 @@ export class PlatformTenantsService {
       });
 
       // Phase A hierarchy bootstrap for every newly onboarded clinic.
-      const orgCodeBase = `org-${dto.slug}`.replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || `org-${tenantId.slice(0, 8)}`;
-      let orgCode = orgCodeBase;
-      let n = 1;
-      while (await tx.organization.findUnique({ where: { code: orgCode }, select: { id: true } })) {
-        n += 1;
-        orgCode = `${orgCodeBase}-${n}`;
-      }
-      const organization = await tx.organization.create({
-        data: {
-          code: orgCode,
-          name: `${dto.name} Organization`,
-          ownerUserId: owner.id,
-          status: 'ACTIVE',
-        },
-      });
+      const orgCode =
+        `org-${dto.slug}-${tenantId.slice(0, 8)}`
+          .replace(/[^a-z0-9-]/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '')
+          .slice(0, 40) || `org-${tenantId.slice(0, 8)}`;
+      const organizationId = randomUUID();
+      // Organization SELECT visibility is clinic-linked; create it via explicit
+      // insert first, then create OrganizationClinic in the same transaction.
+      await tx.$executeRaw`
+        INSERT INTO "Organization" ("id", "code", "name", "ownerUserId", "status", "createdAt", "updatedAt")
+        VALUES (
+          ${organizationId}::uuid,
+          ${orgCode},
+          ${`${dto.name} Organization`},
+          ${owner.id}::uuid,
+          'ACTIVE'::"OrganizationStatus",
+          now(),
+          now()
+        )
+      `;
       const clinic = await tx.organizationClinic.create({
         data: {
-          organizationId: organization.id,
+          organizationId,
           tenantId,
           displayName: dto.name,
           isPrimary: true,
@@ -223,7 +230,7 @@ export class PlatformTenantsService {
       const branch = await tx.branch.create({
         data: {
           tenantId,
-          organizationId: organization.id,
+          organizationId,
           clinicId: clinic.id,
           name: dto.facilityName?.trim() || dto.name,
           code: 'MAIN',
@@ -233,7 +240,7 @@ export class PlatformTenantsService {
       await tx.userMembership.create({
         data: {
           userId: owner.id,
-          organizationId: organization.id,
+          organizationId,
           tenantId,
           clinicId: clinic.id,
           branchId: branch.id,
@@ -245,13 +252,13 @@ export class PlatformTenantsService {
       await tx.userContextPreference.upsert({
         where: { userId: owner.id },
         update: {
-          lastOrganizationId: organization.id,
+          lastOrganizationId: organizationId,
           lastClinicId: clinic.id,
           lastBranchId: branch.id,
         },
         create: {
           userId: owner.id,
-          lastOrganizationId: organization.id,
+          lastOrganizationId: organizationId,
           lastClinicId: clinic.id,
           lastBranchId: branch.id,
         },
