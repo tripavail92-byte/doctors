@@ -56,6 +56,12 @@ enum TenantStatus {
   SUSPENDED
 }
 
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
 enum SubscriptionStatus {
   TRIALING
   ACTIVE
@@ -188,6 +194,12 @@ model Tenant {
   toothFindings         ToothFinding[]
   vaccineBatches        VaccineBatch[]
   aefis                 Aefi[]
+
+  // Phase A hierarchy.
+  organizationClinics OrganizationClinic[]
+  branches            Branch[]
+  departments         Department[]
+  memberships         UserMembership[]
 }
 
 // Tenant-scoped facility (clinic branch).
@@ -220,7 +232,161 @@ model User {
   // Appointments where this user is the provider.
   appointmentsAsProvider Appointment[] @relation("AppointmentProvider")
 
+  // Phase A hierarchy preferences/memberships.
+  ownedOrganizations Organization[]       @relation("OrganizationOwner")
+  memberships        UserMembership[]
+  contextPreferences UserContextPreference[]
+
   @@index([tenantId])
+}
+
+// ---------------------------------------------------------------------------
+// Phase A hierarchy: organization -> clinic(tenant) -> branch -> department
+// ---------------------------------------------------------------------------
+
+model Organization {
+  id          String             @id @default(uuid()) @db.Uuid
+  code        String             @unique
+  name        String
+  ownerUserId String?            @db.Uuid
+  status      OrganizationStatus @default(ACTIVE)
+  timezone    String?
+  currency    String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  owner       User? @relation("OrganizationOwner", fields: [ownerUserId], references: [id])
+
+  clinics            OrganizationClinic[]
+  branches           Branch[]
+  memberships        UserMembership[]
+  contextPreferences UserContextPreference[]
+
+  @@index([ownerUserId])
+}
+
+model OrganizationClinic {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String  @db.Uuid
+  tenantId       String  @db.Uuid
+  displayName    String?
+  isPrimary      Boolean @default(false)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+
+  branches            Branch[]
+  memberships         UserMembership[]
+  contextPreferences  UserContextPreference[]
+
+  @@unique([organizationId, tenantId])
+  @@index([organizationId])
+  @@index([tenantId])
+}
+
+model Branch {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @db.Uuid
+  organizationId String   @db.Uuid
+  clinicId       String   @db.Uuid
+  name           String
+  code           String
+  phone          String?
+  email          String?
+  addressLine1   String?
+  addressLine2   String?
+  city           String?
+  region         String?
+  postalCode     String?
+  country        String?
+  timezone       String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant       Tenant             @relation(fields: [tenantId], references: [id])
+  organization Organization       @relation(fields: [organizationId], references: [id])
+  clinic       OrganizationClinic @relation(fields: [clinicId], references: [id])
+
+  departments         Department[]
+  memberships         UserMembership[]
+  contextPreferences  UserContextPreference[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([organizationId])
+  @@index([clinicId])
+}
+
+model Department {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  branchId     String   @db.Uuid
+  name         String
+  specialtyKey String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  tenant       Tenant @relation(fields: [tenantId], references: [id])
+  branch       Branch @relation(fields: [branchId], references: [id])
+
+  memberships        UserMembership[]
+  contextPreferences UserContextPreference[]
+
+  @@unique([branchId, name])
+  @@index([tenantId])
+  @@index([branchId])
+}
+
+model UserMembership {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @db.Uuid
+  organizationId  String   @db.Uuid
+  tenantId        String   @db.Uuid
+  clinicId        String   @db.Uuid
+  branchId        String?  @db.Uuid
+  departmentId    String?  @db.Uuid
+  role            UserRole
+  isDefaultContext Boolean @default(false)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  user         User               @relation(fields: [userId], references: [id])
+  organization Organization       @relation(fields: [organizationId], references: [id])
+  tenant       Tenant             @relation(fields: [tenantId], references: [id])
+  clinic       OrganizationClinic @relation(fields: [clinicId], references: [id])
+  branch       Branch?            @relation(fields: [branchId], references: [id])
+  department   Department?        @relation(fields: [departmentId], references: [id])
+
+  @@index([userId, isActive])
+  @@index([tenantId])
+  @@index([organizationId])
+  @@index([clinicId])
+  @@index([branchId])
+  @@index([departmentId])
+}
+
+model UserContextPreference {
+  id                 String   @id @default(uuid()) @db.Uuid
+  userId             String   @db.Uuid
+  lastOrganizationId String?  @db.Uuid
+  lastClinicId       String?  @db.Uuid
+  lastBranchId       String?  @db.Uuid
+  lastDepartmentId   String?  @db.Uuid
+  updatedAt          DateTime @updatedAt
+
+  user         User               @relation(fields: [userId], references: [id])
+  organization Organization?      @relation(fields: [lastOrganizationId], references: [id])
+  clinic       OrganizationClinic? @relation(fields: [lastClinicId], references: [id])
+  branch       Branch?            @relation(fields: [lastBranchId], references: [id])
+  department   Department?        @relation(fields: [lastDepartmentId], references: [id])
+
+  @@unique([userId])
+  @@index([lastOrganizationId])
+  @@index([lastClinicId])
+  @@index([lastBranchId])
+  @@index([lastDepartmentId])
 }
 
 // ---------------------------------------------------------------------------

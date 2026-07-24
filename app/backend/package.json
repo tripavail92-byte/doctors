@@ -13,6 +13,7 @@
     "db:seed": "ts-node prisma/seed.ts",
     "demo:seed": "ts-node prisma/demo-seed.ts",
     "demo:reset": "ts-node scripts/demo-reset.ts",
+    "phasea:backfill": "ts-node scripts/backfill-phase-a.ts",
     "check:rls": "ts-node scripts/check-rls-coverage.ts",
     "check:isolation": "ts-node scripts/check-tenant-isolation.ts",
     "check:boot": "ts-node scripts/check-boot-guards.ts",

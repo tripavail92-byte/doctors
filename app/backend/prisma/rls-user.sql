@@ -76,6 +76,104 @@ REVOKE ALL ON FUNCTION auth_find_user_by_email(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION auth_find_user_by_email(text) TO healthos_app;
 
 -- ---------------------------------------------------------------------------
+-- Cross-tenant membership enumeration for context switching.
+--
+-- WHY THIS IS SECURITY DEFINER:
+-- UserMembership is RLS-scoped to a single tenantId. An organization owner
+-- with memberships in clinic A (tenant A) and clinic B (tenant B) can only
+-- see one tenant's rows from within a single forTenant() call. Enumerating
+-- ALL memberships for a context-switch dropdown requires crossing that
+-- boundary. This function is the single sanctioned path: it returns ONLY the
+-- authenticated user's own memberships, identified by a validated UUID from
+-- the verified JWT. No list-all or filter-free variant is possible.
+-- Pinned search_path prevents hijacking.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION auth_find_memberships_for_user(p_user_id uuid)
+RETURNS TABLE (
+  membership_id      uuid,
+  "organizationId"   uuid,
+  organization_name  text,
+  "tenantId"         uuid,
+  clinic_name        text,
+  "clinicId"         uuid,
+  "branchId"         uuid,
+  branch_name        text,
+  "departmentId"     uuid,
+  department_name    text,
+  role               "UserRole",
+  "isDefaultContext" boolean
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT
+    m.id,
+    m."organizationId",
+    o.name,
+    m."tenantId",
+    COALESCE(oc."displayName", t.name),
+    m."clinicId",
+    m."branchId",
+    b.name,
+    m."departmentId",
+    d.name,
+    m.role,
+    m."isDefaultContext"
+  FROM "UserMembership" m
+  JOIN "Organization"        o  ON o.id  = m."organizationId"
+  JOIN "OrganizationClinic"  oc ON oc.id = m."clinicId"
+  JOIN "Tenant"              t  ON t.id  = m."tenantId"
+  LEFT JOIN "Branch"         b  ON b.id  = m."branchId"
+  LEFT JOIN "Department"     d  ON d.id  = m."departmentId"
+  WHERE m."userId"   = p_user_id
+    AND m."isActive" = true
+  ORDER BY m."isDefaultContext" DESC, m."createdAt" ASC;
+$$;
+
+REVOKE ALL ON FUNCTION auth_find_memberships_for_user(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION auth_find_memberships_for_user(uuid) TO healthos_app;
+
+-- ---------------------------------------------------------------------------
+-- Cross-tenant context preference write.
+--
+-- UserContextPreference is scoped via User.tenantId (bespoke RLS). For a
+-- user who has switched to a different tenant, forCurrentTenant writes are
+-- blocked by that policy. This function is the single sanctioned write path:
+-- it updates (or creates) the preference row keyed by userId regardless of
+-- which tenant context the caller is currently in.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION auth_set_context_preference(
+  p_user_id         uuid,
+  p_organization_id uuid,
+  p_clinic_id       uuid,
+  p_branch_id       uuid,
+  p_department_id   uuid
+) RETURNS void
+LANGUAGE sql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  INSERT INTO "UserContextPreference"
+    ("id", "userId", "lastOrganizationId", "lastClinicId",
+     "lastBranchId", "lastDepartmentId", "updatedAt")
+  VALUES
+    (gen_random_uuid(), p_user_id, p_organization_id, p_clinic_id,
+     p_branch_id, p_department_id, now())
+  ON CONFLICT ("userId") DO UPDATE SET
+    "lastOrganizationId" = EXCLUDED."lastOrganizationId",
+    "lastClinicId"       = EXCLUDED."lastClinicId",
+    "lastBranchId"       = EXCLUDED."lastBranchId",
+    "lastDepartmentId"   = EXCLUDED."lastDepartmentId",
+    "updatedAt"          = now();
+$$;
+
+REVOKE ALL ON FUNCTION auth_set_context_preference(uuid, uuid, uuid, uuid, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION auth_set_context_preference(uuid, uuid, uuid, uuid, uuid) TO healthos_app;
+
+-- ---------------------------------------------------------------------------
 -- NULL-safe hardening for every other tenant_isolation policy.
 --
 -- `current_setting('app.tenant_id', true)` returns NULL only when the GUC was
@@ -93,7 +191,13 @@ BEGIN
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
     JOIN pg_policy p ON p.polrelid = c.oid AND p.polname = 'tenant_isolation'
-    WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname <> 'User'
+    JOIN pg_attribute a ON a.attrelid = c.oid
+    WHERE n.nspname = 'public'
+      AND c.relkind = 'r'
+      AND c.relname <> 'User'
+      AND a.attname = 'tenantId'
+      AND a.attnum > 0
+      AND NOT a.attisdropped
   LOOP
     EXECUTE format(
       'ALTER POLICY tenant_isolation ON %I USING ("tenantId" = nullif(current_setting(''app.tenant_id'', true), '''')::uuid)',

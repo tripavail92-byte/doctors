@@ -578,3 +578,59 @@ ALTER TABLE "ImagingReportCommunication" FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON "ImagingReportCommunication";
 CREATE POLICY tenant_isolation ON "ImagingReportCommunication"
   USING ("tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid);
+
+-- ---------------------------------------------------------------------------
+-- Phase A hierarchy
+-- ---------------------------------------------------------------------------
+
+ALTER TABLE "OrganizationClinic" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "OrganizationClinic" FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON "OrganizationClinic";
+CREATE POLICY tenant_isolation ON "OrganizationClinic"
+  USING ("tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid);
+
+ALTER TABLE "Branch" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Branch" FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON "Branch";
+CREATE POLICY tenant_isolation ON "Branch"
+  USING ("tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid);
+
+ALTER TABLE "Department" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Department" FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON "Department";
+CREATE POLICY tenant_isolation ON "Department"
+  USING ("tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid);
+
+ALTER TABLE "UserMembership" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "UserMembership" FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON "UserMembership";
+CREATE POLICY tenant_isolation ON "UserMembership"
+  USING ("tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid);
+
+-- Organization has no tenantId column by design; scope through its clinic links.
+ALTER TABLE "Organization" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Organization" FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON "Organization";
+CREATE POLICY tenant_isolation ON "Organization"
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM "OrganizationClinic" oc
+      WHERE oc."organizationId" = "Organization"."id"
+        AND oc."tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid
+    )
+  );
+
+-- UserContextPreference has no tenantId column; scope through the owning user.
+ALTER TABLE "UserContextPreference" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "UserContextPreference" FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON "UserContextPreference";
+CREATE POLICY tenant_isolation ON "UserContextPreference"
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM "User" u
+      WHERE u."id" = "UserContextPreference"."userId"
+        AND u."tenantId" = nullif(current_setting('app.tenant_id', true), '')::uuid
+    )
+  );

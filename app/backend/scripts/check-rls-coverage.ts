@@ -45,6 +45,35 @@ const BESPOKE_POLICY_MODELS = new Set<string>([
   // Login runs before tenant context exists, and tenantId is nullable for
   // platform admins, so User has tenant_isolation + a SECURITY DEFINER lookup.
   'User',
+  // No tenantId column by design; tenant scope is derived via OrganizationClinic.
+  'Organization',
+  // No tenantId column by design; tenant scope is derived via User.tenantId.
+  'UserContextPreference',
+]);
+
+const BESPOKE_POLICY_FRAGMENTS = new Map<string, RegExp[]>([
+  [
+    'User',
+    [
+      /"tenantId"\s*=\s*nullif\s*\(\s*current_setting\s*\(\s*'app\.tenant_id'\s*,\s*true\s*\)\s*,\s*''\s*\)\s*::\s*uuid/i,
+    ],
+  ],
+  [
+    'Organization',
+    [
+      /"OrganizationClinic"/i,
+      /"organizationId"\s*=\s*"Organization"\."id"/i,
+      /"tenantId"\s*=\s*nullif\s*\(\s*current_setting\s*\(\s*'app\.tenant_id'\s*,\s*true\s*\)\s*,\s*''\s*\)\s*::\s*uuid/i,
+    ],
+  ],
+  [
+    'UserContextPreference',
+    [
+      /FROM\s+"User"/i,
+      /u\."id"\s*=\s*"UserContextPreference"\."userId"/i,
+      /u\."tenantId"\s*=\s*nullif\s*\(\s*current_setting\s*\(\s*'app\.tenant_id'\s*,\s*true\s*\)\s*,\s*''\s*\)\s*::\s*uuid/i,
+    ],
+  ],
 ]);
 
 // Platform-level models with no tenantId column: catalog/reference data shared
@@ -144,6 +173,33 @@ for (const model of tenantScoped) {
   }
 }
 
+// Models without tenantId that are still tenant-scoped MUST carry bespoke RLS.
+for (const model of BESPOKE_POLICY_MODELS) {
+  if (tenantScoped.includes(model)) continue;
+  if (!policied.has(model)) {
+    failures.push({
+      check: 'missing-policy-bespoke',
+      detail:
+        `Model "${model}" is tenant-scoped via a bespoke policy but has no tenant_isolation policy. ` +
+        `Add ENABLE/FORCE RLS and a policy that derives tenant scope from app.tenant_id.`,
+    });
+    continue;
+  }
+  if (!enabled.has(model)) {
+    failures.push({
+      check: 'missing-enable',
+      detail: `Model "${model}" has a policy but no ENABLE ROW LEVEL SECURITY — the policy never runs.`,
+    });
+  }
+  if (!forced.has(model)) {
+    failures.push({
+      check: 'missing-force',
+      detail:
+        `Model "${model}" has ENABLE but no FORCE ROW LEVEL SECURITY — the table owner would bypass it.`,
+    });
+  }
+}
+
 // --- 4. Policy shape -------------------------------------------------------
 
 for (const [table, quals] of policied) {
@@ -166,7 +222,19 @@ for (const [table, quals] of policied) {
           `      Qual: ${qual}`,
       });
     }
-    if (BESPOKE_POLICY_MODELS.has(table)) continue;
+    if (BESPOKE_POLICY_MODELS.has(table)) {
+      const required = BESPOKE_POLICY_FRAGMENTS.get(table) ?? [];
+      const missing = required.filter((re) => !re.test(qual));
+      if (missing.length) {
+        failures.push({
+          check: 'non-canonical-qual-bespoke',
+          detail:
+            `Policy on "${table}" is missing required tenant-scope fragments for its bespoke shape.\n` +
+            `      Found: ${qual}`,
+        });
+      }
+      continue;
+    }
     if (!/nullif\s*\(\s*current_setting\s*\(\s*'app\.tenant_id'\s*,\s*true\s*\)\s*,\s*''\s*\)\s*::\s*uuid/i.test(qual)) {
       failures.push({
         check: 'non-canonical-qual',
@@ -233,7 +301,9 @@ for (const file of walk(SRC)) {
 
 // --- 7. Report -------------------------------------------------------------
 
-const newPlatform = platformFound.filter((m) => !PLATFORM_MODELS.has(m));
+const newPlatform = platformFound.filter(
+  (m) => !PLATFORM_MODELS.has(m) && !BESPOKE_POLICY_MODELS.has(m),
+);
 if (newPlatform.length) {
   notes.push(
     `${newPlatform.length} model(s) have no tenantId and are treated as platform-level: ` +

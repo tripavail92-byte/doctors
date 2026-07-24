@@ -12,6 +12,11 @@ export interface JwtPayload {
   tenantId: string | null;
   role: string;
   isPlatformAdmin: boolean;
+  organizationId?: string | null;
+  clinicId?: string | null;
+  branchId?: string | null;
+  departmentId?: string | null;
+  membershipId?: string | null;
 }
 
 /**
@@ -23,6 +28,11 @@ export interface AuthUser {
   tenantId: string | null;
   role: string;
   isPlatformAdmin: boolean;
+  organizationId?: string | null;
+  clinicId?: string | null;
+  branchId?: string | null;
+  departmentId?: string | null;
+  membershipId?: string | null;
 }
 
 @Injectable()
@@ -49,6 +59,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       tenantId: payload.tenantId,
       role: payload.role,
       isPlatformAdmin: payload.isPlatformAdmin,
+      organizationId: payload.organizationId ?? null,
+      clinicId: payload.clinicId ?? null,
+      branchId: payload.branchId ?? null,
+      departmentId: payload.departmentId ?? null,
+      membershipId: payload.membershipId ?? null,
     };
   }
 }

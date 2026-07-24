@@ -196,6 +196,67 @@ export class PlatformTenantsService {
         select: { id: true, email: true, name: true, role: true },
       });
 
+      // Phase A hierarchy bootstrap for every newly onboarded clinic.
+      const orgCodeBase = `org-${dto.slug}`.replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || `org-${tenantId.slice(0, 8)}`;
+      let orgCode = orgCodeBase;
+      let n = 1;
+      while (await tx.organization.findUnique({ where: { code: orgCode }, select: { id: true } })) {
+        n += 1;
+        orgCode = `${orgCodeBase}-${n}`;
+      }
+      const organization = await tx.organization.create({
+        data: {
+          code: orgCode,
+          name: `${dto.name} Organization`,
+          ownerUserId: owner.id,
+          status: 'ACTIVE',
+        },
+      });
+      const clinic = await tx.organizationClinic.create({
+        data: {
+          organizationId: organization.id,
+          tenantId,
+          displayName: dto.name,
+          isPrimary: true,
+        },
+      });
+      const branch = await tx.branch.create({
+        data: {
+          tenantId,
+          organizationId: organization.id,
+          clinicId: clinic.id,
+          name: dto.facilityName?.trim() || dto.name,
+          code: 'MAIN',
+          city: dto.city?.trim() || null,
+        },
+      });
+      await tx.userMembership.create({
+        data: {
+          userId: owner.id,
+          organizationId: organization.id,
+          tenantId,
+          clinicId: clinic.id,
+          branchId: branch.id,
+          role: UserRole.OWNER,
+          isDefaultContext: true,
+          isActive: true,
+        },
+      });
+      await tx.userContextPreference.upsert({
+        where: { userId: owner.id },
+        update: {
+          lastOrganizationId: organization.id,
+          lastClinicId: clinic.id,
+          lastBranchId: branch.id,
+        },
+        create: {
+          userId: owner.id,
+          lastOrganizationId: organization.id,
+          lastClinicId: clinic.id,
+          lastBranchId: branch.id,
+        },
+      });
+
       // A Subscription hangs off a Plan row, not off the edition directly —
       // Plan is what carries the price. No plan for this edition means the
       // platform catalog was never seeded, and a clinic with no subscription

@@ -15,6 +15,7 @@ import {
   Box,
   Divider,
   Drawer,
+  FormControl,
   List,
   ListItemButton,
   ListItemIcon,
@@ -22,6 +23,8 @@ import {
   ListSubheader,
   Menu,
   MenuItem,
+  Select,
+  SelectChangeEvent,
   Toolbar,
   Typography,
   alpha,
@@ -43,8 +46,17 @@ function initials(email: string | null, role: string): string {
 export default function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, contexts, switchContext, logout } = useAuth();
   const [anchor, setAnchor] = useState<null | HTMLElement>(null);
+
+  const activeMembershipId = user?.membershipId ?? contexts.find((c) => c.isDefault)?.membershipId ?? '';
+
+  const handleContextChange = async (event: SelectChangeEvent<string>) => {
+    const membershipId = event.target.value;
+    if (!membershipId || membershipId === user?.membershipId) return;
+    await switchContext(membershipId);
+    navigate('/', { replace: true });
+  };
 
   const handleLogout = () => {
     setAnchor(null);
@@ -166,7 +178,26 @@ export default function AppShell() {
           sx={{ bgcolor: "background.paper", borderBottom: 1, borderColor: "divider" }}
         >
           <Toolbar sx={{ gap: 2 }}>
-            <Box sx={{ flexGrow: 1 }} />
+            <Box sx={{ flexGrow: 1 }}>
+              {!user?.isPlatformAdmin && contexts.length > 1 && (
+                <FormControl size="small" sx={{ minWidth: 260, maxWidth: 360 }}>
+                  <Select
+                    value={activeMembershipId ?? ''}
+                    onChange={handleContextChange}
+                    displayEmpty
+                  >
+                    {contexts
+                      .filter((c) => Boolean(c.membershipId))
+                      .map((c) => (
+                        <MenuItem key={c.membershipId!} value={c.membershipId!}>
+                          {c.clinicName}
+                          {c.branchName ? ` · ${c.branchName}` : ''}
+                        </MenuItem>
+                      ))}
+                  </Select>
+                </FormControl>
+              )}
+            </Box>
 
             {/* Signed-in user + logout menu */}
             <Box sx={{ textAlign: "right", display: { xs: "none", sm: "block" } }}>

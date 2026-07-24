@@ -11,8 +11,32 @@ export interface JwtClaims {
   tenantId: string | null;
   role: string;
   isPlatformAdmin: boolean;
+  organizationId?: string | null;
+  clinicId?: string | null;
+  branchId?: string | null;
+  departmentId?: string | null;
+  membershipId?: string | null;
   iat?: number;
   exp?: number;
+}
+
+export interface ClinicContext {
+  membershipId: string | null;
+  organizationId: string | null;
+  organizationName: string | null;
+  clinicId: string | null;
+  clinicName: string | null;
+  clinicTenantId: string | null;
+  branchId: string | null;
+  branchName: string | null;
+  departmentId: string | null;
+  departmentName: string | null;
+  role: string;
+  isDefault: boolean;
+}
+
+export interface ContextListResponse {
+  contexts: ClinicContext[];
 }
 
 export interface Patient {

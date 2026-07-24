@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { apiClient, clearToken, decodeJwt, getToken, setToken } from '../api/client';
-import type { JwtClaims, LoginResponse } from '../api/types';
+import type { ClinicContext, ContextListResponse, JwtClaims, LoginResponse } from '../api/types';
 
 export interface AuthUser {
   userId: string;
@@ -9,13 +9,20 @@ export interface AuthUser {
   role: string;
   tenantId: string | null;
   isPlatformAdmin: boolean;
+  organizationId: string | null;
+  clinicId: string | null;
+  branchId: string | null;
+  departmentId: string | null;
+  membershipId: string | null;
   entitlements: Set<string>;
 }
 
 interface AuthContextValue {
   user: AuthUser | null;
+  contexts: ClinicContext[];
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  switchContext: (membershipId: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -36,6 +43,11 @@ function userFromToken(token: string): AuthUser | null {
     role: claims.role,
     tenantId: claims.tenantId,
     isPlatformAdmin: claims.isPlatformAdmin,
+    organizationId: claims.organizationId ?? null,
+    clinicId: claims.clinicId ?? null,
+    branchId: claims.branchId ?? null,
+    departmentId: claims.departmentId ?? null,
+    membershipId: claims.membershipId ?? null,
     entitlements: new Set(cached ? JSON.parse(cached) as string[] : []),
   };
 }
@@ -49,8 +61,18 @@ async function fetchEntitlements(): Promise<string[]> {
   }
 }
 
+async function fetchContexts(): Promise<ClinicContext[]> {
+  try {
+    const { data } = await apiClient.get<ContextListResponse>('/auth/contexts');
+    return data.contexts;
+  } catch {
+    return [];
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [contexts, setContexts] = useState<ClinicContext[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Rehydrate the session from a persisted token on first load.
@@ -61,8 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (u) {
         setUser(u);
         if (!u.isPlatformAdmin) {
-          fetchEntitlements().then((keys) => {
+          Promise.all([fetchEntitlements(), fetchContexts()]).then(([keys, cx]) => {
             localStorage.setItem(ENTITLEMENTS_KEY, JSON.stringify(keys));
+            setContexts(cx);
             setUser((prev) => prev ? { ...prev, entitlements: new Set(keys) } : prev);
           });
         }
@@ -76,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
+      contexts,
       loading,
       async login(email, password) {
         const { data } = await apiClient.post<LoginResponse>('/auth/login', { email, password });
@@ -84,8 +108,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const u = userFromToken(data.accessToken);
         if (!u) throw new Error('Received an invalid token');
         if (!u.isPlatformAdmin) {
-          const keys = await fetchEntitlements();
+          const [keys, cx] = await Promise.all([fetchEntitlements(), fetchContexts()]);
           localStorage.setItem(ENTITLEMENTS_KEY, JSON.stringify(keys));
+          setContexts(cx);
+          u.entitlements = new Set(keys);
+        } else {
+          setContexts([]);
+        }
+        setUser(u);
+      },
+      async switchContext(membershipId) {
+        const { data } = await apiClient.post<{ accessToken: string }>('/auth/switch-context', {
+          membershipId,
+        });
+        setToken(data.accessToken);
+        const u = userFromToken(data.accessToken);
+        if (!u) throw new Error('Received an invalid token');
+        if (!u.isPlatformAdmin) {
+          const [keys, cx] = await Promise.all([fetchEntitlements(), fetchContexts()]);
+          localStorage.setItem(ENTITLEMENTS_KEY, JSON.stringify(keys));
+          setContexts(cx);
           u.entitlements = new Set(keys);
         }
         setUser(u);
@@ -94,10 +136,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearToken();
         localStorage.removeItem(EMAIL_KEY);
         localStorage.removeItem(ENTITLEMENTS_KEY);
+        setContexts([]);
         setUser(null);
       },
     }),
-    [user, loading],
+    [user, contexts, loading],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

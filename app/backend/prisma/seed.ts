@@ -121,6 +121,81 @@ async function main() {
     },
   });
 
+  // --- Phase A hierarchy bootstrap ----------------------------------------
+  const organization = await prisma.organization.upsert({
+    where: { code: 'org-glow-derma' },
+    update: { name: 'Glow Derma Organization', ownerUserId: owner.id, status: 'ACTIVE' },
+    create: {
+      code: 'org-glow-derma',
+      name: 'Glow Derma Organization',
+      ownerUserId: owner.id,
+      status: 'ACTIVE',
+    },
+  });
+  const clinic =
+    (await prisma.organizationClinic.findFirst({ where: { organizationId: organization.id, tenantId: tenant.id } })) ??
+    (await prisma.organizationClinic.create({
+      data: {
+        organizationId: organization.id,
+        tenantId: tenant.id,
+        displayName: tenant.name,
+        isPrimary: true,
+      },
+    }));
+
+  const branch =
+    (await prisma.branch.findUnique({ where: { tenantId_code: { tenantId: tenant.id, code: 'MAIN' } } })) ??
+    (await prisma.branch.create({
+      data: {
+        tenantId: tenant.id,
+        organizationId: organization.id,
+        clinicId: clinic.id,
+        name: facility.name,
+        code: 'MAIN',
+        city: facility.city,
+      },
+    }));
+
+  const ownerMembership = await prisma.userMembership.findFirst({
+    where: {
+      userId: owner.id,
+      tenantId: tenant.id,
+      clinicId: clinic.id,
+      branchId: branch.id,
+      isActive: true,
+    },
+  });
+  if (!ownerMembership) {
+    await prisma.userMembership.create({
+      data: {
+        userId: owner.id,
+        organizationId: organization.id,
+        tenantId: tenant.id,
+        clinicId: clinic.id,
+        branchId: branch.id,
+        role: UserRole.OWNER,
+        isDefaultContext: true,
+        isActive: true,
+      },
+    });
+  }
+  await prisma.userContextPreference.upsert({
+    where: { userId: owner.id },
+    update: {
+      lastOrganizationId: organization.id,
+      lastClinicId: clinic.id,
+      lastBranchId: branch.id,
+      lastDepartmentId: null,
+    },
+    create: {
+      userId: owner.id,
+      lastOrganizationId: organization.id,
+      lastClinicId: clinic.id,
+      lastBranchId: branch.id,
+      lastDepartmentId: null,
+    },
+  });
+
   // --- Platform administrator (cross-tenant; authors & publishes packs) ---
   await prisma.user.upsert({
     where: { email: 'admin@summitsystems.pk' },

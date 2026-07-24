@@ -63,6 +63,19 @@ const REQUIRED = [
   /current_setting\('app\.tenant_id'/i, // reads the GUC forTenant() sets
 ];
 
+const BESPOKE_TABLES: Record<string, RegExp[]> = {
+  Organization: [
+    /OrganizationClinic/i,
+    /organizationId"?\s*=\s*"?Organization"?\."?id"?/i,
+    /tenantId"?\s*=\s*\(?\s*NULLIF\s*\(\s*current_setting\('app\.tenant_id'/i,
+  ],
+  UserContextPreference: [
+    /FROM\s+"?User"?/i,
+    /u\."?id"?\s*=\s*"?UserContextPreference"?\."?userId"?/i,
+    /u\."?tenantId"?\s*=\s*\(?\s*NULLIF\s*\(\s*current_setting\('app\.tenant_id'/i,
+  ],
+};
+
 type Row = {
   table: string;
   rls_enabled: boolean;
@@ -106,6 +119,20 @@ async function main(): Promise<void> {
                     WHERE a.attrelid = c.oid AND a.attname = 'tenantId' AND a.attnum > 0 AND NOT a.attisdropped)
      ORDER BY c.relname`);
 
+  const bespokeRows = await db.$queryRawUnsafe<Row[]>(`
+    SELECT c.relname                             AS table,
+           c.relrowsecurity                      AS rls_enabled,
+           c.relforcerowsecurity                 AS rls_forced,
+           (SELECT count(*) FROM pg_policy p WHERE p.polrelid = c.oid) AS policy_count,
+           (SELECT pg_get_expr(p.polqual, p.polrelid) FROM pg_policy p
+             WHERE p.polrelid = c.oid AND p.polname = 'tenant_isolation' LIMIT 1) AS qual
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public'
+       AND c.relkind = 'r'
+       AND c.relname IN ('Organization', 'UserContextPreference')
+     ORDER BY c.relname`);
+
   console.log(`\nLive RLS audit — ${rows.length} tenant-scoped tables in this database\n`);
   check('there are tenant-scoped tables to audit', rows.length > 0, `${rows.length} found`);
 
@@ -124,10 +151,26 @@ async function main(): Promise<void> {
     if (problems.length) bad.push(`${r.table}: ${problems.join('; ')}`);
   }
 
+  for (const r of bespokeRows) {
+    const problems: string[] = [];
+    if (!r.rls_enabled) problems.push('RLS not enabled');
+    if (!r.rls_forced) problems.push('RLS not FORCED (owner exempt)');
+    if (Number(r.policy_count) === 0) problems.push('no policies at all');
+    else if (r.qual == null) problems.push('no tenant_isolation policy');
+    else {
+      const required = BESPOKE_TABLES[r.table] ?? [];
+      const missing = required.filter((re) => !re.test(r.qual as string));
+      if (missing.length) problems.push(`non-bespoke qual: ${r.qual.slice(0, 100)}`);
+    }
+    if (problems.length) bad.push(`${r.table}: ${problems.join('; ')}`);
+  }
+
   check(
-    'every tenant-scoped table has RLS enabled, FORCED, and a canonical tenant_isolation policy',
+    'every tenant-scoped table (including bespoke no-tenantId tables) has enforced tenant isolation',
     bad.length === 0,
-    bad.length === 0 ? `${rows.length}/${rows.length} clean` : `${bad.length} table(s) unprotected`,
+    bad.length === 0
+      ? `${rows.length + bespokeRows.length}/${rows.length + bespokeRows.length} clean`
+      : `${bad.length} table(s) unprotected`,
   );
   for (const b of bad.slice(0, 25)) console.log(`         - ${b}`);
   if (bad.length > 25) console.log(`         ... and ${bad.length - 25} more`);
