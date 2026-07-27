@@ -1,11 +1,16 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService, TenantTransaction } from '../common/prisma/prisma.service';
 import { getTenant, getTenantId } from '../common/tenant/tenant-context';
 import { CreateBranchDto } from './dto/hierarchy/create-branch.dto';
 import { CreateDepartmentDto } from './dto/hierarchy/create-department.dto';
-import { CreateMembershipDto } from './dto/hierarchy/create-membership.dto';
+import { ASSIGNABLE_ROLES, CreateMembershipDto } from './dto/hierarchy/create-membership.dto';
 
 @Injectable()
 export class OrgHierarchyService {
@@ -106,6 +111,19 @@ export class OrgHierarchyService {
 
   async createMembership(dto: CreateMembershipDto) {
     const tenantId = getTenantId();
+
+    // Re-checked here even though CreateMembershipDto already refuses these.
+    // A DTO is a parser and only runs for callers that go through the
+    // ValidationPipe; this is the policy, and it belongs next to the write.
+    // Assigning PLATFORM_ADMIN here was the first step of a two-call escalation
+    // that reached every clinic on the platform — see roles.guard.ts.
+    if (!ASSIGNABLE_ROLES.includes(dto.role)) {
+      throw new ForbiddenException(
+        `Role ${dto.role} cannot be assigned through a membership. ` +
+          `Assignable roles: ${ASSIGNABLE_ROLES.join(', ')}.`,
+      );
+    }
+
     return this.prisma.forCurrentTenant(async (tx) => {
       const { clinic, organization } = await this.ensureHierarchy(tx, tenantId, getTenant().userId ?? null);
 

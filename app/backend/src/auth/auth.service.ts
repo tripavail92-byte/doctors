@@ -1,9 +1,16 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import type { User } from '@prisma/client';
+import { UserRole, type User } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { getTenant, getTenantId } from '../common/tenant/tenant-context';
+import { ASSIGNABLE_ROLES } from '../platform/dto/hierarchy/create-membership.dto';
 import { JwtPayload } from './jwt.strategy';
 
 // Raw row returned by auth_find_memberships_for_user (column names match the
@@ -40,6 +47,8 @@ export interface AuthContextItem {
 
 @Injectable()
 export class AuthService {
+  private static readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
@@ -172,6 +181,48 @@ export class AuthService {
     }
     if (!chosen?.clinicTenantId) {
       throw new BadRequestException('Requested clinic context not found');
+    }
+
+    // GATE 3 — never sign a role the User row does not support.
+    //
+    // The role on a UserMembership is data a clinic administrator can write, and
+    // it lands verbatim in the token below. That was the payload of a two-call
+    // escalation: POST a membership for yourself with role PLATFORM_ADMIN, then
+    // switch context, and RolesGuard let the resulting token into
+    // PlatformTenantsController. The DTO and the guard both refuse that now;
+    // this is the third gate, and it is the one that holds if a membership row
+    // is ever written by something other than the endpoint — a migration, a
+    // backfill, a support script, or direct SQL.
+    //
+    // The rule: the minted role must be either an ordinary assignable role, or
+    // the user's OWN role on the User row. The second clause is what keeps a
+    // genuine clinic owner working — onboarding writes their membership with
+    // role OWNER (platform-tenants.service.ts) and OWNER is deliberately not
+    // assignable, so without it every owner would be locked out of their own
+    // clinic.
+    const self = await this.prisma.forCurrentTenant((tx) =>
+      tx.user.findFirst({ where: { id: userId }, select: { role: true, status: true } }),
+    );
+    if (!self || self.status !== 'active') {
+      // Fails closed. A membership may outlive the account it points at, and a
+      // deactivated user must not be able to mint a fresh token — switchContext
+      // issues a NEW expiry, so tolerating this would turn a bounded session
+      // into an unbounded one.
+      throw new ForbiddenException('This account can no longer switch clinic context');
+    }
+
+    const requested = chosen.role as UserRole;
+    const permitted =
+      requested !== UserRole.PLATFORM_ADMIN &&
+      (ASSIGNABLE_ROLES.includes(requested) || requested === self.role);
+
+    if (!permitted) {
+      AuthService.logger.error(
+        `Refused to mint a context token with role=${requested} for userId=${userId}, ` +
+          `whose User row carries role=${self.role}. A membership is granting more than ` +
+          `the account permits — inspect UserMembership rows for this user.`,
+      );
+      throw new ForbiddenException('This clinic context grants a role your account does not permit');
     }
 
     // Persist the last-active context using the SECURITY DEFINER write path.
