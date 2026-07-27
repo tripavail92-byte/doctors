@@ -6,8 +6,9 @@ So findings are append-only and a correction SUPERSEDES rather than overwrites.
 
 Requires a running API on :3000.  Run: python test/safety/dental_dentition_suite.py
 """
+import os
 import json, urllib.request, urllib.error
-BASE='http://localhost:3000'
+BASE = os.environ.get('HEALTHOS_BASE', 'http://localhost:3000')
 def api(m,p,tok=None,b=None):
     r=urllib.request.Request(BASE+p,method=m); r.add_header('Content-Type','application/json')
     if tok: r.add_header('Authorization','Bearer '+tok)

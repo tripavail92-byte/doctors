@@ -1,8 +1,7 @@
 import json, urllib.request, urllib.error
 import os, sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _ids import mrn  # run-unique fixtures; see _ids.py
-BASE='http://localhost:3000'
-
+BASE = os.environ.get('HEALTHOS_BASE', 'http://localhost:3000')
 def call(method, path, body=None, tok=None):
     req=urllib.request.Request(BASE+path, method=method)
     req.add_header('Content-Type','application/json')

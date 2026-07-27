@@ -30,9 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _ids import mrn, RUN  # noqa: E402
 from _db import psql  # noqa: E402
 
-BASE = 'http://localhost:3000'
-
-
+BASE = os.environ.get('HEALTHOS_BASE', 'http://localhost:3000')
 def api(m, p, tok=None, b=None):
     r = urllib.request.Request(BASE + p, method=m)
     r.add_header('Content-Type', 'application/json')
