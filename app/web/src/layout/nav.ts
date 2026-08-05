@@ -35,7 +35,13 @@ export interface NavItem {
   // MUI icon component rendered at the start of the row.
   icon: SvgIconComponent;
   // If set, the item is hidden unless the tenant has ALL of these feature keys.
+  // Entitlements are a plan-boundary concern — "this clinic bought that module".
   requires?: string[];
+  // If set, the item is hidden unless the signed-in user's role is in the list.
+  // Roles are a permissions concern — "this staff member is allowed to see it".
+  // filterNav requires BOTH; a DOCTOR seeing Payroll and 403ing on click, then
+  // being told "your clinic hasn't paid for this", is what this field prevents.
+  roles?: string[];
 }
 
 // A labelled group of nav items rendered as a section in the drawer.
@@ -72,24 +78,52 @@ export const navGroups: NavGroup[] = [
   {
     label: "Business",
     items: [
-      { label: "Billing", to: "/billing", icon: ReceiptLongIcon },
-      { label: "Pharmacy", to: "/pharmacy", icon: LocalPharmacyIcon, requires: ["pharmacy.core"] },
-      { label: "Payroll", to: "/payroll", icon: PaymentsIcon, requires: ["hr.core"] },
-      { label: "Leads", to: "/leads", icon: CampaignIcon, requires: ["crm.core"] },
-      { label: "Reports", to: "/reports", icon: BarChartIcon, requires: ["reporting.core"] },
-      { label: "Integrations", to: "/integrations", icon: HubIcon, requires: ["integrations.core"] },
+      // Roles are business-tier: guards enforce the same list on the server
+      // (auth/decorators/roles.decorator.ts callers in billing/hr/reports/crm).
+      // The nav mirror is exclusively so the item does not APPEAR to someone
+      // who cannot click it — the security answer is the server-side guard.
+      { label: "Billing", to: "/billing", icon: ReceiptLongIcon,
+        roles: ["OWNER", "ADMIN", "FINANCE", "RECEPTION"] },
+      { label: "Pharmacy", to: "/pharmacy", icon: LocalPharmacyIcon, requires: ["pharmacy.core"],
+        roles: ["OWNER", "ADMIN", "INVENTORY", "RECEPTION"] },
+      { label: "Payroll", to: "/payroll", icon: PaymentsIcon, requires: ["hr.core"],
+        roles: ["OWNER", "ADMIN", "FINANCE"] },
+      { label: "Leads", to: "/leads", icon: CampaignIcon, requires: ["crm.core"],
+        roles: ["OWNER", "ADMIN", "SALES", "RECEPTION"] },
+      { label: "Reports", to: "/reports", icon: BarChartIcon, requires: ["reporting.core"],
+        roles: ["OWNER", "ADMIN", "FINANCE"] },
+      { label: "Integrations", to: "/integrations", icon: HubIcon, requires: ["integrations.core"],
+        roles: ["OWNER", "ADMIN"] },
     ],
   },
 ];
 
-/** Filter nav groups to only items the tenant's entitlements allow. */
-export function filterNav(groups: NavGroup[], entitlements: Set<string>): NavGroup[] {
+/**
+ * Filter nav groups to items the current user can actually reach — both
+ * plan-boundary (entitlements) AND permissions (role). Removing either
+ * dimension is a real defect the app has already shipped:
+ *
+ *   - filter on entitlements only: a DOCTOR sees Reports/Payroll/Billing,
+ *     clicks, gets a 403, and the banner tells them the clinic hasn't paid.
+ *   - filter on role only: shipping the item to a tenant whose plan does not
+ *     include it, where the click is a "Not included in your plan" toast
+ *     for a feature nobody promised.
+ *
+ * Both filters are AND. A group with no surviving items disappears.
+ */
+export function filterNav(
+  groups: NavGroup[],
+  entitlements: Set<string>,
+  role: string | null | undefined,
+): NavGroup[] {
   return groups
     .map((g) => ({
       ...g,
-      items: g.items.filter(
-        (item) => !item.requires || item.requires.every((k) => entitlements.has(k)),
-      ),
+      items: g.items.filter((item) => {
+        if (item.requires && !item.requires.every((k) => entitlements.has(k))) return false;
+        if (item.roles && (!role || !item.roles.includes(role))) return false;
+        return true;
+      }),
     }))
     .filter((g) => g.items.length > 0);
 }

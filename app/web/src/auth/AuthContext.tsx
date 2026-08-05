@@ -30,13 +30,57 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const EMAIL_KEY = 'healthos.email';
 
-const ENTITLEMENTS_KEY = 'healthos.entitlements';
+// Per-tenant cache key. A shared 'healthos.entitlements' was wrong on the
+// second scenario the switcher exists for: log out of tenant A, log into
+// tenant B, and the sidebar renders A's modules until /entitlements returns
+// — a leak of the previous clinic's capability surface into the new session.
+// Keying by tenant means each tenant has its own cached bundle, and a switch
+// picks up the right one immediately.
+const ENTITLEMENTS_KEY_PREFIX = 'healthos.entitlements.v2.';
+function entitlementsKey(tenantId: string | null): string {
+  // A null tenant is a platform admin — no cached entitlements anyway.
+  return ENTITLEMENTS_KEY_PREFIX + (tenantId ?? '__none__');
+}
+
+// A discriminated result rather than a bare string[]. `fetchEntitlements`
+// used to `catch { return []; }` — and that empty array was written into
+// localStorage AND into user.entitlements, so one flaky call permanently
+// collapsed the sidebar to Dashboard/Patients/Trends until the browser
+// storage was cleared. A failure is a state, not a truth about the tenant's
+// bundle. Callers must distinguish the two.
+type EntitlementFetch =
+  | { ok: true; keys: string[] }
+  | { ok: false };
+
+async function fetchEntitlements(): Promise<EntitlementFetch> {
+  try {
+    const { data } = await apiClient.get<{ features: string[] }>('/entitlements');
+    return { ok: true, keys: data.features };
+  } catch {
+    return { ok: false };
+  }
+}
+
+async function fetchContexts(): Promise<ClinicContext[]> {
+  try {
+    const { data } = await apiClient.get<ContextListResponse>('/auth/contexts');
+    return data.contexts;
+  } catch {
+    // Contexts have no similar cache-corruption risk (the shell reads them
+    // to decide whether to render the switcher; missing = single-context UX,
+    // which is the safe fallback).
+    return [];
+  }
+}
 
 function userFromToken(token: string): AuthUser | null {
   const claims = decodeJwt<JwtClaims>(token);
   if (!claims?.sub) return null;
   if (claims.exp && claims.exp * 1000 < Date.now()) return null;
-  const cached = localStorage.getItem(ENTITLEMENTS_KEY);
+  // Read the cache for THIS tenant, not a global cache written by whoever
+  // logged in last. Missing cache = empty set; the network fetch below
+  // fills it, and a fetch failure leaves whatever was there before intact.
+  const cached = localStorage.getItem(entitlementsKey(claims.tenantId));
   return {
     userId: claims.sub,
     email: localStorage.getItem(EMAIL_KEY),
@@ -52,22 +96,11 @@ function userFromToken(token: string): AuthUser | null {
   };
 }
 
-async function fetchEntitlements(): Promise<string[]> {
-  try {
-    const { data } = await apiClient.get<{ features: string[] }>('/entitlements');
-    return data.features;
-  } catch {
-    return [];
-  }
-}
-
-async function fetchContexts(): Promise<ClinicContext[]> {
-  try {
-    const { data } = await apiClient.get<ContextListResponse>('/auth/contexts');
-    return data.contexts;
-  } catch {
-    return [];
-  }
+/** Persist entitlement keys, but ONLY if we successfully fetched them. */
+function commitEntitlements(tenantId: string | null, result: EntitlementFetch): Set<string> | null {
+  if (!result.ok) return null; // caller keeps whatever was already in state
+  localStorage.setItem(entitlementsKey(tenantId), JSON.stringify(result.keys));
+  return new Set(result.keys);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -83,10 +116,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (u) {
         setUser(u);
         if (!u.isPlatformAdmin) {
-          Promise.all([fetchEntitlements(), fetchContexts()]).then(([keys, cx]) => {
-            localStorage.setItem(ENTITLEMENTS_KEY, JSON.stringify(keys));
+          Promise.all([fetchEntitlements(), fetchContexts()]).then(([ent, cx]) => {
             setContexts(cx);
-            setUser((prev) => prev ? { ...prev, entitlements: new Set(keys) } : prev);
+            const fresh = commitEntitlements(u.tenantId, ent);
+            // On failure, `fresh` is null and we DELIBERATELY do not touch
+            // user.entitlements — the cache-derived set from userFromToken()
+            // stays, so a one-off network blip does not collapse the sidebar
+            // to the empty fallback the user was left staring at yesterday.
+            if (fresh) {
+              setUser((prev) => prev ? { ...prev, entitlements: fresh } : prev);
+            }
           });
         }
       } else {
@@ -108,10 +147,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const u = userFromToken(data.accessToken);
         if (!u) throw new Error('Received an invalid token');
         if (!u.isPlatformAdmin) {
-          const [keys, cx] = await Promise.all([fetchEntitlements(), fetchContexts()]);
-          localStorage.setItem(ENTITLEMENTS_KEY, JSON.stringify(keys));
+          const [ent, cx] = await Promise.all([fetchEntitlements(), fetchContexts()]);
           setContexts(cx);
-          u.entitlements = new Set(keys);
+          const fresh = commitEntitlements(u.tenantId, ent);
+          // On a fresh login, if entitlements fail to fetch, we honestly do
+          // not know what this user can see. Empty is safer than stale, and
+          // no cache exists for this tenant yet on this device. So an empty
+          // set is the correct fallback here — and the fetch-error banner
+          // will make the failure visible.
+          u.entitlements = fresh ?? new Set();
         } else {
           setContexts([]);
         }
@@ -125,17 +169,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const u = userFromToken(data.accessToken);
         if (!u) throw new Error('Received an invalid token');
         if (!u.isPlatformAdmin) {
-          const [keys, cx] = await Promise.all([fetchEntitlements(), fetchContexts()]);
-          localStorage.setItem(ENTITLEMENTS_KEY, JSON.stringify(keys));
+          const [ent, cx] = await Promise.all([fetchEntitlements(), fetchContexts()]);
           setContexts(cx);
-          u.entitlements = new Set(keys);
+          const fresh = commitEntitlements(u.tenantId, ent);
+          // After a switch, u.entitlements comes from userFromToken(), which
+          // has already read the per-tenant cache for the destination clinic.
+          // If the fetch succeeded, replace it with the fresh values.
+          if (fresh) u.entitlements = fresh;
         }
         setUser(u);
       },
       logout() {
         clearToken();
         localStorage.removeItem(EMAIL_KEY);
-        localStorage.removeItem(ENTITLEMENTS_KEY);
+        // Only clear this user's per-tenant cache. Any other tenant's cache
+        // stays valid — another user on the same device is a legitimate case
+        // and their cached bundle is theirs, not this one's to wipe.
+        if (user?.tenantId != null) {
+          localStorage.removeItem(entitlementsKey(user.tenantId));
+        }
         setContexts([]);
         setUser(null);
       },

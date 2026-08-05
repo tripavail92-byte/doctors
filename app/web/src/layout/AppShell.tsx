@@ -67,8 +67,8 @@ export default function AppShell() {
   const visibleNav = useMemo(() => {
     if (user?.isPlatformAdmin) return [platformNavGroup];
     const ent = user?.entitlements ?? new Set<string>();
-    return filterNav(navGroups, ent);
-  }, [user?.entitlements, user?.isPlatformAdmin]);
+    return filterNav(navGroups, ent, user?.role ?? null);
+  }, [user?.entitlements, user?.isPlatformAdmin, user?.role]);
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
