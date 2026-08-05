@@ -289,11 +289,19 @@ describe('voiding an invoice', () => {
 
     await user.click(screen.getByRole('button', { name: 'Void invoice' }));
     const dialog = await screen.findByRole('dialog');
+    // Reason is now required and the confirm button is disabled without one.
+    // Invoice.voidReason was NULL on every voided row on the platform before
+    // this — the audit trail could not answer "why" for a single row.
+    const reasonBox = within(dialog).getByRole('textbox', { name: /reason/i });
+    await user.type(reasonBox, 'duplicate of INV-2026-0087');
     await user.click(within(dialog).getByRole('button', { name: 'Void' }));
 
     await waitFor(() => {
       const patch = apiCalls.find((c) => c.method === 'PATCH');
       expect(patch!.url).toBe('/invoices/i-1/void');
+      // The body must carry the typed reason, or Invoice.voidReason is NULL
+      // again — the whole bug this row exists to guard against.
+      expect(patch!.body).toMatchObject({ reason: 'duplicate of INV-2026-0087' });
     });
     expect(await screen.findByText('Invoice voided.')).toBeInTheDocument();
     await waitFor(() =>
@@ -442,8 +450,8 @@ describe('a failed load is not a financial fact', () => {
 
     // Different instruction: stop and talk to whoever owns the subscription.
     // Retrying a 403 forever is the alternative.
-    expect(await screen.findByText(/Not included in your plan/i)).toBeInTheDocument();
-    expect(screen.getByText(/not part of your current plan/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Not included in this clinic's plan/i)).toBeInTheDocument();
+    expect(screen.getByText(/not part of this clinic's plan/i)).toBeInTheDocument();
   });
 });
 

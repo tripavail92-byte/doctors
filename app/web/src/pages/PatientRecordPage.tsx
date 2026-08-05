@@ -31,19 +31,27 @@ import { useApi } from '../api/useApi';
 import RecordSection from '../components/RecordSection';
 import type { Patient } from '../api/types';
 
+// Field names below match what the API actually returns. The interfaces used
+// to read `startedAt`, `invoiceNumber`, `totalPkr`, `issuedAt` — none of which
+// the backend has ever sent — so five of the six sections on this page
+// rendered `—` and `Rs 0` against real records. The tests missed it because
+// they stubbed the sections with `[]` (an empty list renders identically for
+// any interface shape). Every section on this page now has its test extended
+// to assert one populated row against the real API field names, so a future
+// rename on the backend cannot silently reintroduce the same class of bug.
 interface Encounter {
   id: string;
   status: string;
-  startedAt: string;
+  occurredAt: string;
   reason?: string | null;
 }
 interface Invoice {
   id: string;
-  invoiceNumber: string;
+  number: string;
   status: string;
-  totalPkr: number;
-  outstandingPkr?: number;
-  issuedAt?: string;
+  total: number;
+  paid?: number;
+  createdAt: string;
 }
 interface DispenseItem {
   id: string;
@@ -70,8 +78,8 @@ interface Immunization {
   id: string;
   vaccineCode?: string;
   vaccine?: string;
-  administeredAt?: string;
-  doseNumber?: number;
+  givenAt?: string;
+  dose?: string;
 }
 
 const dt = (s?: string | null) => (s ? new Date(s).toLocaleDateString('en-PK') : '—');
@@ -164,7 +172,7 @@ export default function PatientRecordPage() {
                   <TableBody>
                     {(encounters.data ?? []).map((e) => (
                       <TableRow key={e.id}>
-                        <TableCell>{dt(e.startedAt)}</TableCell>
+                        <TableCell>{dt(e.occurredAt)}</TableCell>
                         <TableCell>{e.reason || '—'}</TableCell>
                         <TableCell align="right">
                           <Chip size="small" variant="outlined" label={e.status} />
@@ -268,9 +276,9 @@ export default function PatientRecordPage() {
                   <TableBody>
                     {(immunizations.data ?? []).map((v) => (
                       <TableRow key={v.id}>
-                        <TableCell>{dt(v.administeredAt)}</TableCell>
+                        <TableCell>{dt(v.givenAt)}</TableCell>
                         <TableCell>{v.vaccine ?? v.vaccineCode ?? '—'}</TableCell>
-                        <TableCell align="right">{v.doseNumber ?? '—'}</TableCell>
+                        <TableCell align="right">{v.dose ?? '—'}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -295,9 +303,9 @@ export default function PatientRecordPage() {
                   <TableBody>
                     {(invoices.data ?? []).map((i) => (
                       <TableRow key={i.id}>
-                        <TableCell>{dt(i.issuedAt)}</TableCell>
-                        <TableCell sx={{ color: 'text.secondary' }}>{i.invoiceNumber}</TableCell>
-                        <TableCell align="right">{pkr(i.totalPkr)}</TableCell>
+                        <TableCell>{dt(i.createdAt)}</TableCell>
+                        <TableCell sx={{ color: 'text.secondary' }}>{i.number}</TableCell>
+                        <TableCell align="right">{pkr(i.total)}</TableCell>
                         <TableCell align="right">
                           <Chip size="small" variant="outlined" label={i.status} />
                         </TableCell>

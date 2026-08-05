@@ -141,10 +141,26 @@ export default function BillingPage() {
   // Action inputs.
   const [payAmt, setPayAmt] = useState('');
   const [payMethod, setPayMethod] = useState<PaymentMethod>('CASH');
+  // reference is the receipt-book number the cashier hand-writes on the paper
+  // receipt. billing.service.ts uses it as the tenant-scoped idempotency key —
+  // duplicate reference → "reference already used", one paper receipt yields
+  // one Payment row even if the button is clicked three times. Empty string
+  // sends undefined so a clinic without receipt books is unaffected.
+  const [payReference, setPayReference] = useState('');
   const [refundAmt, setRefundAmt] = useState('');
+  // Refund used to hardcode method: 'CASH' — every gateway refund was recorded
+  // as if cash left the drawer, and the day book was quietly wrong. Independent
+  // state from payMethod, defaults to CASH because that is what most Lahore
+  // refunds are, but the cashier must actively confirm it.
+  const [refundMethod, setRefundMethod] = useState<PaymentMethod>('CASH');
   const [refundReason, setRefundReason] = useState('');
   const [provider, setProvider] = useState<(typeof PROVIDERS)[number]>('safepay');
   const [confirmVoid, setConfirmVoid] = useState<Invoice | null>(null);
+  // Void reason was never sent — Invoice.voidReason was always NULL, and the
+  // audit trail could not answer "why was this voided" for a single row on the
+  // platform. Required at the dialog rather than optional at the API, so the
+  // cashier writes it once at the moment the reason is fresh.
+  const [voidReason, setVoidReason] = useState('');
 
   const call = async (fn: () => Promise<unknown>, ok?: string) => {
     setBusy(true);
@@ -488,6 +504,15 @@ export default function BillingPage() {
                               ))}
                             </Select>
                           </FormControl>
+                          <TextField
+                            size="small"
+                            label="Reference"
+                            placeholder="receipt #"
+                            value={payReference}
+                            onChange={(e) => setPayReference(e.target.value)}
+                            helperText="Optional receipt-book number. Same reference twice = one payment."
+                            sx={{ width: 190 }}
+                          />
                           <Button
                             variant="contained"
                             disabled={busy}
@@ -502,11 +527,19 @@ export default function BillingPage() {
                                 if (!Number.isFinite(amt) || amt <= 0) {
                                   throw new Error('Enter a payment amount greater than zero.');
                                 }
+                                // reference is tenant-scoped unique on Payment
+                                // — a duplicate is a 409 rather than a second
+                                // debit, which is what a receipt book expects.
+                                // Empty string sends undefined so a clinic with
+                                // no paper receipts stays exactly as it was.
+                                const ref = payReference.trim();
                                 await apiClient.post(`/invoices/${inv.id}/payments`, {
                                   amountPkr: amt,
                                   method: payMethod,
+                                  ...(ref ? { reference: ref } : {}),
                                 });
                                 setPayAmt('');
+                                setPayReference('');
                               }, 'Payment recorded.')
                             }
                           >
@@ -576,6 +609,22 @@ export default function BillingPage() {
                             onChange={(e) => setRefundAmt(numericInput(e.target.value))}
                             sx={{ width: 130 }}
                           />
+                          <FormControl size="small" sx={{ minWidth: 130 }}>
+                            <InputLabel id="billing-refund-method-label">Method</InputLabel>
+                            <Select
+                              labelId="billing-refund-method-label"
+                              id="billing-refund-method"
+                              label="Method"
+                              value={refundMethod}
+                              onChange={(e) => setRefundMethod(e.target.value as PaymentMethod)}
+                            >
+                              {METHODS.map((m) => (
+                                <MenuItem key={m} value={m}>
+                                  {m.toLowerCase().replace('_', ' ')}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
                           <TextField size="small" label="Reason" value={refundReason} onChange={(e) => setRefundReason(e.target.value)} sx={{ flex: 1 }} />
                           <Button
                             variant="outlined"
@@ -601,7 +650,7 @@ export default function BillingPage() {
                                 }
                                 await apiClient.post(`/invoices/${inv.id}/refunds`, {
                                   amountPkr: amt,
-                                  method: 'CASH',
+                                  method: refundMethod,
                                   reason: refundReason || undefined,
                                 });
                                 setRefundAmt('');
@@ -647,25 +696,59 @@ export default function BillingPage() {
       </Grid>
 
       {/* Void is a terminal, near-irreversible move — it gets a sentence, not a
-          bare confirm. */}
-      <Dialog open={!!confirmVoid} onClose={() => setConfirmVoid(null)}>
+          bare confirm, and it now requires a REASON. Previously the button
+          POSTed an empty body, Invoice.voidReason was always NULL, and the
+          audit trail could not answer "why was this voided" for a single row
+          on the platform. Required at the dialog so the reason is written
+          once, at the moment it is fresh in the cashier's mind. */}
+      <Dialog
+        open={!!confirmVoid}
+        onClose={() => {
+          if (!busy) {
+            setConfirmVoid(null);
+            setVoidReason('');
+          }
+        }}
+      >
         <DialogTitle>Void {confirmVoid?.number}?</DialogTitle>
         <DialogContent>
-          <DialogContentText>
+          <DialogContentText sx={{ mb: 2 }}>
             Voiding cancels this invoice for {pkr(confirmVoid?.total ?? 0)}. It can no longer be paid,
             refunded, or filed with FBR, and any open payment link for it stops working.
           </DialogContentText>
+          <TextField
+            autoFocus
+            fullWidth
+            required
+            size="small"
+            label="Reason"
+            placeholder='e.g. "duplicate of INV-2026-0087", "patient cancelled procedure"'
+            value={voidReason}
+            onChange={(e) => setVoidReason(e.target.value)}
+            error={voidReason.length > 0 && voidReason.trim().length < 3}
+            helperText="Recorded on the invoice; a blank reason cannot answer 'why was this voided' later."
+          />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmVoid(null)}>Cancel</Button>
+          <Button
+            onClick={() => {
+              setConfirmVoid(null);
+              setVoidReason('');
+            }}
+            disabled={busy}
+          >
+            Cancel
+          </Button>
           <Button
             color="error"
             variant="contained"
-            disabled={busy}
+            disabled={busy || voidReason.trim().length < 3}
             onClick={() => {
               const v = confirmVoid!;
+              const reason = voidReason.trim();
               setConfirmVoid(null);
-              call(() => apiClient.patch(`/invoices/${v.id}/void`), 'Invoice voided.');
+              setVoidReason('');
+              call(() => apiClient.patch(`/invoices/${v.id}/void`, { reason }), 'Invoice voided.');
             }}
           >
             Void

@@ -126,3 +126,71 @@ describe('dispensing history', () => {
     expect(await screen.findByText(/B1 ×30, B2 ×50/)).toBeInTheDocument();
   });
 });
+
+// Every row here uses the API's ACTUAL field names — not the interface the
+// page used to declare. Five of six sections rendered `—` and `Rs 0` against
+// real records because the page read `startedAt` / `invoiceNumber` /
+// `totalPkr` / `issuedAt` / `administeredAt` / `doseNumber`, and none of
+// those exist on the wire. Empty-array stubs made the whole class of bug
+// invisible to CI — an empty list renders correctly against any interface
+// shape. So every section now proves it can render one populated row, and a
+// future rename on the backend fails here loudly.
+describe('every section can render a real, populated row', () => {
+  it('a Visit reads the API-shaped Encounter.occurredAt, not the ghost startedAt', async () => {
+    mockApi(stubs({
+      [`GET /patients/${ID}/encounters`]: {
+        body: [{ id: 'e1', status: 'OPEN', occurredAt: '2026-07-04T09:15:00.000Z', reason: 'HydraFacial consultation' }],
+      },
+    }));
+    renderRecord();
+    await screen.findByText('Ayesha Khan');
+    expect(await screen.findByText('HydraFacial consultation')).toBeInTheDocument();
+    // Ask the runtime what en-PK actually renders rather than hardcode a
+    // separator — different Node/ICU builds give different results.
+    const rendered = new Date('2026-07-04T09:15:00.000Z').toLocaleDateString('en-PK');
+    expect(screen.getByText(rendered)).toBeInTheDocument();
+    expect(screen.getByText('OPEN')).toBeInTheDocument();
+  });
+
+  it('an Invoice reads number / total / createdAt — not the ghost invoiceNumber / totalPkr / issuedAt', async () => {
+    mockApi(stubs({
+      [`GET /patients/${ID}/invoices`]: {
+        body: [{ id: 'i1', number: 'INV-2026-0001', status: 'PAID', total: 15000, createdAt: '2026-07-05T10:00:00.000Z' }],
+      },
+    }));
+    renderRecord();
+    await screen.findByText('Ayesha Khan');
+    expect(await screen.findByText('INV-2026-0001')).toBeInTheDocument();
+    // The exact PKR-formatted rupees. If any of number/total/createdAt were
+    // read against the wrong field name, this fails.
+    expect(screen.getByText('Rs 15,000')).toBeInTheDocument();
+    expect(screen.getByText('PAID')).toBeInTheDocument();
+  });
+
+  it('an Immunization reads givenAt / dose, not administeredAt / doseNumber', async () => {
+    mockApi(stubs({
+      [`GET /patients/${ID}/immunizations`]: {
+        body: [{ id: 'v1', vaccineCode: 'HepB', dose: '3', givenAt: '2026-06-01T08:00:00.000Z' }],
+      },
+    }));
+    renderRecord();
+    await screen.findByText('Ayesha Khan');
+    expect(await screen.findByText('HepB')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+    const rendered = new Date('2026-06-01T08:00:00.000Z').toLocaleDateString('en-PK');
+    expect(screen.getByText(rendered)).toBeInTheDocument();
+  });
+
+  it('a LabOrder is rendered with its order number and status', async () => {
+    mockApi(stubs({
+      [`GET /lab/patients/${ID}/orders`]: {
+        body: [{ id: 'o1', orderNumber: 'LO-2026-0007', status: 'ORDERED', createdAt: '2026-07-02T10:00:00.000Z', items: [{ id: 't1', testName: 'CBC' }] }],
+      },
+    }));
+    renderRecord();
+    await screen.findByText('Ayesha Khan');
+    expect(await screen.findByText('LO-2026-0007')).toBeInTheDocument();
+    expect(screen.getByText('CBC')).toBeInTheDocument();
+    expect(screen.getByText('ORDERED')).toBeInTheDocument();
+  });
+});
