@@ -164,16 +164,34 @@ if isinstance(body, dict):
     ck('the seeded Glow Derma tenant is present', bool(glow), f'slugs={[r.get("slug") for r in rows][:5]}')
 
     if glow:
-        # Read the same number via a direct SQL count as ground truth.
-        real_patients = int(psql("SELECT count(*) FROM \"Patient\" WHERE \"tenantId\" = '{}';".format(glow['id'])).strip())
-        real_users = int(psql("SELECT count(*) FROM \"User\" WHERE \"tenantId\" = '{}';".format(glow['id'])).strip())
+        # Ground-truth SQL check is preferred but requires a reachable local
+        # DB (psql). When that's not available (running the suite against a
+        # remote environment from a workstation with no local psql), fall
+        # back to a WEAKER but still meaningful invariant: the seeded
+        # glow-derma tenant is populated per the seed script, so its
+        # counts must be strictly positive. Zero would be the exact
+        # "structurally-always-zero" regression this row exists to catch.
+        try:
+            real_patients = int(psql("SELECT count(*) FROM \"Patient\" WHERE \"tenantId\" = '{}';".format(glow['id'])).strip())
+            real_users = int(psql("SELECT count(*) FROM \"User\" WHERE \"tenantId\" = '{}';".format(glow['id'])).strip())
 
-        ck(f'glow-derma.patients matches ground truth ({real_patients})',
-           glow.get('patients') == real_patients,
-           f'endpoint={glow.get("patients")} sql={real_patients}')
-        ck(f'glow-derma.users matches ground truth ({real_users})',
-           glow.get('users') == real_users,
-           f'endpoint={glow.get("users")} sql={real_users}')
+            ck(f'glow-derma.patients matches ground truth ({real_patients})',
+               glow.get('patients') == real_patients,
+               f'endpoint={glow.get("patients")} sql={real_patients}')
+            ck(f'glow-derma.users matches ground truth ({real_users})',
+               glow.get('users') == real_users,
+               f'endpoint={glow.get("users")} sql={real_users}')
+        except SystemExit:
+            # _db.py exits on SQL setup failure. That is correct default
+            # behaviour for the strong check. Here we choose the weaker
+            # invariant deliberately, and say so out loud in the output.
+            print('  (SQL ground truth unavailable — falling back to "count > 0" invariant)')
+            ck('glow-derma.patients > 0 (weaker check; SQL ground truth unavailable)',
+               isinstance(glow.get('patients'), int) and glow['patients'] > 0,
+               f'value={glow.get("patients")}')
+            ck('glow-derma.users > 0 (weaker check; SQL ground truth unavailable)',
+               isinstance(glow.get('users'), int) and glow['users'] > 0,
+               f'value={glow.get("users")}')
 
         ck('glow-derma has a branch count (>=0)', isinstance(glow.get('branches'), int) and glow['branches'] >= 0,
            f'value={glow.get("branches")}')
@@ -221,6 +239,17 @@ if isinstance(body, dict):
     modules = body.get('modules') or []
     ck('modules is a list', isinstance(modules, list))
     ck('at most 8 modules returned', len(modules) <= 8, f'len={len(modules)}')
+
+    # THE INVARIANT THIS ENDPOINT EXISTS TO PROVE.
+    # The seeded tenant carries many enabled entitlements; the endpoint must
+    # return SOMETHING. Zero is the exact regression pattern that made the
+    # naked-groupBy earlier bugs invisible for weeks. This check must run
+    # unconditionally — a previous version guarded it behind "if modules:"
+    # and empty passed silently.
+    ck('at least one module was returned (the platform has enabled features)',
+       len(modules) > 0,
+       f'len={len(modules)}')
+
     if len(modules) >= 2:
         ck('modules sorted by activeClinics DESC',
            all(modules[i]['activeClinics'] >= modules[i + 1]['activeClinics'] for i in range(len(modules) - 1)))
@@ -229,9 +258,10 @@ if isinstance(body, dict):
         for k in ('key', 'label', 'activeClinics'):
             ck(f'each module has "{k}" — checked on the first', k in first, f'keys={list(first.keys())}')
 
-        # Sanity: the seeded tenant carries several enabled entitlements, so
-        # the top module should have a non-zero count. If this is zero, the
-        # popularity aggregation is broken.
+        # The top module must have a positive count — if this is zero the
+        # popularity aggregation returned rows but their counts are zero,
+        # which means whatever grouped-by mechanism ran did not see the
+        # enabled entitlements it should have.
         ck('the top module has activeClinics > 0', first.get('activeClinics', 0) > 0,
            f'top={first}')
 

@@ -260,18 +260,34 @@ export class PlatformDashboardService {
   // ---------------------------------------------------------------------------
 
   async popularModules() {
-    // Every enabled=true TenantEntitlement row for a currently-ACTIVE tenant.
-    // A tenant that has been suspended must not inflate a module's popularity.
-    const rows = await this.prisma.tenantEntitlement.findMany({
-      where: {
-        enabled: true,
-        tenant: { status: TenantStatus.ACTIVE },
-      },
-      select: { featureKey: true },
+    // TenantEntitlement is tenant-scoped and carries the RLS tenant_isolation
+    // policy — a naked findMany on the base client returns zero rows, same
+    // "structurally-always-zero" trap that made the tenant patient/user
+    // counts read 0 for weeks. Loop over ACTIVE tenants, read entitlements
+    // inside forTenant() for each, then aggregate.
+    const activeTenants = await this.prisma.tenant.findMany({
+      where: { status: TenantStatus.ACTIVE },
+      select: { id: true },
     });
 
     const counts = new Map<string, number>();
-    for (const r of rows) counts.set(r.featureKey, (counts.get(r.featureKey) ?? 0) + 1);
+    await Promise.all(
+      activeTenants.map(async (t) => {
+        try {
+          const rows = await this.prisma.forTenant(t.id, (tx) =>
+            tx.tenantEntitlement.findMany({
+              where: { enabled: true },
+              select: { featureKey: true },
+            }),
+          );
+          for (const r of rows) counts.set(r.featureKey, (counts.get(r.featureKey) ?? 0) + 1);
+        } catch (e) {
+          this.logger.warn(
+            `popularModules: failed to read entitlements for tenant ${t.id}: ${(e as Error).message}`,
+          );
+        }
+      }),
+    );
 
     const labelFor = new Map(FEATURES.map((f) => [f.key, f.name]));
     const modules = [...counts.entries()]
