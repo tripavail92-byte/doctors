@@ -92,12 +92,23 @@ import { spawnSync } from 'node:child_process';
 const HERE = __dirname;
 const PRISMA_DIR = path.resolve(HERE, '..', 'prisma');
 
-// The order matches the Dockerfile's `migrate` target. rls-roles.sql must run
-// before rls-user.sql (which grants to healthos_app), and rls-user.sql must
-// run after rls.sql (its hardening loop mutates policies rls.sql just wrote).
+// rls-roles.sql is DELIBERATELY OMITTED here.
+//
+// It uses psql-only meta-commands (`\if`, `\set`, `\gexec`) that the pg driver
+// cannot parse. That file was designed to run once via psql during initial
+// database bootstrap by an operator with the connection string in hand. Every
+// subsequent runbook invocation only needs to VERIFY the healthos_app role
+// exists and is safe — which analyze() below does explicitly, treating a
+// missing or dangerous role as a BLOCKER. Trying to re-apply it every deploy
+// would require reimplementing a psql feature in TypeScript, which is where
+// the bug lives.
+//
+// The other three files ARE applied on every run. Each is idempotent by
+// construction — rls.sql uses DROP POLICY IF EXISTS before every CREATE,
+// rls-user.sql uses CREATE OR REPLACE and DO blocks, constraints.sql uses
+// CREATE INDEX IF NOT EXISTS and DROP CONSTRAINT IF EXISTS + ADD.
 const SQL_FILES = [
   'rls.sql',
-  'rls-roles.sql',
   'rls-user.sql',
   'constraints.sql',
 ] as const;
