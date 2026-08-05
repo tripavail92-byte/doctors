@@ -276,7 +276,7 @@ describe('a failed load is not reported as an empty chart', () => {
     // "No measurements to plot" is a clinical statement — it says this child has
     // never been weighed. A 403 says the plan is wrong. Someone acting on the
     // first one re-measures a child who was measured last week.
-    expect(await screen.findByText(/not part of your current plan/i)).toBeInTheDocument();
+    expect(await screen.findByText(/not part of this clinic's plan/i)).toBeInTheDocument();
     expect(screen.queryByText(/No measurements to plot/i)).toBeNull();
   });
 });

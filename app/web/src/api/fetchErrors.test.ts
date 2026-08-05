@@ -84,7 +84,17 @@ describe('describeError tells the reader what to DO', () => {
       response: { status: 403, data: { message: 'Feature not enabled: billing.core' } },
     });
     expect(d.status).toBe(403);
-    expect(d.message).toMatch(/not part of your current plan/i);
+    expect(d.message).toMatch(/not part of this clinic's plan/i);
+    expect(d.kind).toBe('plan');
+  });
+
+  it('a role denial reads as a permission problem, not a plan boundary', () => {
+    const d = describeError({
+      response: { status: 403, data: { message: 'Insufficient role' } },
+    });
+    expect(d.status).toBe(403);
+    expect(d.kind).toBe('role');
+    expect(d.message).not.toMatch(/plan/i);
   });
 
   it('a 409 is relayed in the server’s own words', () => {

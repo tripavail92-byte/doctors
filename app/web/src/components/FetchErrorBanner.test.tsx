@@ -27,14 +27,29 @@ describe('FetchErrorBanner', () => {
   });
 
   it('separates a plan boundary from a fault, because they need different actions', () => {
-    reportFetchError({ key: 'gated', message: 'Feature not enabled: billing.core', status: 403 });
+    reportFetchError({ key: 'gated', message: 'Feature not enabled: billing.core', status: 403, kind: 'plan' });
     reportFetchError({ key: 'broken', message: 'Server error', status: 500 });
     render(<FetchErrorBanner />);
 
     // A 403 is not a fault. Telling the user to retry sends them round a loop
     // that cannot succeed; they need to talk to whoever owns the subscription.
-    expect(screen.getByText('Not included in your plan')).toBeInTheDocument();
+    expect(screen.getByText("Not included in this clinic's plan")).toBeInTheDocument();
     expect(screen.getByText('Some data on this page could not be loaded')).toBeInTheDocument();
+  });
+
+  it('separates a plan boundary from a role denial, because they need DIFFERENT people spoken to', () => {
+    // The bug: for a year every 403 rendered as "Not included in your plan"
+    // regardless of whether the tenant lacked the feature or the user lacked
+    // permission for it. A DOCTOR denied Reports by role was told the CLINIC
+    // hadn't paid — an accusation directed at the wrong person.
+    reportFetchError({ key: 'gated', message: 'Feature not enabled: billing.core', status: 403, kind: 'plan' });
+    reportFetchError({ key: 'nope', message: 'Insufficient role', status: 403, kind: 'role' });
+    render(<FetchErrorBanner />);
+
+    expect(screen.getByText("Not included in this clinic's plan")).toBeInTheDocument();
+    expect(screen.getByText("You don't have permission to use this")).toBeInTheDocument();
+    // The role banner points at the right person, the plan banner does not.
+    expect(screen.getByText(/Ask a clinic admin/i)).toBeInTheDocument();
   });
 
   it('warns explicitly that an empty list below may not mean empty', () => {
@@ -46,9 +61,10 @@ describe('FetchErrorBanner', () => {
   });
 
   it('shows a plan boundary alone without the fault wording', () => {
-    reportFetchError({ key: 'gated', message: 'Feature not enabled: imaging.core', status: 403 });
+    reportFetchError({ key: 'gated', message: 'Feature not enabled: imaging.core', status: 403, kind: 'plan' });
     render(<FetchErrorBanner />);
-    expect(screen.getByText('Not included in your plan')).toBeInTheDocument();
+    expect(screen.getByText("Not included in this clinic's plan")).toBeInTheDocument();
     expect(screen.queryByText('Some data on this page could not be loaded')).toBeNull();
+    expect(screen.queryByText("You don't have permission to use this")).toBeNull();
   });
 });

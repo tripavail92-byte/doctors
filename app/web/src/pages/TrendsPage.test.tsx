@@ -292,7 +292,7 @@ describe('the chart on screen is the chart that was asked for', () => {
 
     await pickFromSelect(/Patient/, /Bilal Ahmed/);
 
-    expect(await screen.findByText(/not part of your current plan/i)).toBeInTheDocument();
+    expect(await screen.findByText(/not part of this clinic's plan/i)).toBeInTheDocument();
     // Ayesha's 30 mmHg must not still be on screen under Bilal's name. A number
     // belonging to another patient is worse than a blank panel: nothing about it
     // looks wrong, and it is acted on.

@@ -18,19 +18,36 @@ export default function FetchErrorBanner() {
   const errors = useSyncExternalStore(subscribeFetchErrors, getFetchErrors, getFetchErrors);
   if (!errors.length) return null;
 
-  // A gated feature is not a fault — it is a plan boundary, and the user should
-  // stop rather than retry. Distinguishing them changes what the reader does.
-  const gated = errors.filter((e) => e.status === 403);
+  // Three groups, three different instructions to the reader. Merging any two
+  // is how "you do not have permission to see reports" got reported as "your
+  // clinic has not paid for reports" for every doctor who visited the page.
+  //
+  //   'plan'  — the clinic's edition does not include this. Talk to whoever
+  //             owns the subscription. Do not retry.
+  //   'role'  — the clinic HAS this, but you do not. Talk to a clinic admin.
+  //             Do not retry.
+  //   other   — a real failure. Retry is legitimate; empty list is not truth.
+  const plan = errors.filter((e) => e.status === 403 && e.kind === 'plan');
+  const role = errors.filter((e) => e.status === 403 && e.kind === 'role');
   const failed = errors.filter((e) => e.status !== 403);
 
   return (
     <Box sx={{ mb: 2 }}>
-      {gated.length > 0 && (
-        <Alert severity="info" sx={{ mb: failed.length ? 1 : 0 }}>
-          <AlertTitle>Not included in your plan</AlertTitle>
-          {gated.map((e) => (
+      {plan.length > 0 && (
+        <Alert severity="info" sx={{ mb: role.length || failed.length ? 1 : 0 }}>
+          <AlertTitle>Not included in this clinic's plan</AlertTitle>
+          {plan.map((e) => (
             <div key={e.key}>{e.message}</div>
           ))}
+        </Alert>
+      )}
+      {role.length > 0 && (
+        <Alert severity="warning" sx={{ mb: failed.length ? 1 : 0 }}>
+          <AlertTitle>You don't have permission to use this</AlertTitle>
+          {role.map((e) => (
+            <div key={e.key}>{e.message}</div>
+          ))}
+          <Box sx={{ mt: 1 }}>Ask a clinic admin if you should have access.</Box>
         </Alert>
       )}
       {failed.length > 0 && (

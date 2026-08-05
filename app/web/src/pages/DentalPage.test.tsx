@@ -147,7 +147,7 @@ describe('the DMFT index is the server’s, not a recount of what is on screen',
     // The refusal has to be on screen and the tooth has to still read `crown`.
     // Silently keeping the old condition is indistinguishable from a chart that
     // took the change — and the note in the record says crown either way.
-    expect(await screen.findByText(/not part of your current plan/)).toBeInTheDocument();
+    expect(await screen.findByText(/not part of this clinic's plan/)).toBeInTheDocument();
     expect(screen.getByTitle('36 · crown')).toBeInTheDocument();
     expect(screen.queryByTitle('36 · caries')).toBeNull();
     // Nothing was refetched, because nothing was written.

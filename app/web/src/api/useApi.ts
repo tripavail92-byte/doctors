@@ -68,10 +68,10 @@ export function useApi<T>(fetcher: () => Promise<T>, deps: unknown[] = []): ApiS
       })
       .catch((err) => {
         if (!active) return;
-        const { message, status: httpStatus } = describeError(err);
+        const { message, status: httpStatus, kind } = describeError(err);
         setError(message);
         setStatus(httpStatus);
-        reportFetchError({ key, message, status: httpStatus });
+        reportFetchError({ key, message, status: httpStatus, kind });
       })
       .finally(() => {
         if (active) setLoading(false);

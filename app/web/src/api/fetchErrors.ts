@@ -23,12 +23,34 @@
 //
 // This does not replace per-page error states; it is the floor beneath them.
 
+/**
+ * How a 403 came about. The Banner speaks to two audiences with two different
+ * instructions, and they must not be conflated:
+ *
+ *   'plan'   the tenant's edition does not include this feature. Talk to the
+ *            person who owns the subscription. Do not retry.
+ *   'role'   the tenant has the feature; this user does not have permission
+ *            to use it. Talk to a clinic admin. Do not retry.
+ *
+ * The two got merged into "Not included in your plan" for every 403, and a
+ * DOCTOR denied Reports by role got told the clinic had not paid — which reads
+ * as an accusation of the clinic rather than a permissions problem, and sent
+ * them chasing the wrong person.
+ *
+ * Distinguished by inspecting the server message: EntitlementGuard throws
+ * "Feature not enabled: <key>" (auth/guards/entitlement.guard.ts), RolesGuard
+ * throws "Insufficient role" or "Invalid principal" (rbac/roles.guard.ts).
+ */
+export type ForbiddenKind = 'plan' | 'role';
+
 export interface FetchError {
   /** Stable key so a repeated failure of the same call does not stack up. */
   key: string;
   message: string;
   /** HTTP status, where there was one. 403 gets its own wording. */
   status?: number;
+  /** Present only on 403; distinguishes plan-boundary from permission denial. */
+  kind?: ForbiddenKind;
 }
 
 const active = new Map<string, FetchError>();
@@ -85,7 +107,7 @@ export function subscribeFetchErrors(fn: () => void): () => void {
  * instruction from "something broke" — the user should stop trying and talk to
  * whoever owns the subscription, not refresh.
  */
-export function describeError(err: unknown): { message: string; status?: number } {
+export function describeError(err: unknown): { message: string; status?: number; kind?: ForbiddenKind } {
   const e = err as {
     isAxiosError?: boolean;
     response?: { status?: number; data?: { message?: unknown } };
@@ -113,11 +135,20 @@ export function describeError(err: unknown): { message: string; status?: number 
   const serverText = Array.isArray(server) ? server.join(', ') : typeof server === 'string' ? server : undefined;
 
   if (status === 403) {
+    // EntitlementGuard prefixes "Feature not enabled:" — that is a plan
+    // boundary. Everything else out of a 403 is a permission problem
+    // (RolesGuard: "Insufficient role" / "Invalid principal", plus any
+    // service-layer ForbiddenException). Distinguishing them is what turns
+    // "your clinic hasn't paid for this" — insulting when the clinic
+    // demonstrably has — into "you don't have permission for this", which
+    // points at the right person.
+    const isPlan = typeof serverText === 'string' && serverText.startsWith('Feature not enabled');
     return {
       status,
-      message: serverText?.startsWith('Feature not enabled')
-        ? `${serverText} — this feature is not part of your current plan.`
-        : serverText ?? 'You do not have access to this.',
+      kind: isPlan ? 'plan' : 'role',
+      message: isPlan
+        ? `${serverText} — this feature is not part of this clinic's plan.`
+        : serverText ?? 'You do not have permission to use this.',
     };
   }
   if (status === undefined) {
