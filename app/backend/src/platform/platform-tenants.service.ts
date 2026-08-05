@@ -44,26 +44,52 @@ export class PlatformTenantsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Every clinic on the platform. Platform-admin only — see the controller. */
+  /**
+   * Every clinic on the platform. Platform-admin only — see the controller.
+   *
+   * The counts here were structurally 0 before this rewrite: `patient.groupBy`
+   * and `user.groupBy` ran on the base client, so RLS evaluated the qual with
+   * app.tenant_id unset and (correctly, per the fail-closed nullif form)
+   * returned zero rows for every tenant. Every clinic in the platform list
+   * read "0 patients, 0 users" in the UI regardless of reality — including
+   * Glow Derma's 337. Verified in production.
+   *
+   * Fixed by re-entering forTenant() per tenant. That is deliberately N+1,
+   * but N is the number of tenants on the platform (dozens, not thousands),
+   * every query is a single indexed count, and each transaction is scoped so
+   * one tenant's outage does not blank the whole list. If N ever grows to the
+   * point this matters, the right shape is a SECURITY DEFINER counting
+   * function in rls-user.sql — not a groupBy that bypasses tenant context.
+   */
   async list() {
-    // Deliberately NOT forTenant: a platform admin has no tenant, and "Tenant"
-    // has no policy to satisfy. Counts come from grouped queries rather than
-    // per-tenant reads, which would each need their own context.
     const tenants = await this.prisma.tenant.findMany({
       orderBy: { createdAt: 'asc' },
       select: { id: true, name: true, slug: true, edition: true, status: true, createdAt: true },
     });
-    const [patients, users] = await Promise.all([
-      this.prisma.patient.groupBy({ by: ['tenantId'], _count: { _all: true } }),
-      this.prisma.user.groupBy({ by: ['tenantId'], _count: { _all: true } }),
-    ]);
-    const pc = new Map(patients.map((p) => [p.tenantId, p._count._all]));
-    const uc = new Map(users.map((u) => [u.tenantId, u._count._all]));
-    return tenants.map((t) => ({
-      ...t,
-      patients: pc.get(t.id) ?? 0,
-      users: uc.get(t.id) ?? 0,
-    }));
+
+    const counted = await Promise.all(
+      tenants.map(async (t) => {
+        try {
+          return await this.prisma.forTenant(t.id, async (tx) => {
+            const [patients, users] = await Promise.all([
+              tx.patient.count(),
+              tx.user.count(),
+            ]);
+            return { ...t, patients, users };
+          });
+        } catch (e) {
+          // One tenant's failure must not blank every other tenant's counts.
+          // Log it, return the tenant with null counts (the UI can tell the
+          // difference), and move on.
+          this.logger.error(
+            `Failed to count patients/users for tenant ${t.id} (${t.slug}): ` +
+              (e instanceof Error ? e.message : String(e)),
+          );
+          return { ...t, patients: null as unknown as number, users: null as unknown as number };
+        }
+      }),
+    );
+    return counted;
   }
 
   async create(dto: CreateTenantDto) {

@@ -44,3 +44,23 @@ CREATE UNIQUE INDEX IF NOT EXISTS "invoice_one_per_plan"
 CREATE UNIQUE INDEX IF NOT EXISTS "imaging_report_one_current_per_study"
   ON "ImagingReport" ("tenantId", "orderId", "studyCode")
   WHERE "isCurrent" = true;
+
+-- Payment invariant: paid is bounded by [0, total].
+--
+-- billing.service.ts documented "a CHECK (paid <= total) backstops overpayment"
+-- for over a year. It did not — the constraint had never been added, and
+-- applyPayment relied entirely on a JS check inside a SELECT FOR UPDATE
+-- transaction. That mostly held, but a false safety comment is worse than no
+-- comment: it stopped anyone from writing the constraint they thought was
+-- already there. Now it exists.
+--
+-- Both bounds. `paid` should never go negative, and refund clawback subtracts
+-- from paid — a bug in refund allocation that took it negative would corrupt
+-- outstanding-balance every time it was read. NOT VALID would let old rows
+-- (if any) survive re-application; we assert VALID immediately because the
+-- billing suite is green today, so any violation is a real defect to surface.
+ALTER TABLE "Invoice"
+  DROP CONSTRAINT IF EXISTS "invoice_paid_within_total";
+ALTER TABLE "Invoice"
+  ADD CONSTRAINT "invoice_paid_within_total"
+    CHECK ("paid" >= 0 AND "paid" <= "total");

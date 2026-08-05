@@ -50,6 +50,12 @@ export const FEATURES: FeatureDef[] = [
   { key: 'pharmacy.core', name: 'Pharmacy / POS', category: 'edition-module' },
   { key: 'ipd.core', name: 'Hospital / IPD', category: 'edition-module' },
   { key: 'hr.core', name: 'HR / Payroll', category: 'platform' },
+  // Multi-branch: entitlement to run more than one branch under one clinic.
+  // The org-hierarchy endpoint (POST /org/hierarchy/branches) was ungated,
+  // which shipped multi-branch to every edition free of charge. It now gates
+  // on this key, which is included in CLINIC_ADDONS below so every real
+  // operational edition carries it, and can be revoked per-tenant.
+  { key: 'multibranch.core', name: 'Multi-branch', category: 'platform' },
 ];
 
 const CORE = [
@@ -62,7 +68,13 @@ const CORE = [
   'instruments.core',
 ];
 
-const CLINIC_ADDONS = ['reporting.core', 'crm.core', 'media.core', 'packs.core'];
+// CLINIC and every specialty edition are multi-staff by definition — the whole
+// point of the tier is that "clinic" means more than one person. So hr.core
+// (staff, salaries, payroll) belongs in the shared bundle rather than only in
+// HOSPITAL / ENTERPRISE, which is where it lived when the current derma-clinic
+// customer discovered payroll was invisible to them despite paying for it.
+// SOLO is deliberately excluded — one doctor is not a payroll.
+const CLINIC_ADDONS = ['reporting.core', 'crm.core', 'media.core', 'packs.core', 'hr.core', 'multibranch.core'];
 
 const ALL_PACKS = [
   'pack.aesthetic',
