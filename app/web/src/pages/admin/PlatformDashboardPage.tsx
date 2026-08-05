@@ -47,6 +47,7 @@ import { useAuth } from '../../auth/AuthContext';
 import StatCard from '../../components/dashboard/StatCard';
 import DonutChart from '../../components/dashboard/DonutChart';
 import ModuleTile from '../../components/dashboard/ModuleTile';
+import WidgetBoundary from '../../components/dashboard/WidgetBoundary';
 import { iconForModule } from '../../components/dashboard/moduleIcons';
 import type {
   ClinicDistribution,
@@ -64,6 +65,36 @@ const dtDate = (iso: string) => new Date(iso).toLocaleDateString('en-PK');
 const dtTime = (iso: string) => new Date(iso).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' });
 
 const PAGE_SIZE = 5;
+
+/**
+ * Adapter for a legacy /platform/tenants response.
+ *
+ * The endpoint exists and returns Tenant[] (used by TenantsPage). The new
+ * dashboard contract expects { total, limit, offset, rows } with per-row
+ * `branches` and `modules`. Until the backend catches up, tolerate the
+ * legacy shape so the dashboard renders instead of throwing on
+ * `undefined.rows.length` and taking the whole page down (real production
+ * incident — see WidgetBoundary).
+ *
+ * When the backend serves the new shape, this becomes a no-op and can be
+ * removed. Callers should NOT rely on the legacy branch existing.
+ */
+function adaptTenantList(raw: TenantListResponse | TenantRow[] | undefined | null): TenantListResponse {
+  if (Array.isArray(raw)) {
+    return {
+      total: raw.length,
+      limit: raw.length,
+      offset: 0,
+      rows: raw.map((r) => ({
+        ...r,
+        // Legacy shape has no branches/modules — fill safely so the row renders.
+        branches: (r as unknown as { branches?: number }).branches ?? 0,
+        modules: (r as unknown as { modules?: TenantRow['modules'] }).modules ?? [],
+      })),
+    };
+  }
+  return raw ?? { total: 0, limit: 0, offset: 0, rows: [] };
+}
 
 const HUE_ROTATION: Array<'blue' | 'green' | 'violet' | 'amber' | 'teal' | 'pink'> = [
   'blue', 'green', 'violet', 'amber', 'teal', 'pink', 'blue', 'green',
@@ -92,8 +123,10 @@ export default function PlatformDashboardPage() {
   const tenants = useApi<TenantListResponse>(
     () =>
       apiClient
-        .get<TenantListResponse>('/platform/tenants', { params: { limit: PAGE_SIZE, offset } })
-        .then((r) => r.data),
+        .get<TenantListResponse | TenantRow[]>('/platform/tenants', {
+          params: { limit: PAGE_SIZE, offset },
+        })
+        .then((r) => adaptTenantList(r.data)),
     [offset],
   );
 
@@ -136,9 +169,12 @@ export default function PlatformDashboardPage() {
         <PeriodSelector value={period} onChange={setPeriod} />
       </Stack>
 
-      {/* --- Row 1: four stat cards -------------------------------------- */}
+      {/* --- Row 1: four stat cards --------------------------------------
+          Wrapped individually so one card's render crash cannot take out
+          the whole row, and definitely not the whole page. */}
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} lg={3}>
+          <WidgetBoundary label="Total Organizations">
           <StatCard
             label="Total Organizations"
             icon={BusinessIcon}
@@ -149,8 +185,10 @@ export default function PlatformDashboardPage() {
             deltaPct={summary.data?.organizations.deltaPct}
             compareLabel={compareLabel}
           />
+          </WidgetBoundary>
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
+          <WidgetBoundary label="Total Clinics">
           <StatCard
             label="Total Clinics"
             icon={LocalHospitalIcon}
@@ -161,8 +199,10 @@ export default function PlatformDashboardPage() {
             deltaPct={summary.data?.clinics.deltaPct}
             compareLabel={compareLabel}
           />
+          </WidgetBoundary>
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
+          <WidgetBoundary label="Active Subscriptions">
           <StatCard
             label="Active Subscriptions"
             icon={CreditCardIcon}
@@ -173,8 +213,10 @@ export default function PlatformDashboardPage() {
             deltaPct={summary.data?.activeSubs.deltaPct}
             compareLabel={compareLabel}
           />
+          </WidgetBoundary>
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
+          <WidgetBoundary label="Monthly Recurring Revenue">
           <StatCard
             label="Monthly Recurring Revenue"
             icon={AttachMoneyIcon}
@@ -185,12 +227,14 @@ export default function PlatformDashboardPage() {
             deltaPct={summary.data?.mrr.deltaPct}
             compareLabel={compareLabel}
           />
+          </WidgetBoundary>
         </Grid>
       </Grid>
 
       {/* --- Row 2: distribution donut + clinic clients table ------------- */}
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
         <Grid item xs={12} lg={5}>
+          <WidgetBoundary label="Clinic Type Distribution">
           <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 3, height: '100%' }}>
             <CardContent>
               <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }}>
@@ -221,9 +265,11 @@ export default function PlatformDashboardPage() {
               ) : null}
             </CardContent>
           </Card>
+          </WidgetBoundary>
         </Grid>
 
         <Grid item xs={12} lg={7}>
+          <WidgetBoundary label="Clinic Clients">
           <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 3, height: '100%' }}>
             <CardContent sx={{ pb: 0 }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
@@ -243,12 +289,14 @@ export default function PlatformDashboardPage() {
               onPage={setOffset}
             />
           </Card>
+          </WidgetBoundary>
         </Grid>
       </Grid>
 
       {/* --- Row 3: onboarding activity + popular modules ---------------- */}
       <Grid container spacing={2.5}>
         <Grid item xs={12} lg={5}>
+          <WidgetBoundary label="Recent Onboarding Activity">
           <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 3, height: '100%' }}>
             <CardContent>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
@@ -264,9 +312,11 @@ export default function PlatformDashboardPage() {
               />
             </CardContent>
           </Card>
+          </WidgetBoundary>
         </Grid>
 
         <Grid item xs={12} lg={7}>
+          <WidgetBoundary label="Popular Modules">
           <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 3, height: '100%' }}>
             <CardContent>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
@@ -301,6 +351,7 @@ export default function PlatformDashboardPage() {
               )}
             </CardContent>
           </Card>
+          </WidgetBoundary>
         </Grid>
       </Grid>
     </Box>
