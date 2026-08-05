@@ -1,8 +1,13 @@
-# GET /platform/tenants (extended)
+# GET /platform/tenants/paged
 
-The dashboard's Clinic Clients table. Already exists as a flat
-`Tenant[]`; this extends it with pagination, module counts, and the
-branch count each row needs.
+The dashboard's Clinic Clients table. Deliberately a NEW path — the
+legacy `GET /platform/tenants` returns a flat `Tenant[]` and serves
+TenantsPage.tsx (a live production page whose shape must not change
+under it). This endpoint adds pagination, module counts, and the
+branch count each dashboard row needs.
+
+Long-term the two consumers converge on one endpoint; short-term this
+split keeps the deploy safe.
 
 ## Request
 
@@ -64,7 +69,9 @@ Standard 401 / 403. `422` on a malformed `limit` / `offset`.
 
 ## Notes
 
-- The existing endpoint returns `[]` at the top level with no pagination.
-  This is a REPLACEMENT shape. Contract-first means the frontend types the
-  new shape today; the backend rewrites next batch. Until then the stub
-  returns the shape below.
+- The existing `/platform/tenants` returns `Tenant[]` at the top level.
+  This new `/paged` endpoint returns the object above. The dashboard reads
+  `/paged`; TenantsPage reads the legacy endpoint. Both live at once.
+- adaptTenantList() on the frontend still tolerates a bare-array response
+  as belt-and-braces (see the crash-fix commit); when the backend for this
+  path is stable, that adapter branch can be deleted.

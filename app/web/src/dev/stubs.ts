@@ -197,7 +197,7 @@ const routes: Array<[method: string, pathPrefix: string, handler: StubHandler]> 
   // Platform dashboard endpoints, all with docs/contracts/*.md counterparts.
   ['GET', '/platform/summary',              summary],
   ['GET', '/platform/clinic-distribution',  clinicDistribution],
-  ['GET', '/platform/tenants',              tenantsList],
+  ['GET', '/platform/tenants/paged',        tenantsList],
   ['GET', '/platform/onboarding-activity',  onboardingActivity],
   ['GET', '/platform/popular-modules',      popularModules],
   ['GET', '/platform/health',               health],

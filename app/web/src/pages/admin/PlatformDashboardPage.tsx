@@ -123,7 +123,14 @@ export default function PlatformDashboardPage() {
   const tenants = useApi<TenantListResponse>(
     () =>
       apiClient
-        .get<TenantListResponse | TenantRow[]>('/platform/tenants', {
+        // Deliberately the /paged variant, not /platform/tenants. The legacy
+        // /platform/tenants endpoint returns Tenant[] and serves TenantsPage
+        // — a live production page whose shape must not change under it. The
+        // dashboard uses the new pagination contract at its own path. If the
+        // /paged endpoint has not shipped yet (transitional), the adapter
+        // downstream still tolerates a bare-array response so the page
+        // renders instead of blank-crashing.
+        .get<TenantListResponse | TenantRow[]>('/platform/tenants/paged', {
           params: { limit: PAGE_SIZE, offset },
         })
         .then((r) => adaptTenantList(r.data)),
