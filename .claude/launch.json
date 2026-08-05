@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "app/web"],
       "port": 5173
+    },
+    {
+      "name": "web-stub",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:stub", "--prefix", "app/web"],
+      "port": 5173
     }
   ]
 }

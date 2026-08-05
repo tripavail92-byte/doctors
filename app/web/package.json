@@ -6,6 +6,7 @@
   "description": "Health OS (Summit Systems) — web frontend (Vite + React + MUI)",
   "scripts": {
     "dev": "vite",
+    "dev:stub": "cross-env VITE_STUB_API=1 vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
@@ -29,6 +30,7 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "cross-env": "^10.1.0",
     "jsdom": "^24.1.3",
     "typescript": "^5.4.5",
     "vite": "^5.3.1",
