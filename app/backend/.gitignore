@@ -1,0 +1,3 @@
+
+# schema snapshots written by scripts/deploy-schema.ts when HEALTHOS_SCRATCH is unset
+schema-snapshot-*.json
