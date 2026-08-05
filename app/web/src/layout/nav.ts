@@ -131,6 +131,7 @@ export function filterNav(
 export const platformNavGroup: NavGroup = {
   label: "Platform",
   items: [
+    { label: "Dashboard", to: "/admin/dashboard", icon: DashboardIcon },
     { label: "Clinics", to: "/admin/tenants", icon: AdminPanelSettingsIcon },
   ],
 };

@@ -49,7 +49,9 @@ const FINANCIAL_ENTITLEMENT = 'reporting.core';
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  if (user?.isPlatformAdmin) return <Navigate to="/admin/tenants" replace />;
+  // Platform admins land on the dedicated platform dashboard, not on the
+  // clinic ops shortcut tiles below. See pages/admin/PlatformDashboardPage.
+  if (user?.isPlatformAdmin) return <Navigate to="/admin/dashboard" replace />;
 
   const canSeeFinancials =
     !!user &&
