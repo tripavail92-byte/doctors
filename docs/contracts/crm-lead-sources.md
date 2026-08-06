@@ -1,4 +1,4 @@
-# GET /crm/lead-sources
+# GET /dashboard/lead-sources
 
 The **source** Lead Funnel on the ops dashboard — grouping leads by the
 channel they came in through (Facebook, WhatsApp, Website, …). This is the

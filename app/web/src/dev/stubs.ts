@@ -395,17 +395,19 @@ const routes: Array<[method: string, pathPrefix: string, handler: StubHandler]> 
   ['GET', '/platform/popular-modules',      popularModules],
   ['GET', '/platform/health',               health],
 
-  // Clinic ops dashboard
-  ['GET', '/dashboard/today',               dashboardToday],
-  ['GET', '/appointments/today',            appointmentsToday],
-  ['GET', '/sessions/in-progress',          sessionsInProgress],
-  ['GET', '/encounters/recent',             encountersRecent],
-  ['GET', '/reports/revenue-split',         revenueSplit],
-  ['GET', '/pharmacy/stock/alerts',         stockAlerts],
-  ['GET', '/reports/doctor-earnings',       doctorEarnings],
-  ['GET', '/patients/queue',                patientQueue],
-  ['GET', '/crm/funnel',                    crmFunnel],
-  ['GET', '/crm/lead-sources',              crmLeadSources],
+  // Clinic ops dashboard — all under /dashboard/* to avoid colliding with
+  // parameterized routes like /appointments/:id (see DashboardController).
+  ['GET', '/dashboard/today',                dashboardToday],
+  ['GET', '/dashboard/appointments-today',   appointmentsToday],
+  ['GET', '/dashboard/sessions-in-progress', sessionsInProgress],
+  ['GET', '/dashboard/recent-encounters',    encountersRecent],
+  ['GET', '/dashboard/revenue-split',        revenueSplit],
+  ['GET', '/dashboard/stock-alerts',         stockAlerts],
+  ['GET', '/dashboard/doctor-earnings',      doctorEarnings],
+  ['GET', '/dashboard/patient-queue',        patientQueue],
+  ['GET', '/dashboard/lead-sources',         crmLeadSources],
+  // "By status" funnel keeps the pre-existing endpoint.
+  ['GET', '/crm/funnel',                     crmFunnel],
 ];
 
 /** Route lookup: strip the querystring before comparing. */

@@ -1,4 +1,4 @@
-# GET /appointments/today
+# GET /dashboard/appointments-today
 
 Today's appointment schedule for the calling clinic.
 

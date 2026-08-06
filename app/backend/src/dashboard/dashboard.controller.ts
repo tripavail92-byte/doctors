@@ -18,28 +18,33 @@ import { DashboardService } from './dashboard.service';
  * edition) returns 403; the frontend renders that widget's error state without
  * taking the rest of the dashboard down.
  */
+// Everything lives under /dashboard on purpose. Several widget paths would
+// otherwise collide with existing parameterized routes — /appointments/today
+// would match AppointmentsController's /appointments/:id (id="today" → invalid
+// UUID → 500), and likewise /patients/queue, /encounters/recent. Namespacing
+// under /dashboard makes these collision-proof and order-independent.
 @UseGuards(JwtAuthGuard, RolesGuard, EntitlementGuard)
-@Controller()
+@Controller('dashboard')
 export class DashboardController {
   constructor(private readonly dash: DashboardService) {}
 
   // --- financial (reporting.core) ------------------------------------------
 
-  @Get('dashboard/today')
+  @Get('today')
   @RequiresEntitlement('reporting.core')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.FINANCE)
   today() {
     return this.dash.today();
   }
 
-  @Get('reports/revenue-split')
+  @Get('revenue-split')
   @RequiresEntitlement('reporting.core')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.FINANCE)
   revenueSplit(@Query('period') period?: string) {
     return this.dash.revenueSplit(period);
   }
 
-  @Get('reports/doctor-earnings')
+  @Get('doctor-earnings')
   @RequiresEntitlement('reporting.core')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.FINANCE)
   doctorEarnings(@Query('period') period?: string) {
@@ -48,21 +53,21 @@ export class DashboardController {
 
   // --- operational: appointments (appointments.core) -----------------------
 
-  @Get('appointments/today')
+  @Get('appointments-today')
   @RequiresEntitlement('appointments.core')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.RECEPTION, UserRole.DOCTOR, UserRole.TREATMENT)
   appointmentsToday() {
     return this.dash.appointmentsToday();
   }
 
-  @Get('sessions/in-progress')
+  @Get('sessions-in-progress')
   @RequiresEntitlement('appointments.core')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.RECEPTION, UserRole.DOCTOR, UserRole.TREATMENT)
   sessionsInProgress() {
     return this.dash.sessionsInProgress();
   }
 
-  @Get('patients/queue')
+  @Get('patient-queue')
   @RequiresEntitlement('appointments.core')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.RECEPTION, UserRole.DOCTOR, UserRole.TREATMENT)
   patientQueue() {
@@ -71,7 +76,7 @@ export class DashboardController {
 
   // --- clinical: encounters (emr.core) -------------------------------------
 
-  @Get('encounters/recent')
+  @Get('recent-encounters')
   @RequiresEntitlement('emr.core')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.DOCTOR, UserRole.TREATMENT, UserRole.RECEPTION)
   recentEncounters(@Query('limit') limit?: string) {
@@ -81,7 +86,7 @@ export class DashboardController {
 
   // --- pharmacy stock (pharmacy.core) --------------------------------------
 
-  @Get('pharmacy/stock/alerts')
+  @Get('stock-alerts')
   @RequiresEntitlement('pharmacy.core')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.INVENTORY, UserRole.RECEPTION, UserRole.DOCTOR)
   stockAlerts() {
@@ -90,7 +95,7 @@ export class DashboardController {
 
   // --- CRM lead sources (crm.core) -----------------------------------------
 
-  @Get('crm/lead-sources')
+  @Get('lead-sources')
   @RequiresEntitlement('crm.core')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.SALES, UserRole.RECEPTION)
   leadSources(@Query('period') period?: string) {

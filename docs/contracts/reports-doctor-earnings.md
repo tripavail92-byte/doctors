@@ -1,4 +1,4 @@
-# GET /reports/doctor-earnings
+# GET /dashboard/doctor-earnings
 
 Per-doctor earnings for a period. Feeds the "Doctor Earnings Today" tile.
 

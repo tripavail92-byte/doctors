@@ -1,4 +1,4 @@
-# GET /sessions/in-progress
+# GET /dashboard/sessions-in-progress
 
 Treatment sessions currently in progress, one row per Room.
 

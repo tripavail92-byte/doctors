@@ -94,32 +94,34 @@ export default function ClinicOpsDashboardPage() {
     () => apiClient.get<DashboardToday>('/dashboard/today').then((r) => r.data),
   );
   const appts = useApi<AppointmentsTodayResponse>(
-    () => apiClient.get<AppointmentsTodayResponse>('/appointments/today').then((r) => r.data),
+    () => apiClient.get<AppointmentsTodayResponse>('/dashboard/appointments-today').then((r) => r.data),
   );
   const sessions = useApi<SessionsInProgressResponse>(
-    () => apiClient.get<SessionsInProgressResponse>('/sessions/in-progress').then((r) => r.data),
+    () => apiClient.get<SessionsInProgressResponse>('/dashboard/sessions-in-progress').then((r) => r.data),
   );
   const recent = useApi<RecentEncountersResponse>(
-    () => apiClient.get<RecentEncountersResponse>('/encounters/recent', { params: { limit: 5 } }).then((r) => r.data),
+    () => apiClient.get<RecentEncountersResponse>('/dashboard/recent-encounters', { params: { limit: 5 } }).then((r) => r.data),
   );
   const revenue = useApi<RevenueSplit>(
-    () => apiClient.get<RevenueSplit>('/reports/revenue-split', { params: { period: revPeriod } }).then((r) => r.data),
+    () => apiClient.get<RevenueSplit>('/dashboard/revenue-split', { params: { period: revPeriod } }).then((r) => r.data),
     [revPeriod],
   );
   const stock = useApi<StockAlertsResponse>(
-    () => apiClient.get<StockAlertsResponse>('/pharmacy/stock/alerts').then((r) => r.data),
+    () => apiClient.get<StockAlertsResponse>('/dashboard/stock-alerts').then((r) => r.data),
   );
   const earnings = useApi<DoctorEarningsResponse>(
-    () => apiClient.get<DoctorEarningsResponse>('/reports/doctor-earnings', { params: { period: 'today' } }).then((r) => r.data),
+    () => apiClient.get<DoctorEarningsResponse>('/dashboard/doctor-earnings', { params: { period: 'today' } }).then((r) => r.data),
   );
   const queue = useApi<QueueResponse>(
-    () => apiClient.get<QueueResponse>('/patients/queue').then((r) => r.data),
+    () => apiClient.get<QueueResponse>('/dashboard/patient-queue').then((r) => r.data),
   );
+  // "By status" funnel uses the pre-existing /crm/funnel endpoint; "by source"
+  // uses the new dashboard endpoint.
   const funnel = useApi<CrmFunnel>(
     () => apiClient.get<CrmFunnel>('/crm/funnel').then((r) => r.data),
   );
   const leadSources = useApi<LeadSourcesResponse>(
-    () => apiClient.get<LeadSourcesResponse>('/crm/lead-sources', { params: { period: 'this-month' } }).then((r) => r.data),
+    () => apiClient.get<LeadSourcesResponse>('/dashboard/lead-sources', { params: { period: 'this-month' } }).then((r) => r.data),
   );
 
   const revBuckets = useMemo(() => {

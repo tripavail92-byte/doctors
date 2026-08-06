@@ -1,4 +1,4 @@
-# GET /encounters/recent
+# GET /dashboard/recent-encounters
 
 Recent patient consultations across the calling clinic.
 

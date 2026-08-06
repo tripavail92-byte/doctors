@@ -1,4 +1,4 @@
-# GET /pharmacy/stock/alerts
+# GET /dashboard/stock-alerts
 
 Low-stock and expiring items — the alert list on the ops dashboard.
 

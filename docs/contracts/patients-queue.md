@@ -1,4 +1,4 @@
-# GET /patients/queue
+# GET /dashboard/patient-queue
 
 Patient queue tracker — the row at the bottom of the ops dashboard.
 

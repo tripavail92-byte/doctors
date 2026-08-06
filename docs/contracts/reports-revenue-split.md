@@ -1,4 +1,4 @@
-# GET /reports/revenue-split
+# GET /dashboard/revenue-split
 
 The Revenue vs Doctor Share donut on the ops dashboard.
 
