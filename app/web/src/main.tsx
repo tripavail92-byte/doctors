@@ -12,23 +12,30 @@ import { AuthProvider } from './auth/AuthContext';
 // a Markdown contract at docs/contracts/ and a TypeScript type at
 // src/api/contracts/. Off by default; enable with `VITE_STUB_API=1` when
 // starting Vite. Unstubbed requests still hit the real API.
-if (import.meta.env.VITE_STUB_API === '1') {
-  // Dynamic import so the stub module is not in the production bundle.
-  import('./dev/stubs').then((m) => m.installDevStubs());
+//
+// The install MUST complete before React first renders — otherwise a page
+// that fires its useApi calls on first mount (like ClinicOpsDashboardPage
+// hit via a direct URL) races the dynamic import and gets 500s back
+// through the /api proxy before the adapter is in place. Landing on /login
+// masks it because auth completes before any dashboard call, but reload on
+// a data page shows the race.
+async function bootstrap() {
+  if (import.meta.env.VITE_STUB_API === '1') {
+    const m = await import('./dev/stubs');
+    m.installDevStubs();
+  }
+
+  const theme = buildTheme();
+  ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+    <React.StrictMode>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </ThemeProvider>
+    </React.StrictMode>,
+  );
 }
 
-// Application entry point.
-// AuthProvider (session state) wraps the router; the MUI ThemeProvider
-// (default teal edition theme) + CssBaseline give a consistent baseline.
-const theme = buildTheme();
-
-ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <React.StrictMode>
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
-    </ThemeProvider>
-  </React.StrictMode>,
-);
+bootstrap();

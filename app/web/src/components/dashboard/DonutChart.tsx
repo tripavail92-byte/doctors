@@ -18,7 +18,9 @@ export interface DonutDatum {
   key: string;
   label: string;
   count: number;
-  pct: number;
+  pct?: number;
+  /** Optional explicit color. When set, overrides the COLOR_BY_KEY palette. */
+  color?: string;
 }
 
 export interface DonutChartProps {
@@ -27,6 +29,8 @@ export interface DonutChartProps {
   centerLabel?: string;
   /** SVG viewport side; also the height. Legend stacks to the right at md+, below at xs. */
   size?: number;
+  /** Custom formatter for the center number. Defaults to en-PK locale. */
+  formatCenter?: (n: number) => string;
 }
 
 // The palette maps the Edition-like keys the backend sends. Keys not in the
@@ -49,7 +53,7 @@ const COLOR_BY_KEY: Record<string, string> = {
 };
 const FALLBACK = '#94A3B8';
 
-export default function DonutChart({ data, total, centerLabel, size = 220 }: DonutChartProps) {
+export default function DonutChart({ data, total, centerLabel, size = 220, formatCenter }: DonutChartProps) {
   const theme = useTheme();
 
   // A single 100% slice ("Dermatology" only) would render as a full circle
@@ -96,7 +100,7 @@ export default function DonutChart({ data, total, centerLabel, size = 220 }: Don
       `A ${innerR} ${innerR} 0 ${largeArc} 0 ${xi1} ${yi1}`,
       'Z',
     ].join(' ');
-    return { d, path, color: COLOR_BY_KEY[d.key] ?? FALLBACK };
+    return { d, path, color: d.color ?? COLOR_BY_KEY[d.key] ?? FALLBACK };
   });
 
   return (
@@ -123,7 +127,7 @@ export default function DonutChart({ data, total, centerLabel, size = 220 }: Don
         >
           <Box sx={{ textAlign: 'center' }}>
             <Typography variant="h5" sx={{ fontWeight: 700, lineHeight: 1 }}>
-              {total.toLocaleString('en-PK')}
+              {formatCenter ? formatCenter(total) : total.toLocaleString('en-PK')}
             </Typography>
             {centerLabel && (
               <Typography variant="caption" color="text.secondary">
@@ -142,7 +146,7 @@ export default function DonutChart({ data, total, centerLabel, size = 220 }: Don
                 width: 10,
                 height: 10,
                 borderRadius: '50%',
-                bgcolor: COLOR_BY_KEY[d.key] ?? FALLBACK,
+                bgcolor: d.color ?? COLOR_BY_KEY[d.key] ?? FALLBACK,
                 flexShrink: 0,
               }}
             />
@@ -150,7 +154,7 @@ export default function DonutChart({ data, total, centerLabel, size = 220 }: Don
               {d.label}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-              {d.count.toLocaleString('en-PK')} ({d.pct.toFixed(1)}%)
+              {d.count.toLocaleString('en-PK')} ({((d.pct ?? (total ? (d.count / total) * 100 : 0))).toFixed(1)}%)
             </Typography>
           </Stack>
         ))}

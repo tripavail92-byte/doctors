@@ -54,7 +54,10 @@ export interface NavGroup {
 export const navGroups: NavGroup[] = [
   {
     label: "Overview",
-    items: [{ label: "Dashboard", to: "/", icon: DashboardIcon }],
+    items: [
+      { label: "Dashboard", to: "/", icon: DashboardIcon },
+      { label: "Clinic Ops", to: "/ops", icon: DashboardIcon },
+    ],
   },
   {
     label: "Clinical",
