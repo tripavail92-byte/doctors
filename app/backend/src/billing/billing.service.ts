@@ -25,6 +25,10 @@ type Line = {
   quantity: number;
   lineTotalPkr: number;
   side: BodySide | null;
+  // Release 1 Phase 1 attribution — the catalogue item this line was billed
+  // for, threaded through from the plan item. Null when the line was
+  // hand-entered (createManual) without naming a catalogue item.
+  serviceCatalogItemId?: string | null;
 };
 
 /**
@@ -464,7 +468,16 @@ export class BillingService {
         if (lineTotalPkr > MAX_INT4) {
           throw new BadRequestException(`Line total for "${e.name}" exceeds the maximum`);
         }
-        return { ...e, lineTotalPkr, side: (e.side as BodySide | null) ?? null };
+        // serviceCatalogItemId propagates from the input line to every
+        // expanded output line. A bilateral procedure that becomes two
+        // rows keeps the SAME catalogue link on both — the two rows are
+        // "left" and "right" of one billable item, not two items.
+        return {
+          ...e,
+          lineTotalPkr,
+          side: (e.side as BodySide | null) ?? null,
+          serviceCatalogItemId: it.serviceCatalogItemId ?? null,
+        };
       });
     });
     const total = lines.reduce((s, l) => s + l.lineTotalPkr, 0);
@@ -496,8 +509,23 @@ export class BillingService {
         throw new BadRequestException(`Treatment plan is already ${plan.status.toLowerCase()} — cannot re-invoice`);
       }
       // Recompute line totals server-side (don't trust stored values).
+      // serviceCatalogItemId propagates from the plan item, closing the
+      // audit's "half-day column" gap — every invoice line raised from a
+      // plan now carries its catalogue link forward. Without this, revenue
+      // by service and margin per treatment cannot be reconstructed. Half
+      // a day of migration + this one-line map = permanent attribution.
       const { lines, total } = this.buildLines(
-        plan.items.map((i) => ({ code: i.code, name: i.name, unitPricePkr: i.unitPricePkr, quantity: i.quantity })),
+        plan.items.map((i) => ({
+          code: i.code,
+          name: i.name,
+          unitPricePkr: i.unitPricePkr,
+          quantity: i.quantity,
+          // `?? undefined` because InvoiceLineInput declares this as `string?`
+          // (class-validator conventions), while the Prisma model has it as
+          // `string | null`. The InvoiceLineInput type is the wire shape; the
+          // Line/model has the DB null. This normalises at the boundary.
+          serviceCatalogItemId: i.serviceCatalogItemId ?? undefined,
+        })),
       );
       // The status check above is the fast path; the invoice_one_per_plan
       // partial unique index is the guarantee. If a plan was reset to PROPOSED

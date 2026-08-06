@@ -237,6 +237,12 @@ model User {
   memberships        UserMembership[]
   contextPreferences UserContextPreference[]
 
+  // Attribution — Release 1 Phase 1. Invoice lines this user personally
+  // performed (their commission source), and the Employee row payroll pays
+  // them through (at most one per tenant).
+  invoiceLinesPerformed InvoiceLineItem[] @relation("InvoiceLinePerformer")
+  employeeProfile       Employee?         @relation("EmployeeAsUser")
+
   @@index([tenantId])
 }
 
@@ -517,12 +523,26 @@ model Appointment {
   service    String
   createdAt  DateTime          @default(now())
 
-  tenant   Tenant  @relation(fields: [tenantId], references: [id])
-  patient  Patient @relation(fields: [patientId], references: [id])
-  provider User    @relation("AppointmentProvider", fields: [providerId], references: [id])
+  // ATTRIBUTION — Release 1 Phase 1.
+  //
+  // The `service` string above is free-text and disconnects the booking
+  // from the catalogue. Adding the FK closes the loop: which invoice line
+  // was raised for THIS booking, which catalogue item was booked, and (when
+  // combined with Encounter.appointmentId) which visits were never billed.
+  //
+  // Nullable, same reason as InvoiceLineItem — no destructive backfill.
+  // Every appointment created from a treatment plan carries it forward
+  // starting with this migration.
+  serviceCatalogItemId String? @db.Uuid
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  patient            Patient             @relation(fields: [patientId], references: [id])
+  provider           User                @relation("AppointmentProvider", fields: [providerId], references: [id])
+  serviceCatalogItem ServiceCatalogItem? @relation(fields: [serviceCatalogItemId], references: [id])
 
   @@index([tenantId])
   @@index([patientId])
+  @@index([serviceCatalogItemId])
 }
 
 model Invoice {
@@ -609,11 +629,32 @@ model InvoiceLineItem {
   // side, so the invoice says what was actually done to whom.
   side BodySide?
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id])
-  invoice Invoice @relation(fields: [invoiceId], references: [id])
+  // ATTRIBUTION COLUMNS — Release 1 Phase 1 "irreversible if deferred" work.
+  //
+  // Every invoice line raised without these is permanently unattributable
+  // to a doctor or a catalogue item. Doctor share, revenue-by-service and
+  // margin per treatment are all downstream reads over these two joins, and
+  // "the doctor whose commission this pays" cannot be reconstructed from
+  // history. Two columns, half a day of migration, saves an unrecoverable
+  // hole in the ledger.
+  //
+  // Nullable so historical rows can exist alongside new ones without a
+  // destructive backfill. Every new line raised from a plan or catalogue
+  // should populate both; the service layer will start requiring them in
+  // a follow-up commit once the migration has landed and the fill-forward
+  // is complete.
+  serviceCatalogItemId String? @db.Uuid
+  performedById        String? @db.Uuid
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  invoice            Invoice             @relation(fields: [invoiceId], references: [id])
+  serviceCatalogItem ServiceCatalogItem? @relation(fields: [serviceCatalogItemId], references: [id])
+  performedBy        User?               @relation("InvoiceLinePerformer", fields: [performedById], references: [id])
 
   @@index([tenantId])
   @@index([invoiceId])
+  @@index([performedById])
+  @@index([serviceCatalogItemId])
 }
 
 model Payment {
@@ -869,7 +910,25 @@ model Employee {
   status        EmployeeStatus @default(ACTIVE)
   createdAt     DateTime       @default(now())
 
+  // ATTRIBUTION — Release 1 Phase 1.
+  //
+  // A DOCTOR is a User (records notes, performs sessions, is booked into
+  // appointments). An EMPLOYEE is what payroll pays. Today they are two
+  // disconnected populations — a doctor's commission cannot be added to
+  // their payslip because nothing joins the two rows.
+  //
+  // Nullable: not every employee is also a system user (a cleaner, a driver),
+  // and not every system user is on payroll (a platform admin, an owner who
+  // takes no salary). Unique: at most one Employee per User anywhere — a
+  // double-mapping is a double-salary bug in the making. Postgres treats
+  // NULLs as distinct in a unique index, so the many-null case (unmapped
+  // employees) is fine. Global rather than composite because User.tenantId
+  // is nullable (platform admins) and the meaningful invariant is "one
+  // person, one payslip", not "one person per tenant".
+  userId String? @unique @db.Uuid
+
   tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  user     User?     @relation("EmployeeAsUser", fields: [userId], references: [id])
   payslips Payslip[]
 
   // One CNIC, one employee row, per tenant. Payroll pays a salary per row, so a
@@ -1302,6 +1361,12 @@ model ServiceCatalogItem {
   bilateralPricePkr Int?
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  // Attribution back-refs — every invoice line and every booked appointment
+  // that traces to this catalogue item. Read: "how much did we bill for a
+  // HydraFacial this month", "was the walk-in yesterday a HydraFacial too".
+  appointments Appointment[]
+  invoiceLines InvoiceLineItem[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
