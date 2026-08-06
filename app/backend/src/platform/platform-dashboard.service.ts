@@ -77,13 +77,17 @@ export class PlatformDashboardService {
 
     // ----- Active subscriptions and MRR
     //
-    // Subscription is under RLS (tenantId column, tenant_isolation policy).
-    // Same trap as everything else — naked count on the base client returns
-    // zero. check-rls-coverage caught this on the way in. Aggregated over
-    // ACTIVE tenants via forTenant() for both the "as of period end" count
-    // and the MRR pricing pass.
+    // Subscription is under RLS — aggregated via forTenant() per tenant.
+    //
+    // "Active NOW" is the meaningful current-period value; "active at the
+    // end of the last period" is the meaningful comparison. Using
+    // current.to (a future instant) for the current value would exclude
+    // subs that are active today but whose currentPeriodEnd falls before
+    // period end — for a monthly clinic subscription mid-month, that is
+    // exactly wrong. Real production bit: 3 ACTIVE subs each ending in ~2
+    // weeks read as `0 active` before this fix.
     const [subCurrent, mrrCurrent, subPrevious, mrrPrevious] = await this.subscriptionsAndMrrAt(
-      current.to,
+      now,
       previous.to,
     );
 
