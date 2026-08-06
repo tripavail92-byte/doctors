@@ -108,6 +108,21 @@ if isinstance(body, dict):
     ck('organizations.deltaPct is number-or-null', o.get('deltaPct') is None or isinstance(o.get('deltaPct'), (int, float)),
        f'value={o.get("deltaPct")}')
 
+    # THE INVARIANT.
+    # Any seeded platform (glow-derma auto-bootstraps an Organization) has
+    # >= 1 Organization row. Zero is the exact "structurally-always-zero"
+    # RLS trap that this endpoint used to hit — Organization is scoped
+    # through the OrganizationClinic bespoke policy, so a naked count on
+    # the base client returned nothing. Must be positive on any seeded DB.
+    ck('organizations.count > 0 on a seeded platform',
+       isinstance(o.get('count'), int) and o['count'] > 0,
+       f'value={o.get("count")}')
+
+    c = body.get('clinics') or {}
+    ck('clinics.count > 0 on a seeded platform',
+       isinstance(c.get('count'), int) and c['count'] > 0,
+       f'value={c.get("count")}')
+
     mrr = body.get('mrr') or {}
     ck('mrr.pkr is a whole integer of rupees', isinstance(mrr.get('pkr'), int) and mrr['pkr'] >= 0,
        f'value={mrr.get("pkr")}')

@@ -52,13 +52,20 @@ export class PlatformDashboardService {
     // for MRR (only counts subscriptions active at period end, priced from
     // their plan). Delta compares current to previous.
 
-    // ----- Organizations: as-of counts (createdAt <= endOfPeriod, not deleted)
-    const orgCurrent = await this.prisma.organization.count({
-      where: { createdAt: { lte: current.to }, status: 'ACTIVE' },
-    });
-    const orgPrevious = await this.prisma.organization.count({
-      where: { createdAt: { lte: previous.to }, status: 'ACTIVE' },
-    });
+    // ----- Organizations: distinct orgs with at least one clinic link to an
+    // ACTIVE tenant, "as-of" the end of the period.
+    //
+    // Both Organization AND OrganizationClinic are under RLS. A naked
+    // organization.count() on the base client (no app.tenant_id set) fails
+    // closed to zero — the exact "structurally-always-zero" trap this class
+    // has been burned by three times now. The fix is to loop over active
+    // tenants, read their linked orgs through forTenant(), and dedupe the
+    // organizationId set. Small N (dozens of tenants), one indexed lookup
+    // per tenant, no cross-tenant read on a bypassing role.
+    const [orgCurrent, orgPrevious] = await Promise.all([
+      this.distinctOrganizationsAsOf(current.to),
+      this.distinctOrganizationsAsOf(previous.to),
+    ]);
 
     // ----- Clinics (Tenant rows) — active only, as-of counts
     const clinicCurrent = await this.prisma.tenant.count({
@@ -93,6 +100,37 @@ export class PlatformDashboardService {
       activeSubs: { count: subCurrent, deltaPct: pctDelta(subCurrent, subPrevious) },
       mrr: { pkr: mrrCurrent, deltaPct: pctDelta(mrrCurrent, mrrPrevious) },
     };
+  }
+
+  /**
+   * Count DISTINCT Organizations reachable through any ACTIVE tenant whose
+   * clinic-link was created on or before `asOf`. Reads through forTenant() so
+   * the RLS trap that returned zero on the base client cannot recur.
+   */
+  private async distinctOrganizationsAsOf(asOf: Date): Promise<number> {
+    const activeTenants = await this.prisma.tenant.findMany({
+      where: { status: TenantStatus.ACTIVE, createdAt: { lte: asOf } },
+      select: { id: true },
+    });
+    const orgs = new Set<string>();
+    await Promise.all(
+      activeTenants.map(async (t) => {
+        try {
+          const links = await this.prisma.forTenant(t.id, (tx) =>
+            tx.organizationClinic.findMany({
+              where: { createdAt: { lte: asOf } },
+              select: { organizationId: true },
+            }),
+          );
+          for (const l of links) orgs.add(l.organizationId);
+        } catch (e) {
+          this.logger.warn(
+            `distinctOrganizationsAsOf: failed for tenant ${t.id}: ${(e as Error).message}`,
+          );
+        }
+      }),
+    );
+    return orgs.size;
   }
 
   /** Monthly recurring revenue as of a point in time, in whole PKR. */
