@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, Logger } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Edition, Prisma, SubscriptionStatus, TenantStatus, UserRole } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import * as bcrypt from 'bcryptjs';
@@ -194,6 +194,70 @@ export class PlatformTenantsService {
       entitlements: result.entitlements,
       packs: result.packs,
     };
+  }
+
+  /**
+   * Re-materialize an existing tenant's entitlements from its edition's CURRENT
+   * bundle. Entitlements are frozen at onboarding (create() writes the bundle
+   * as it stood then), so when an edition later gains a feature — e.g. adding
+   * pharmacy.core to DERMATOLOGY/SPECIALTY — existing clinics on that edition do
+   * not receive it automatically. This grants the missing keys.
+   *
+   * ADDITIVE ONLY. It grants (and re-enables) the keys the edition includes; it
+   * never revokes a key the tenant already has, even if the edition no longer
+   * lists it. Revocation is a billing action with its own consequences and is
+   * deliberately not done here.
+   *
+   * Writes run inside forTenant(tenantId) so the RLS INSERT check
+   * (app.tenant_id = tenantId) is satisfied — the same split create() relies on.
+   */
+  async syncEntitlements(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { id: true, name: true, slug: true, edition: true },
+    });
+    if (!tenant) {
+      throw new NotFoundException(`No tenant with id ${tenantId}`);
+    }
+    const keys = featuresForEdition(tenant.edition);
+    if (!keys.length) {
+      throw new ConflictException(`Edition ${tenant.edition} grants no features.`);
+    }
+
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const existing = await tx.tenantEntitlement.findMany({
+        select: { featureKey: true, enabled: true },
+      });
+      const state = new Map(existing.map((e) => [e.featureKey, e.enabled]));
+      const toAdd = keys.filter((k) => !state.has(k));
+      const toEnable = keys.filter((k) => state.get(k) === false);
+
+      if (toAdd.length) {
+        await tx.tenantEntitlement.createMany({
+          data: toAdd.map((key) => ({ tenantId, featureKey: key, enabled: true })),
+          skipDuplicates: true,
+        });
+      }
+      for (const key of toEnable) {
+        await tx.tenantEntitlement.update({
+          where: { tenantId_featureKey: { tenantId, featureKey: key } },
+          data: { enabled: true },
+        });
+      }
+
+      this.logger.log(
+        `Synced entitlements for ${tenant.slug} (${tenant.edition}): ` +
+          `+${toAdd.length} added [${toAdd.join(', ') || 'none'}], ${toEnable.length} re-enabled`,
+      );
+      return {
+        tenantId: tenant.id,
+        slug: tenant.slug,
+        edition: tenant.edition,
+        added: toAdd,
+        reEnabled: toEnable,
+        totalEntitlements: keys.length,
+      };
+    });
   }
 
   /**

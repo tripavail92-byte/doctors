@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -32,5 +32,15 @@ export class PlatformTenantsController {
   @Post()
   create(@Body() dto: CreateTenantDto) {
     return this.tenants.create(dto);
+  }
+
+  /**
+   * Grant an existing tenant any features its edition bundle now includes but
+   * that were not present when it was onboarded (e.g. pharmacy.core added to
+   * DERMATOLOGY). Additive and idempotent — safe to call repeatedly.
+   */
+  @Post(':id/entitlements/sync')
+  syncEntitlements(@Param('id') id: string) {
+    return this.tenants.syncEntitlements(id);
   }
 }

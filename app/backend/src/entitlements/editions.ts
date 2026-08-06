@@ -99,9 +99,15 @@ const SPECIALTY_CLINICAL = [
 // Each specialty clinic type gets CLINIC features + its own pack(s) + the
 // clinical features that pack needs. A dermatology clinic does not receive
 // the dental odontogram, and a dental clinic does not get phototherapy.
+//
+// Aesthetic / dermatology clinics run on injectables and consumables — Botox
+// vials, filler syringes, numbing cream, PRP kits — so consumables/stock
+// tracking (pharmacy.core, which the ops dashboard's Stock Alerts widget reads)
+// is core to the workflow, not an add-on. It is bundled here for that reason.
 const DERMATOLOGY_FEATURES = [
   ...CLINIC_ADDONS, ...SPECIALTY_SHARED,
   'pack.aesthetic', 'pack.dermatology',
+  'pharmacy.core',
 ];
 
 const DENTAL_FEATURES = [
@@ -135,7 +141,9 @@ const PHYSIOTHERAPY_FEATURES = [
 export const EDITION_FEATURES: Record<Edition, string[]> = {
   [Edition.SOLO]: [...CORE],
   [Edition.CLINIC]: [...CORE, ...CLINIC_ADDONS],
-  [Edition.SPECIALTY]: [...CORE, ...CLINIC_ADDONS, ...SPECIALTY_CLINICAL],
+  // Multi-specialty carries consumables/stock too (same aesthetic rationale as
+  // DERMATOLOGY — injectables and consumables are part of the workflow).
+  [Edition.SPECIALTY]: [...CORE, ...CLINIC_ADDONS, ...SPECIALTY_CLINICAL, 'pharmacy.core'],
   [Edition.DERMATOLOGY]: [...CORE, ...DERMATOLOGY_FEATURES],
   [Edition.DENTAL]: [...CORE, ...DENTAL_FEATURES],
   [Edition.OBGYN]: [...CORE, ...OBGYN_FEATURES],
