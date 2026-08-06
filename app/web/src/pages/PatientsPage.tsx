@@ -28,7 +28,7 @@ import {
   Typography,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useApi } from '../api/useApi';
 import { describeError } from '../api/fetchErrors';
@@ -49,7 +49,10 @@ export default function PatientsPage() {
   const { data, loading, error, reload } = useApi<Patient[]>(() =>
     apiClient.get<Patient[]>('/patients').then((r) => r.data),
   );
-  const [query, setQuery] = useState('');
+  // Seed the filter from ?q= so the global top-bar search lands here with the
+  // term already applied. Local edits from the on-page field take over after.
+  const [searchParams] = useSearchParams();
+  const [query, setQuery] = useState(searchParams.get('q') ?? '');
 
   // Registering a patient had NO route in the SPA at all — the first thing
   // anyone tries in a demo, and the entry point to every other workflow.

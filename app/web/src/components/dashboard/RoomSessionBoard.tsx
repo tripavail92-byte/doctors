@@ -8,6 +8,7 @@
  */
 import { Box, Card, CardContent, Chip, LinearProgress, Skeleton, Stack, Typography } from '@mui/material';
 import type { RoomStatusRow } from '../../api/contracts/clinic-ops';
+import { PersonAvatar } from './PersonAvatar';
 
 export interface RoomSessionBoardProps {
   rooms?: RoomStatusRow[];
@@ -51,9 +52,12 @@ export function RoomSessionBoard({ rooms, loading, error }: RoomSessionBoardProp
                     variant="outlined"
                   />
                 </Stack>
-                <Typography variant="body2" color="text.primary">
-                  {row.session.patient.name} · {row.session.service}
-                </Typography>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <PersonAvatar name={row.session.patient.name} size={24} />
+                  <Typography variant="body2" color="text.primary">
+                    {row.session.patient.name} · {row.session.service}
+                  </Typography>
+                </Stack>
                 <Box mt={1}>
                   <LinearProgress
                     variant="determinate"

@@ -180,3 +180,36 @@ export interface CrmFunnel {
   byStatus: Record<string, number>;
   conversionRatePct: number;
 }
+
+// --- GET /crm/lead-sources — the SOURCE funnel (reference #4) ---------------
+//
+// Distinct from /crm/funnel (which groups by pipeline STATUS). This groups
+// by acquisition CHANNEL — where the lead came from — which is what the
+// reference dashboard's Lead Funnel shows. Backend needs Lead.source
+// normalization; see docs/contracts/crm-lead-sources.md.
+
+export type LeadSourceKey =
+  | 'FACEBOOK'
+  | 'WHATSAPP'
+  | 'WEBSITE'
+  | 'INSTAGRAM'
+  | 'REFERRAL'
+  | 'WALK_IN'
+  | 'CONSULTATION_BOOKED'
+  | 'OTHER';
+
+export interface LeadSourceRow {
+  key: LeadSourceKey;
+  label: string;
+  count: number;
+  /** Signed percentage vs the previous equal-length period; null if unavailable. */
+  deltaPct: number | null;
+}
+
+export interface LeadSourcesResponse {
+  period: { from: string; to: string };
+  total: number;
+  rows: LeadSourceRow[];
+  /** 100 * consultationsBooked / total, rounded to one decimal. */
+  conversionRatePct: number;
+}

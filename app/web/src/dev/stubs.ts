@@ -48,6 +48,7 @@ import type {
   CrmFunnel,
   DashboardToday,
   DoctorEarningsResponse,
+  LeadSourcesResponse,
   QueueResponse,
   RecentEncountersResponse,
   RevenueSplit,
@@ -360,6 +361,23 @@ const crmFunnel: StubHandler = () => ({
   },
 });
 
+// The SOURCE funnel (reference #4). Backend needs Lead.source normalization
+// before this is real; the stub carries the reference's channel breakdown so
+// the "By source" tab can be designed against contract-shaped data.
+const crmLeadSources: StubHandler = () => ({
+  body: <LeadSourcesResponse>{
+    period: { from: '2026-08-01', to: '2026-08-31' },
+    total: 676,
+    rows: [
+      { key: 'FACEBOOK',            label: 'Facebook Leads',       count: 245, deltaPct: 18.0 },
+      { key: 'WHATSAPP',            label: 'WhatsApp Leads',       count: 189, deltaPct: 12.5 },
+      { key: 'WEBSITE',             label: 'Website Leads',        count: 156, deltaPct:  9.3 },
+      { key: 'CONSULTATION_BOOKED', label: 'Consultations Booked', count:  86, deltaPct: 14.8 },
+    ],
+    conversionRatePct: 18.5,
+  },
+});
+
 // The route table is a list of tuples rather than a Map because pattern
 // matching is done longest-prefix, not exact. `/platform/tenants?limit=…`
 // must match `/platform/tenants`.
@@ -387,6 +405,7 @@ const routes: Array<[method: string, pathPrefix: string, handler: StubHandler]> 
   ['GET', '/reports/doctor-earnings',       doctorEarnings],
   ['GET', '/patients/queue',                patientQueue],
   ['GET', '/crm/funnel',                    crmFunnel],
+  ['GET', '/crm/lead-sources',              crmLeadSources],
 ];
 
 /** Route lookup: strip the querystring before comparing. */

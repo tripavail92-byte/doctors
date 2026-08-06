@@ -34,6 +34,8 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -51,12 +53,14 @@ import StatCard from '../components/dashboard/StatCard';
 import DonutChart from '../components/dashboard/DonutChart';
 import WidgetBoundary from '../components/dashboard/WidgetBoundary';
 import { RoomSessionBoard } from '../components/dashboard/RoomSessionBoard';
-import { LeadFunnelChart } from '../components/dashboard/LeadFunnelChart';
+import { LeadFunnelChart, type FunnelBar } from '../components/dashboard/LeadFunnelChart';
+import { PersonAvatar } from '../components/dashboard/PersonAvatar';
 import type {
   AppointmentsTodayResponse,
   CrmFunnel,
   DashboardToday,
   DoctorEarningsResponse,
+  LeadSourcesResponse,
   QueueResponse,
   RecentEncountersResponse,
   RevenuePeriod,
@@ -65,6 +69,18 @@ import type {
   StockAlertsResponse,
 } from '../api/contracts/clinic-ops';
 
+type FunnelView = 'source' | 'status';
+
+// Human labels for the status funnel keys (the source funnel ships its own).
+const STATUS_LABELS: Record<string, string> = {
+  NEW: 'New', CONTACTED: 'Contacted', QUALIFIED: 'Qualified',
+  CONVERTED: 'Converted', LOST: 'Lost',
+};
+const STATUS_ORDER = ['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED', 'LOST'];
+
+const todayLabel = () =>
+  new Date().toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
+
 const PKR = (n: number) => 'Rs ' + n.toLocaleString('en-PK');
 const NUM = (n: number) => n.toLocaleString('en-PK');
 const time = (iso: string) =>
@@ -72,6 +88,7 @@ const time = (iso: string) =>
 
 export default function ClinicOpsDashboardPage() {
   const [revPeriod, setRevPeriod] = useState<RevenuePeriod>('this-month');
+  const [funnelView, setFunnelView] = useState<FunnelView>('source');
 
   const today = useApi<DashboardToday>(
     () => apiClient.get<DashboardToday>('/dashboard/today').then((r) => r.data),
@@ -101,6 +118,9 @@ export default function ClinicOpsDashboardPage() {
   const funnel = useApi<CrmFunnel>(
     () => apiClient.get<CrmFunnel>('/crm/funnel').then((r) => r.data),
   );
+  const leadSources = useApi<LeadSourcesResponse>(
+    () => apiClient.get<LeadSourcesResponse>('/crm/lead-sources', { params: { period: 'this-month' } }).then((r) => r.data),
+  );
 
   const revBuckets = useMemo(() => {
     if (!revenue.data) return [];
@@ -109,6 +129,26 @@ export default function ClinicOpsDashboardPage() {
       { key: 'doctor', label: "Doctor's Share",  count: revenue.data.doctorPkr, color: '#10b981' },
     ];
   }, [revenue.data]);
+
+  // Normalize whichever funnel is active into the widget's bar shape.
+  const funnelBars = useMemo<FunnelBar[]>(() => {
+    if (funnelView === 'source') {
+      return (leadSources.data?.rows ?? []).map((r) => ({
+        key: r.key, label: r.label, count: r.count, deltaPct: r.deltaPct,
+      }));
+    }
+    const byStatus = funnel.data?.byStatus ?? {};
+    return STATUS_ORDER
+      .filter((s) => byStatus[s] != null)
+      .map((s) => ({ key: s, label: STATUS_LABELS[s] ?? s, count: byStatus[s] }));
+  }, [funnelView, leadSources.data, funnel.data]);
+
+  const funnelActive = funnelView === 'source' ? leadSources : funnel;
+  const funnelTotal = funnelView === 'source' ? leadSources.data?.total : funnel.data?.total;
+  const funnelFooter =
+    funnelView === 'source'
+      ? leadSources.data != null ? `${leadSources.data.conversionRatePct}% conversion` : undefined
+      : funnel.data != null ? `${funnel.data.conversionRatePct}% conversion` : undefined;
 
   return (
     <Box>
@@ -128,6 +168,23 @@ export default function ClinicOpsDashboardPage() {
             Today at a glance — appointments, rooms, and the money side.
           </Typography>
         </Box>
+
+        {/* Date context. The dashboard is a live "today" view — the endpoints
+            are scoped to the current day server-side and take no date param,
+            so this shows the date rather than pretending to filter by it.
+            When per-day history lands it becomes a real picker. */}
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          sx={{ border: 1, borderColor: 'divider', borderRadius: 2, px: 1.5, py: 0.75 }}
+        >
+          <CalendarMonthIcon fontSize="small" color="action" />
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {todayLabel()}
+          </Typography>
+          <Chip label="Today" size="small" color="primary" variant="outlined" />
+        </Stack>
       </Stack>
 
       {/* --- Row 1: four stat cards -------------------------------------- */}
@@ -271,8 +328,32 @@ export default function ClinicOpsDashboardPage() {
         </Grid>
         <Grid item xs={12} lg={4}>
           <WidgetBoundary label="Lead Funnel">
-            <SectionCard title="Lead Funnel">
-              <LeadFunnelChart data={funnel.data ?? undefined} loading={funnel.loading} error={funnel.error} />
+            <SectionCard
+              title="Lead Funnel"
+              action={
+                <ToggleButtonGroup
+                  size="small"
+                  exclusive
+                  value={funnelView}
+                  onChange={(_e, v: FunnelView | null) => v && setFunnelView(v)}
+                >
+                  <ToggleButton value="source" sx={{ textTransform: 'none', px: 1.25 }}>By source</ToggleButton>
+                  <ToggleButton value="status" sx={{ textTransform: 'none', px: 1.25 }}>By status</ToggleButton>
+                </ToggleButtonGroup>
+              }
+            >
+              <LeadFunnelChart
+                bars={funnelBars}
+                total={funnelTotal}
+                footerLabel={funnelFooter}
+                loading={funnelActive.loading}
+                error={funnelActive.error}
+                emptyMessage={
+                  funnelView === 'source'
+                    ? 'No lead sources yet. Source tracking activates once WhatsApp and web intake are wired.'
+                    : 'No leads yet. Capture the first from WhatsApp or the website intake form.'
+                }
+              />
             </SectionCard>
           </WidgetBoundary>
         </Grid>
@@ -353,6 +434,7 @@ function AppointmentsTable({
             <TableCell>Patient</TableCell>
             <TableCell>Service</TableCell>
             <TableCell>Doctor</TableCell>
+            <TableCell>Room</TableCell>
             <TableCell>Status</TableCell>
           </TableRow>
         </TableHead>
@@ -363,11 +445,23 @@ function AppointmentsTable({
                 {time(r.start)}
               </TableCell>
               <TableCell>
-                <Typography variant="body2" fontWeight={600}>{r.patient.name}</Typography>
-                <Typography variant="caption" color="text.secondary">{r.patient.mrn}</Typography>
+                <Stack direction="row" spacing={1.25} alignItems="center">
+                  <PersonAvatar name={r.patient.name} size={30} />
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" fontWeight={600} noWrap>{r.patient.name}</Typography>
+                    <Typography variant="caption" color="text.secondary">{r.patient.mrn}</Typography>
+                  </Box>
+                </Stack>
               </TableCell>
               <TableCell>{r.service.label}</TableCell>
               <TableCell>{r.provider.name}</TableCell>
+              <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                {r.roomLabel ? (
+                  <Chip label={r.roomLabel} size="small" variant="outlined" />
+                ) : (
+                  <Typography variant="caption" color="text.disabled">—</Typography>
+                )}
+              </TableCell>
               <TableCell>
                 <ApptStatusPill status={r.status} />
               </TableCell>
@@ -416,21 +510,22 @@ function EncountersList({
   return (
     <Stack spacing={1.25}>
       {rows.map((r) => (
-        <Stack key={r.id} direction="row" spacing={2} sx={{ py: 1, borderBottom: 1, borderColor: 'divider', '&:last-child': { borderBottom: 0 } }}>
-          <Box sx={{ minWidth: 60 }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-              {time(r.occurredAt)}
-            </Typography>
-          </Box>
+        <Stack key={r.id} direction="row" spacing={1.5} alignItems="center" sx={{ py: 1, borderBottom: 1, borderColor: 'divider', '&:last-child': { borderBottom: 0 } }}>
+          <PersonAvatar name={r.patient.name} size={34} />
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="body2" fontWeight={600}>{r.patient.name}</Typography>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="body2" fontWeight={600} noWrap>{r.patient.name}</Typography>
+            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
               {r.provider.name}{r.concern ? ` · ${r.concern}` : ''}
             </Typography>
           </Box>
-          {r.recommendation && (
-            <Chip size="small" label={r.recommendation} variant="outlined" />
-          )}
+          <Stack alignItems="flex-end" spacing={0.5} sx={{ flexShrink: 0 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+              {time(r.occurredAt)}
+            </Typography>
+            {r.recommendation && (
+              <Chip size="small" label={r.recommendation} variant="outlined" />
+            )}
+          </Stack>
         </Stack>
       ))}
     </Stack>
@@ -530,8 +625,11 @@ function DoctorEarningsList({
       {rows.map((r) => (
         <Stack key={r.userId} direction="row" alignItems="center" justifyContent="space-between"
                sx={{ py: 1, borderBottom: 1, borderColor: 'divider', '&:last-child': { borderBottom: 0 } }}>
-          <Typography variant="body2" fontWeight={600}>{r.name}</Typography>
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
+            <PersonAvatar name={r.name} size={30} />
+            <Typography variant="body2" fontWeight={600} noWrap>{r.name}</Typography>
+          </Stack>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
             <Typography variant="body2" fontWeight={700} sx={{ fontVariantNumeric: 'tabular-nums' }}>
               {PKR(r.pkr)}
             </Typography>
@@ -580,8 +678,13 @@ function PatientQueueGrid({
         <Grid item xs={12} sm={6} md={4} lg={2} key={r.patient.id}>
           <Card variant="outlined" sx={{ height: '100%' }}>
             <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
-              <Typography variant="subtitle2" fontWeight={700} noWrap>{r.patient.name}</Typography>
-              <Typography variant="caption" color="text.secondary">{r.patient.mrn}</Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <PersonAvatar name={r.patient.name} size={30} />
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="subtitle2" fontWeight={700} noWrap>{r.patient.name}</Typography>
+                  <Typography variant="caption" color="text.secondary">{r.patient.mrn}</Typography>
+                </Box>
+              </Stack>
               <Stack direction="row" justifyContent="space-between" mt={1} alignItems="center">
                 <Chip size="small" label={r.status.replace(/_/g, ' ').toLowerCase()} variant="outlined" />
                 <Typography variant="caption" color={r.waitedMin > 20 ? 'error.main' : 'text.secondary'}>

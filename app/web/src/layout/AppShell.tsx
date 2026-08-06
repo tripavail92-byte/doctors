@@ -2,7 +2,7 @@
 // Permanent MUI Drawer sidebar (brand + grouped nav) on the left,
 // AppBar topbar (real signed-in user + logout menu) on top, and an
 // <Outlet /> for the routed page content.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Link as RouterLink,
   Outlet,
@@ -12,10 +12,13 @@ import {
 import {
   AppBar,
   Avatar,
+  Badge,
   Box,
   Divider,
   Drawer,
   FormControl,
+  IconButton,
+  InputAdornment,
   List,
   ListItemButton,
   ListItemIcon,
@@ -25,12 +28,16 @@ import {
   MenuItem,
   Select,
   SelectChangeEvent,
+  TextField,
   Toolbar,
+  Tooltip,
   Typography,
   alpha,
 } from "@mui/material";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SpaIcon from "@mui/icons-material/Spa";
+import SearchIcon from "@mui/icons-material/Search";
+import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import { navGroups, platformNavGroup, filterNav } from "./nav";
 import { useAuth } from "../auth/AuthContext";
 import FetchErrorBanner from '../components/FetchErrorBanner';
@@ -48,8 +55,31 @@ export default function AppShell() {
   const navigate = useNavigate();
   const { user, contexts, switchContext, logout } = useAuth();
   const [anchor, setAnchor] = useState<null | HTMLElement>(null);
+  const [notifAnchor, setNotifAnchor] = useState<null | HTMLElement>(null);
+  const [term, setTerm] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const activeMembershipId = user?.membershipId ?? contexts.find((c) => c.isDefault)?.membershipId ?? '';
+
+  // ⌘K / Ctrl+K focuses the global search — the affordance the placeholder promises.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const submitSearch = () => {
+    const q = term.trim();
+    if (!q) return;
+    // Patient search is what exists today, so the box does exactly that —
+    // the placeholder is scoped to match, not to promise invoice/appt search.
+    navigate(`/patients?q=${encodeURIComponent(q)}`);
+  };
 
   const handleContextChange = async (event: SelectChangeEvent<string>) => {
     const membershipId = event.target.value;
@@ -178,9 +208,9 @@ export default function AppShell() {
           sx={{ bgcolor: "background.paper", borderBottom: 1, borderColor: "divider" }}
         >
           <Toolbar sx={{ gap: 2 }}>
-            <Box sx={{ flexGrow: 1 }}>
+            <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
               {!user?.isPlatformAdmin && contexts.length > 1 && (
-                <FormControl size="small" sx={{ minWidth: 260, maxWidth: 360 }}>
+                <FormControl size="small" sx={{ minWidth: 220, maxWidth: 320 }}>
                   <Select
                     value={activeMembershipId ?? ''}
                     onChange={handleContextChange}
@@ -197,7 +227,68 @@ export default function AppShell() {
                   </Select>
                 </FormControl>
               )}
+
+              {/* Global search — scoped to patients, which is the search that
+                  exists today. ⌘K focuses it; Enter runs it. */}
+              {!user?.isPlatformAdmin && (
+                <TextField
+                  inputRef={searchRef}
+                  size="small"
+                  placeholder="Search patients…"
+                  value={term}
+                  onChange={(e) => setTerm(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') submitSearch(); }}
+                  sx={{ width: '100%', maxWidth: 420 }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            px: 0.75, py: 0.25, borderRadius: 1, border: 1,
+                            borderColor: 'divider', color: 'text.secondary', whiteSpace: 'nowrap',
+                          }}
+                        >
+                          ⌘K
+                        </Typography>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              )}
             </Box>
+
+            {/* Notifications. No feed backend yet, so the bell carries no
+                fabricated count — it opens an honest empty state. */}
+            <Tooltip title="Notifications">
+              <IconButton onClick={(e) => setNotifAnchor(e.currentTarget)}>
+                <Badge color="error" variant="dot" invisible>
+                  <NotificationsNoneIcon />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+            <Menu
+              anchorEl={notifAnchor}
+              open={Boolean(notifAnchor)}
+              onClose={() => setNotifAnchor(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+              <Box sx={{ px: 2, py: 1.5, maxWidth: 280 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  Notifications
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  You're all caught up. Alerts for stock, appointments, and
+                  approvals will appear here once those feeds are wired.
+                </Typography>
+              </Box>
+            </Menu>
 
             {/* Signed-in user + logout menu */}
             <Box sx={{ textAlign: "right", display: { xs: "none", sm: "block" } }}>
