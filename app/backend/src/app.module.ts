@@ -23,6 +23,7 @@ import { DentalModule } from './dental/dental.module';
 import { LabModule } from './lab/lab.module';
 import { PharmacyModule } from './pharmacy/pharmacy.module';
 import { ReportsModule } from './reports/reports.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { HrModule } from './hr/hr.module';
 import { IpdModule } from './ipd/ipd.module';
 import { CrmModule } from './crm/crm.module';
@@ -70,6 +71,7 @@ import { TenantMiddleware } from './common/tenant/tenant.middleware';
     LabModule,
     PharmacyModule,
     ReportsModule,
+    DashboardModule,
     HrModule,
     IpdModule,
     CrmModule,

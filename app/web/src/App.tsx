@@ -1,8 +1,8 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import AppShell from './layout/AppShell';
 import { RequireAuth } from './auth/RequireAuth';
+import { useAuth } from './auth/AuthContext';
 import LoginPage from './pages/LoginPage';
-import DashboardPage from './pages/DashboardPage';
 import PatientsPage from './pages/PatientsPage';
 import PatientRecordPage from './pages/PatientRecordPage';
 import DentalPage from './pages/DentalPage';
@@ -28,6 +28,16 @@ import TenantsPage from './pages/TenantsPage';
 import PlatformDashboardPage from './pages/admin/PlatformDashboardPage';
 import ClinicOpsDashboardPage from './pages/ClinicOpsDashboardPage';
 
+// The landing screen for '/'. A platform admin has no clinic, so they go to
+// the platform dashboard; every clinic user lands on the clinic ops dashboard
+// (reference #4) — this IS the clinic's dashboard, not a separate /ops screen.
+function ClinicHome() {
+  const { user } = useAuth();
+  if (!user) return null;
+  if (user.isPlatformAdmin) return <Navigate to="/admin/dashboard" replace />;
+  return <ClinicOpsDashboardPage />;
+}
+
 // Application route tree.
 // /login is public; everything under '/' is wrapped in RequireAuth and rendered
 // inside AppShell (permanent Drawer sidebar + AppBar topbar) via <Outlet />.
@@ -41,7 +51,7 @@ export const router = createBrowserRouter([
       </RequireAuth>
     ),
     children: [
-      { index: true, element: <DashboardPage /> },
+      { index: true, element: <ClinicHome /> },
       { path: 'patients', element: <PatientsPage /> },
       { path: 'patients/:id', element: <PatientRecordPage /> },
       { path: 'dental', element: <DentalPage /> },
@@ -64,7 +74,8 @@ export const router = createBrowserRouter([
       { path: 'reports', element: <ReportsPage /> },
       { path: 'integrations', element: <IntegrationsPage /> },
       { path: 'admin/dashboard', element: <PlatformDashboardPage /> },
-      { path: 'ops', element: <ClinicOpsDashboardPage /> },
+      // /ops kept as an alias for old bookmarks; the dashboard now lives at /.
+      { path: 'ops', element: <Navigate to="/" replace /> },
       { path: 'admin/tenants', element: <TenantsPage /> },
       // Unknown paths fall back to the dashboard.
       { path: '*', element: <Navigate to="/" replace /> },

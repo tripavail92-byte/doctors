@@ -52,15 +52,18 @@ Standard 401 / 403 (entitlement `crm.core`).
 
 ## Notes
 
-- **`Lead.source` normalization does not exist yet.** The `Lead` model has
-  a free-text `source` column populated inconsistently (WhatsApp webhook
-  writes `"whatsapp"`, the intake form writes `"website-form"`, manual
-  entry writes whatever staff typed). Grouping needs a normalized enum +
-  a backfill of historical rows. release-plan-v2 §4.11 flagged this as a
-  low-priority follow-up; until it lands the backend returns an empty
-  `rows: []` with `total: 0` and the widget shows the empty state on the
-  "By source" tab. The "By status" tab (`/crm/funnel`) works today because
-  `Lead.status` is a real enum.
-- Do NOT invent source counts server-side to fill the widget — an empty
-  honest state beats a fabricated funnel that a clinic owner would trust
-  for ad-spend decisions.
+- **Implemented** in `src/dashboard/dashboard.service.ts` (`leadSources`).
+  `Lead.source` is a free-text column populated inconsistently by several
+  writers (WhatsApp webhook writes `"whatsapp"`, the intake form writes
+  `"website-form"`, manual entry writes whatever staff typed). The service
+  normalizes the common spellings into the channel buckets above
+  (`normalizeSource`); anything unrecognized falls into `OTHER`. No schema
+  change or historical backfill was needed — grouping happens at read time.
+- `deltaPct` is currently `null` for every row (no per-source historical
+  baseline is computed yet).
+- `conversionRatePct` is `100 * CONVERTED-status leads / total` for the
+  window. There is no "consultation booked" event model, so CONVERTED is
+  the honest proxy for the funnel's conversion figure — not the literal
+  "consultations booked / total" the reference implies.
+- Source counts are never fabricated to fill the widget — an empty honest
+  state beats a made-up funnel a clinic owner would trust for ad spend.
