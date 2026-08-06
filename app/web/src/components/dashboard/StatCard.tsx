@@ -18,6 +18,7 @@ import type { SvgIconComponent } from '@mui/icons-material';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import RemoveIcon from '@mui/icons-material/Remove';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { Box, Card, CardContent, Skeleton, Stack, Typography, useTheme } from '@mui/material';
 
 export interface StatCardProps {
@@ -34,6 +35,9 @@ export interface StatCardProps {
   loading?: boolean;
   /** If set, replaces the value+delta with a one-line error message. */
   error?: string | null;
+  /** Plan boundary: the clinic's edition doesn't include this metric. Shown as
+   *  a calm "not in plan" note, not an error. Takes precedence over `error`. */
+  notInPlan?: boolean;
 }
 
 const ACCENT_BG: Record<NonNullable<StatCardProps['accent']>, string> = {
@@ -52,6 +56,7 @@ export default function StatCard({
   accent = 'primary',
   loading = false,
   error = null,
+  notInPlan = false,
 }: StatCardProps) {
   return (
     <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 3, height: '100%' }}>
@@ -82,6 +87,11 @@ export default function StatCard({
               <Skeleton variant="text" width="60%" height={40} />
               <Skeleton variant="text" width="80%" height={20} sx={{ mt: 0.5 }} />
             </>
+          ) : notInPlan ? (
+            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ color: 'text.secondary' }}>
+              <LockOutlinedIcon fontSize="small" />
+              <Typography variant="body2">Not in your plan</Typography>
+            </Stack>
           ) : error ? (
             <Typography variant="body2" color="error.main">
               {error}

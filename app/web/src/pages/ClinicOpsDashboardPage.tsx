@@ -55,6 +55,7 @@ import WidgetBoundary from '../components/dashboard/WidgetBoundary';
 import { RoomSessionBoard } from '../components/dashboard/RoomSessionBoard';
 import { LeadFunnelChart, type FunnelBar } from '../components/dashboard/LeadFunnelChart';
 import { PersonAvatar } from '../components/dashboard/PersonAvatar';
+import { PlanNotIncluded } from '../components/dashboard/PlanNotIncluded';
 import type {
   AppointmentsTodayResponse,
   CrmFunnel,
@@ -90,38 +91,62 @@ export default function ClinicOpsDashboardPage() {
   const [revPeriod, setRevPeriod] = useState<RevenuePeriod>('this-month');
   const [funnelView, setFunnelView] = useState<FunnelView>('source');
 
+  // Every widget silences plan-boundary 403s from the page-level error banner
+  // and renders its own quiet "not in your plan" state instead — this is the
+  // landing page, so a feature the clinic's edition lacks must not look broken.
+  const SILENCE = { silencePlanErrors: true };
+
   const today = useApi<DashboardToday>(
     () => apiClient.get<DashboardToday>('/dashboard/today').then((r) => r.data),
+    [],
+    SILENCE,
   );
   const appts = useApi<AppointmentsTodayResponse>(
     () => apiClient.get<AppointmentsTodayResponse>('/dashboard/appointments-today').then((r) => r.data),
+    [],
+    SILENCE,
   );
   const sessions = useApi<SessionsInProgressResponse>(
     () => apiClient.get<SessionsInProgressResponse>('/dashboard/sessions-in-progress').then((r) => r.data),
+    [],
+    SILENCE,
   );
   const recent = useApi<RecentEncountersResponse>(
     () => apiClient.get<RecentEncountersResponse>('/dashboard/recent-encounters', { params: { limit: 5 } }).then((r) => r.data),
+    [],
+    SILENCE,
   );
   const revenue = useApi<RevenueSplit>(
     () => apiClient.get<RevenueSplit>('/dashboard/revenue-split', { params: { period: revPeriod } }).then((r) => r.data),
     [revPeriod],
+    SILENCE,
   );
   const stock = useApi<StockAlertsResponse>(
     () => apiClient.get<StockAlertsResponse>('/dashboard/stock-alerts').then((r) => r.data),
+    [],
+    SILENCE,
   );
   const earnings = useApi<DoctorEarningsResponse>(
     () => apiClient.get<DoctorEarningsResponse>('/dashboard/doctor-earnings', { params: { period: 'today' } }).then((r) => r.data),
+    [],
+    SILENCE,
   );
   const queue = useApi<QueueResponse>(
     () => apiClient.get<QueueResponse>('/dashboard/patient-queue').then((r) => r.data),
+    [],
+    SILENCE,
   );
   // "By status" funnel uses the pre-existing /crm/funnel endpoint; "by source"
   // uses the new dashboard endpoint.
   const funnel = useApi<CrmFunnel>(
     () => apiClient.get<CrmFunnel>('/crm/funnel').then((r) => r.data),
+    [],
+    SILENCE,
   );
   const leadSources = useApi<LeadSourcesResponse>(
     () => apiClient.get<LeadSourcesResponse>('/dashboard/lead-sources', { params: { period: 'this-month' } }).then((r) => r.data),
+    [],
+    SILENCE,
   );
 
   const revBuckets = useMemo(() => {
@@ -199,6 +224,7 @@ export default function ClinicOpsDashboardPage() {
               accent="primary"
               loading={today.loading}
               error={today.error}
+              notInPlan={today.kind === 'plan'}
               value={today.data ? NUM(today.data.appointmentsToday.count) : null}
               deltaPct={today.data?.appointmentsToday.deltaPct}
               compareLabel="vs yesterday"
@@ -213,6 +239,7 @@ export default function ClinicOpsDashboardPage() {
               accent="success"
               loading={today.loading}
               error={today.error}
+              notInPlan={today.kind === 'plan'}
               value={today.data ? NUM(today.data.activePatients.count) : null}
               deltaPct={today.data?.activePatients.deltaPct}
               compareLabel="last 90 days"
@@ -227,6 +254,7 @@ export default function ClinicOpsDashboardPage() {
               accent="warning"
               loading={today.loading}
               error={today.error}
+              notInPlan={today.kind === 'plan'}
               value={today.data ? PKR(today.data.revenueThisMonth.pkr) : null}
               deltaPct={today.data?.revenueThisMonth.deltaPct}
               compareLabel="vs last month"
@@ -241,6 +269,7 @@ export default function ClinicOpsDashboardPage() {
               accent="info"
               loading={today.loading}
               error={today.error}
+              notInPlan={today.kind === 'plan'}
               value={today.data ? PKR(today.data.outstandingBalance.pkr) : null}
               deltaPct={today.data?.outstandingBalance.deltaPct}
               compareLabel="vs last month"
@@ -254,7 +283,11 @@ export default function ClinicOpsDashboardPage() {
         <Grid item xs={12} lg={7}>
           <WidgetBoundary label="Today's Schedule">
             <SectionCard title="Today's Schedule" action={<Button size="small">View calendar</Button>}>
-              <AppointmentsTable data={appts.data} loading={appts.loading} error={appts.error} />
+              {appts.kind === 'plan' ? (
+                <PlanNotIncluded feature="Appointment scheduling" />
+              ) : (
+                <AppointmentsTable data={appts.data} loading={appts.loading} error={appts.error} />
+              )}
             </SectionCard>
           </WidgetBoundary>
         </Grid>
@@ -263,7 +296,11 @@ export default function ClinicOpsDashboardPage() {
             <SectionCard title="Sessions in Progress" action={
               <Chip size="small" label={`${sessions.data?.rooms.filter(r => r.session).length ?? 0} active`} color="primary" variant="outlined" />
             }>
-              <RoomSessionBoard rooms={sessions.data?.rooms} loading={sessions.loading} error={sessions.error} />
+              {sessions.kind === 'plan' ? (
+                <PlanNotIncluded feature="Treatment sessions" />
+              ) : (
+                <RoomSessionBoard rooms={sessions.data?.rooms} loading={sessions.loading} error={sessions.error} />
+              )}
             </SectionCard>
           </WidgetBoundary>
         </Grid>
@@ -274,14 +311,20 @@ export default function ClinicOpsDashboardPage() {
         <Grid item xs={12} lg={7}>
           <WidgetBoundary label="Recent Consultations">
             <SectionCard title="Recent Consultations">
-              <EncountersList rows={recent.data?.rows} loading={recent.loading} error={recent.error} />
+              {recent.kind === 'plan' ? (
+                <PlanNotIncluded feature="Encounters & notes" />
+              ) : (
+                <EncountersList rows={recent.data?.rows} loading={recent.loading} error={recent.error} />
+              )}
             </SectionCard>
           </WidgetBoundary>
         </Grid>
         <Grid item xs={12} lg={5}>
           <WidgetBoundary label="Revenue Split">
             <SectionCard title="Revenue Split" action={<RevenuePeriodSelector value={revPeriod} onChange={setRevPeriod} />}>
-              {revenue.loading ? (
+              {revenue.kind === 'plan' ? (
+                <PlanNotIncluded feature="Reporting & analytics" />
+              ) : revenue.loading ? (
                 <Skeleton variant="circular" width={220} height={220} sx={{ mx: 'auto' }} />
               ) : revenue.error ? (
                 <Alert severity="error">{revenue.error}</Alert>
@@ -317,14 +360,22 @@ export default function ClinicOpsDashboardPage() {
             <SectionCard title="Stock Alerts" action={
               <Chip icon={<WarningAmberIcon />} size="small" label={`${stock.data?.rows.length ?? 0}`} color="warning" variant="outlined" />
             }>
-              <StockAlertList rows={stock.data?.rows} loading={stock.loading} error={stock.error} />
+              {stock.kind === 'plan' ? (
+                <PlanNotIncluded feature="Consumables & pharmacy" />
+              ) : (
+                <StockAlertList rows={stock.data?.rows} loading={stock.loading} error={stock.error} />
+              )}
             </SectionCard>
           </WidgetBoundary>
         </Grid>
         <Grid item xs={12} md={6} lg={4}>
           <WidgetBoundary label="Doctor Earnings Today">
             <SectionCard title="Doctor Earnings Today">
-              <DoctorEarningsList rows={earnings.data?.rows} loading={earnings.loading} error={earnings.error} />
+              {earnings.kind === 'plan' ? (
+                <PlanNotIncluded feature="Reporting & analytics" />
+              ) : (
+                <DoctorEarningsList rows={earnings.data?.rows} loading={earnings.loading} error={earnings.error} />
+              )}
             </SectionCard>
           </WidgetBoundary>
         </Grid>
@@ -344,18 +395,22 @@ export default function ClinicOpsDashboardPage() {
                 </ToggleButtonGroup>
               }
             >
-              <LeadFunnelChart
-                bars={funnelBars}
-                total={funnelTotal}
-                footerLabel={funnelFooter}
-                loading={funnelActive.loading}
-                error={funnelActive.error}
-                emptyMessage={
-                  funnelView === 'source'
-                    ? 'No lead sources yet. Source tracking activates once WhatsApp and web intake are wired.'
-                    : 'No leads yet. Capture the first from WhatsApp or the website intake form.'
-                }
-              />
+              {funnelActive.kind === 'plan' ? (
+                <PlanNotIncluded feature="CRM / marketing" />
+              ) : (
+                <LeadFunnelChart
+                  bars={funnelBars}
+                  total={funnelTotal}
+                  footerLabel={funnelFooter}
+                  loading={funnelActive.loading}
+                  error={funnelActive.error}
+                  emptyMessage={
+                    funnelView === 'source'
+                      ? 'No lead sources yet. Source tracking activates once WhatsApp and web intake are wired.'
+                      : 'No leads yet. Capture the first from WhatsApp or the website intake form.'
+                  }
+                />
+              )}
             </SectionCard>
           </WidgetBoundary>
         </Grid>
@@ -370,7 +425,11 @@ export default function ClinicOpsDashboardPage() {
                 As of {queue.data ? time(queue.data.asOf) : '—'}
               </Typography>
             }>
-              <PatientQueueGrid rows={queue.data?.rows} loading={queue.loading} error={queue.error} />
+              {queue.kind === 'plan' ? (
+                <PlanNotIncluded feature="Appointment scheduling" />
+              ) : (
+                <PatientQueueGrid rows={queue.data?.rows} loading={queue.loading} error={queue.error} />
+              )}
             </SectionCard>
           </WidgetBoundary>
         </Grid>

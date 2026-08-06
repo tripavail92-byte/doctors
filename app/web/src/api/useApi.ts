@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useState } from 'react';
+import type { ForbiddenKind } from './fetchErrors';
 import { clearFetchError, describeError, reportFetchError } from './fetchErrors';
 
 interface ApiState<T> {
@@ -11,7 +12,26 @@ interface ApiState<T> {
    * a fault, because those ask the reader to do different things.
    */
   status?: number;
+  /**
+   * For a 403, whether it was a plan boundary ('plan') or a permission denial
+   * ('role'). Lets a caller render a plan-gated widget as "not in your plan"
+   * rather than an error. Undefined when there is no 403.
+   */
+  kind?: ForbiddenKind;
   reload: () => void;
+}
+
+export interface UseApiOptions {
+  /**
+   * When true, a plan-boundary 403 ("Feature not enabled: …") is NOT pushed to
+   * the shared fetch-error banner — the caller is expected to render its own
+   * quiet "not in your plan" state inline. Faults (5xx), permission 403s, and
+   * unreachable-server errors still register globally.
+   *
+   * This exists for the ops dashboard, which is the landing page: a widget the
+   * clinic's edition doesn't include must not raise a page-level error banner.
+   */
+  silencePlanErrors?: boolean;
 }
 
 /**
@@ -28,11 +48,16 @@ interface ApiState<T> {
  * its author never checks `error`. Pages should still handle `error` for good
  * in-context messaging — this is the floor, not the ceiling.
  */
-export function useApi<T>(fetcher: () => Promise<T>, deps: unknown[] = []): ApiState<T> {
+export function useApi<T>(
+  fetcher: () => Promise<T>,
+  deps: unknown[] = [],
+  opts: UseApiOptions = {},
+): ApiState<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<number | undefined>(undefined);
+  const [kind, setKind] = useState<ForbiddenKind | undefined>(undefined);
   const [tick, setTick] = useState(0);
   // Stable per-hook-instance key, so a call that keeps failing shows once rather
   // than stacking, and clears the moment it succeeds.
@@ -45,6 +70,7 @@ export function useApi<T>(fetcher: () => Promise<T>, deps: unknown[] = []): ApiS
     setLoading(true);
     setError(null);
     setStatus(undefined);
+    setKind(undefined);
     // CLEAR THE PREVIOUS ANSWER before fetching the next one.
     //
     // Without this, `data` held the OLD subject's result while the new request
@@ -68,10 +94,15 @@ export function useApi<T>(fetcher: () => Promise<T>, deps: unknown[] = []): ApiS
       })
       .catch((err) => {
         if (!active) return;
-        const { message, status: httpStatus, kind } = describeError(err);
+        const { message, status: httpStatus, kind: errKind } = describeError(err);
         setError(message);
         setStatus(httpStatus);
-        reportFetchError({ key, message, status: httpStatus, kind });
+        setKind(errKind);
+        // A plan-boundary 403 on a widget that opted out is rendered inline by
+        // the caller, so it must not also raise the page-level banner.
+        if (!(opts.silencePlanErrors && errKind === 'plan')) {
+          reportFetchError({ key, message, status: httpStatus, kind: errKind });
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -85,7 +116,7 @@ export function useApi<T>(fetcher: () => Promise<T>, deps: unknown[] = []): ApiS
   // Leaving the page must not leave its failure on screen.
   useEffect(() => () => clearFetchError(key), [key]);
 
-  return { data, loading, error, status, reload };
+  return { data, loading, error, status, kind, reload };
 }
 
 /** Format an integer PKR amount as e.g. "PKR 118,840". */
