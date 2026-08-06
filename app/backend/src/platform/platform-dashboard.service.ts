@@ -75,22 +75,17 @@ export class PlatformDashboardService {
       where: { createdAt: { lte: previous.to }, status: TenantStatus.ACTIVE },
     });
 
-    // ----- Active subscriptions — a subscription is "active during period
-    // end" if status = ACTIVE and currentPeriodEnd is after that instant.
-    const subCurrent = await this.prisma.subscription.count({
-      where: { status: 'ACTIVE', currentPeriodEnd: { gte: current.to } },
-    });
-    const subPrevious = await this.prisma.subscription.count({
-      where: { status: 'ACTIVE', currentPeriodEnd: { gte: previous.to } },
-    });
-
-    // ----- MRR — sum(Plan.pricePkr) for every ACTIVE subscription whose
-    // period end is after "now" (for current) or previous.to (for previous).
-    // Plan is joined via subscription.planId.
-    const [mrrCurrent, mrrPrevious] = await Promise.all([
-      this.mrrAt(current.to),
-      this.mrrAt(previous.to),
-    ]);
+    // ----- Active subscriptions and MRR
+    //
+    // Subscription is under RLS (tenantId column, tenant_isolation policy).
+    // Same trap as everything else — naked count on the base client returns
+    // zero. check-rls-coverage caught this on the way in. Aggregated over
+    // ACTIVE tenants via forTenant() for both the "as of period end" count
+    // and the MRR pricing pass.
+    const [subCurrent, mrrCurrent, subPrevious, mrrPrevious] = await this.subscriptionsAndMrrAt(
+      current.to,
+      previous.to,
+    );
 
     return {
       period: { from: iso(current.from), to: iso(current.to) },
@@ -133,23 +128,76 @@ export class PlatformDashboardService {
     return orgs.size;
   }
 
-  /** Monthly recurring revenue as of a point in time, in whole PKR. */
-  private async mrrAt(asOf: Date): Promise<number> {
-    // A single grouped query keyed by planId. Prisma's aggregate cannot join
-    // to plan.pricePkr directly, so fetch the (planId, count) pairs and price
-    // them against the plans table.
-    const rows = await this.prisma.subscription.groupBy({
-      by: ['planId'],
-      where: { status: 'ACTIVE', currentPeriodEnd: { gte: asOf } },
-      _count: { _all: true },
+  /**
+   * Subscription count + MRR (whole PKR) as of two points in time.
+   *
+   * Returns [countAtA, mrrAtA, countAtB, mrrAtB] so the caller gets both
+   * period ends from one pass over the tenants. Reads Subscription rows
+   * through forTenant() — Subscription carries the tenant_isolation RLS
+   * policy and a naked query on the base client returns zero.
+   *
+   * Plan is NOT tenant-scoped (rls.sql leaves it policy-less — plans are
+   * global), so it can be joined once on the base client.
+   */
+  private async subscriptionsAndMrrAt(
+    a: Date,
+    b: Date,
+  ): Promise<[number, number, number, number]> {
+    const activeTenants = await this.prisma.tenant.findMany({
+      where: { status: TenantStatus.ACTIVE },
+      select: { id: true },
     });
-    if (rows.length === 0) return 0;
-    const plans = await this.prisma.plan.findMany({
-      where: { id: { in: rows.map((r) => r.planId) } },
-      select: { id: true, pricePkr: true },
-    });
-    const priceById = new Map(plans.map((p) => [p.id, p.pricePkr]));
-    return rows.reduce((total, r) => total + r._count._all * (priceById.get(r.planId) ?? 0), 0);
+
+    // Collect (planId, count) pairs at each cutoff across every tenant.
+    // Aggregating in JS is negligible at N = dozens of tenants; when N
+    // grows past a few hundred this becomes a SECURITY DEFINER aggregate.
+    let countA = 0;
+    let countB = 0;
+    const planCountA = new Map<string, number>();
+    const planCountB = new Map<string, number>();
+
+    await Promise.all(
+      activeTenants.map(async (t) => {
+        try {
+          const subs = await this.prisma.forTenant(t.id, (tx) =>
+            tx.subscription.findMany({
+              where: { status: 'ACTIVE' },
+              select: { planId: true, currentPeriodEnd: true },
+            }),
+          );
+          for (const s of subs) {
+            if (s.currentPeriodEnd >= a) {
+              countA += 1;
+              planCountA.set(s.planId, (planCountA.get(s.planId) ?? 0) + 1);
+            }
+            if (s.currentPeriodEnd >= b) {
+              countB += 1;
+              planCountB.set(s.planId, (planCountB.get(s.planId) ?? 0) + 1);
+            }
+          }
+        } catch (e) {
+          this.logger.warn(
+            `subscriptionsAndMrrAt: failed for tenant ${t.id}: ${(e as Error).message}`,
+          );
+        }
+      }),
+    );
+
+    // Price the counts against Plan.pricePkr. Plan has no RLS.
+    const allPlanIds = new Set([...planCountA.keys(), ...planCountB.keys()]);
+    let mrrA = 0;
+    let mrrB = 0;
+    if (allPlanIds.size > 0) {
+      const plans = await this.prisma.plan.findMany({
+        where: { id: { in: [...allPlanIds] } },
+        select: { id: true, pricePkr: true },
+      });
+      const priceById = new Map(plans.map((p) => [p.id, p.pricePkr]));
+      for (const [planId, n] of planCountA) mrrA += n * (priceById.get(planId) ?? 0);
+      for (const [planId, n] of planCountB) mrrB += n * (priceById.get(planId) ?? 0);
+    }
+
+    return [countA, mrrA, countB, mrrB];
   }
 
   // ---------------------------------------------------------------------------

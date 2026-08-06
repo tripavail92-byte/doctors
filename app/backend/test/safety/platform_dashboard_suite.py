@@ -123,6 +123,18 @@ if isinstance(body, dict):
        isinstance(c.get('count'), int) and c['count'] > 0,
        f'value={c.get("count")}')
 
+    # The seed creates one Subscription for Glow Derma. If activeSubs.count
+    # reads 0 we are back in the "structurally-always-zero" trap.
+    s_active = body.get('activeSubs') or {}
+    ck('activeSubs.count > 0 on a seeded platform (seed creates one for glow-derma)',
+       isinstance(s_active.get('count'), int) and s_active['count'] > 0,
+       f'value={s_active.get("count")}')
+
+    # And its MRR must therefore be non-zero. Same trap otherwise.
+    ck('mrr.pkr > 0 when at least one active subscription exists',
+       isinstance(mrr.get('pkr'), int) and mrr['pkr'] > 0,
+       f'value={mrr.get("pkr")}')
+
     mrr = body.get('mrr') or {}
     ck('mrr.pkr is a whole integer of rupees', isinstance(mrr.get('pkr'), int) and mrr['pkr'] >= 0,
        f'value={mrr.get("pkr")}')
