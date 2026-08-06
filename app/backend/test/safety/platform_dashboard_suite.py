@@ -130,13 +130,13 @@ if isinstance(body, dict):
        isinstance(s_active.get('count'), int) and s_active['count'] > 0,
        f'value={s_active.get("count")}')
 
+    mrr = body.get('mrr') or {}
+    ck('mrr.pkr is a whole integer of rupees', isinstance(mrr.get('pkr'), int) and mrr['pkr'] >= 0,
+       f'value={mrr.get("pkr")}')
+
     # And its MRR must therefore be non-zero. Same trap otherwise.
     ck('mrr.pkr > 0 when at least one active subscription exists',
        isinstance(mrr.get('pkr'), int) and mrr['pkr'] > 0,
-       f'value={mrr.get("pkr")}')
-
-    mrr = body.get('mrr') or {}
-    ck('mrr.pkr is a whole integer of rupees', isinstance(mrr.get('pkr'), int) and mrr['pkr'] >= 0,
        f'value={mrr.get("pkr")}')
 
     for key in ('organizations', 'clinics', 'activeSubs'):
